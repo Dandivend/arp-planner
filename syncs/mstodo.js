@@ -170,6 +170,17 @@ function applyTodo(todo, t, m) {
 
 const isChoreList = name => (name || "").toLowerCase().includes("chore");
 
+// How often a repeating to-do comes back ("monthly", "every 2 weeks"); null if it doesn't.
+function repeatLabel(rec) {
+  const p = rec && rec.pattern;
+  if (!p) return null;
+  const unit = { daily: "day", weekly: "week", absoluteMonthly: "month", relativeMonthly: "month",
+    absoluteYearly: "year", relativeYearly: "year" }[p.type];
+  const n = p.interval || 1;
+  if (!unit) return "repeats";
+  return n > 1 ? `every ${n} ${unit}s` : { day: "daily", week: "weekly", month: "monthly", year: "yearly" }[unit];
+}
+
 function newTaskFromTodo(todo, listId, imported, chore = false) {
   const now = new Date().toISOString();
   const hex = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -179,6 +190,7 @@ function newTaskFromTodo(todo, listId, imported, chore = false) {
     workout: null, createdAt: now, updatedAt: now, deleted: false, external: {},
   };
   const m = { listId, taskId: todo.id, updated: todo.lastModifiedDateTime, imported, shaped: true };
+  if (repeatLabel(todo.recurrence)) m.repeats = repeatLabel(todo.recurrence);
   applyTodo(todo, t, m);
   return [t, m];
 }
@@ -380,6 +392,11 @@ const PhoneMS = {
   // Bring one linked task and its to-do into line (the planner wins a tie), like mstodo._settle.
   async settle(t, todo, listId, stats, touch, taskUrl, changedThere) {
     const m = t.external.microsoft;
+    const rep = repeatLabel(todo.recurrence);
+    if ((m.repeats || null) !== rep) {                   // so the planner can offer "Catch up" on a missed one
+      if (rep) m.repeats = rep; else delete m.repeats;
+      touch(t);
+    }
     const out = notesOut(t);
     if (out !== (t.notes || "")) { t.notes = out; touch(t); }
     if ((await todoHash(t)) !== m.hash) {

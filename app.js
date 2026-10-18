@@ -132,6 +132,8 @@ function minutesLeft(t) {
   if (t.minutes) return Math.max(t.minutes - doneMin, openMin, 0);
   return openMin || null;
 }
+// No time yet: no length at all, or a step still waiting for its time.
+const needsTime = t => minutesLeft(t) === null || (t.steps || []).some(s => !s.done && !s.minutes);
 // Short label like "1½ hr" or "1½ hr left" when some of it is done already.
 function lengthLabel(t, fmt = formatMinutes) {
   const left = minutesLeft(t);
@@ -417,7 +419,7 @@ function renderFreeTimer() {
   const chaos = chaosFor(day, ft);
   const shown = ft.past ? 0 : chaos.pct;
   renderChaosFlask(shown);
-  renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && minutesLeft(t) === null), shown);
+  renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const note = $("chaos-note");
@@ -838,6 +840,7 @@ function taskRow(t, isNext) {
   if (!t.dueDate && level === "optional" && !t.done) chips.push(["chip opt", "Optional"]);
   if (mindLowBodyOk(day) && moodBoostScore(t) >= 2) chips.push(["chip mood", "💛 Mood boost"]);
   else if (annoyedDay(day) && burnOffScore(t, day) >= 2) chips.push(["chip mood", "🔥 Burns it off"]);
+  if (t.done && t.skipped) chips.push(["chip opt", "⏭️ Skipped (caught up)"]);
   const g = t.external && t.external.google;
   if (g && g.imported) chips.push(["chip gcal", "📆 Google"]);
   if (isTodo(t)) chips.push(["chip mstodo", "✔️ " + todoListName(t)]);
@@ -912,6 +915,7 @@ function taskRow(t, isNext) {
   if (kindOf(t) === "workout" && !t.done) action("icon-btn", "🔄", "Change workout", () => openSwap(t));
   if (!t.done && !isWorkShift(t) && (["chore", "task"].includes(kindOf(t)) || isTodo(t))) {
     action("move-btn next-day", "😴 Next day's problem", "Move this to the next day", () => nextDaysProblem(t));
+    action("move-btn next-day", "📅 Pick a day", "Move this to a day you pick", () => pickDayFor(t));
   }
   action("icon-btn trash", "🗑️", "Delete this task", () => deleteTask(t, li));
   li.appendChild(actions);
@@ -1084,6 +1088,28 @@ function nextDaysProblem(t) {
   persist({ ...t, date: next });
   const when = next === addDays(todayKey(), 1) ? "tomorrow" : fromKey(next).toLocaleDateString(undefined, { weekday: "long" });
   showToast(`😴 "${t.title}" is ${when}'s problem now.`, "Undo", () => persist(before));
+}
+
+// "Pick a day": the phone's own date picker, then move it there.
+function pickDayFor(t) {
+  document.querySelectorAll(".pick-day-input").forEach(x => x.remove());
+  const input = document.createElement("input");
+  input.type = "date";
+  input.className = "pick-day-input";
+  input.min = todayKey();
+  input.value = t.date && t.date > todayKey() ? addDays(t.date, 1) : addDays(todayKey(), 1);
+  document.body.appendChild(input);
+  input.addEventListener("change", () => {
+    const day = input.value;
+    input.remove();
+    if (!day || day === t.date) return;
+    const before = { ...t };
+    persist({ ...t, date: day });
+    const when = day === todayKey() ? "today" : day === addDays(todayKey(), 1) ? "tomorrow"
+      : fromKey(day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+    showToast(`📅 "${t.title}" moved to ${when}.`, "Undo", () => persist(before));
+  });
+  try { input.showPicker(); } catch { input.focus(); input.click(); }
 }
 
 // Set a task row on fire: flames lick up, it chars, crumbles to ash and is gone.

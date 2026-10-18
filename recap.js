@@ -49,9 +49,9 @@ function renderRecap() {
   $("recap-next").disabled = range.end >= tk;
 
   const live = tasks.filter(t => !t.deleted);
-  const done = live.filter(t => t.done && inRange(t.doneDate || t.date));
+  const done = live.filter(t => t.done && !t.skipped && inRange(t.doneDate || t.date));
   const due = live.filter(t => { const d = t.dueDate || t.date; return inRange(d) && d <= tk; });
-  const dueDone = due.filter(t => t.done).length;
+  const dueDone = due.filter(t => t.done && !t.skipped).length;
   const chores = done.filter(t => kindOf(t) === "chore");
   const choreMin = chores.reduce((s, t) => s + (t.minutes || 15), 0);
   const important = done.filter(t => t.dueDate || t.priority === "important").length;

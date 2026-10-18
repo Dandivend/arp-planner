@@ -17,6 +17,33 @@ function planTodo(t, day) {
   if (day) showToast(`📅 "${t.title}" is now on ${day === todayKey() ? "today" : shortDay(day)}.`);
 }
 
+// A repeating to-do that's overdue can be caught up: the missed one is marked done (skipped) in
+// To Do, which brings in the next one on its usual schedule (next month's for a monthly one).
+const repeatsOf = t => (t.external && t.external.microsoft && t.external.microsoft.repeats) || null;
+const canCatchUp = t => !t.done && !!repeatsOf(t) && !!t.date && t.date < todayKey();
+
+function catchUpButton(t) {
+  const b = el("button", "move-btn catch-up", "⏭️ Catch up");
+  b.title = `Skip the missed one. The next ${repeatsOf(t)} one comes in from To Do.`;
+  b.addEventListener("click", e => {
+    e.stopPropagation();
+    if (!b.dataset.armed) {                 // two taps, so a stray tap can't skip it
+      b.dataset.armed = "1";
+      b.textContent = "⏭️ Tap again to skip it";
+      setTimeout(() => { delete b.dataset.armed; b.textContent = "⏭️ Catch up"; }, 4000);
+      return;
+    }
+    catchUpTodo(t);
+  });
+  return b;
+}
+
+async function catchUpTodo(t) {
+  await persist({ ...t, done: true, doneDate: todayKey(), skipped: true });
+  showToast(`⏭️ Caught up on "${t.title}". The next one (${repeatsOf(t)}) comes in from To Do in a moment.`);
+  syncMicrosoft(false);
+}
+
 // ---------- To Do tab ----------
 function renderTodo() {
   const box = $("todo-body");
@@ -126,6 +153,7 @@ function todoRow(t) {
   }
   if (!t.done) {
     const actions = li.querySelector(".row-actions");
+    if (canCatchUp(t)) actions.prepend(catchUpButton(t));
     if (t.date !== tk) {
       const today = el("button", "move-btn", "→ Today");
       today.title = "Do it today";
@@ -184,11 +212,17 @@ function fillFitIn() {
         meta.append(" · ", el("b", fits ? "fits-yes" : "fits-no", fits ? "✅ fits" : "too long for the time left"));
       }
     }
+    if (repeatsOf(t)) meta.append(` · 🔁 ${repeatsOf(t)}`);
     if (t.date) meta.append(" · ", el("b", "todo-late-text", `overdue since ${shortDay(t.date)}`));
     text.appendChild(meta);
     const add = el("button", "move-btn", `+ Add to ${dayName}`);
     add.addEventListener("click", () => planTodo(t, day));
-    li.append(text, add);
+    li.append(text);
+    if (canCatchUp(t)) {
+      const btns = el("div", "fitin-btns");
+      btns.append(catchUpButton(t), add);
+      li.append(btns);
+    } else li.append(add);
     ul.appendChild(li);
   }
   const more = $("fitin-more");

@@ -418,7 +418,10 @@ main:has(#home-view:not([hidden])) { max-width: 1180px; }
 .task.finishing .check-btn { animation: pop .35s ease-out; }
 .task .time { flex: none; width: 92px; font-weight: 700; color: var(--accent); padding-top: 4px; }
 .task .time.anytime { color: var(--muted); font-weight: 600; }
-.task .body { flex: 1; min-width: 0; padding-top: 3px; }
+.task .body { flex: 1 1 220px; min-width: 0; padding-top: 3px; }
+/* Narrow screens: the buttons drop under the task instead of squeezing its title. */
+.task { flex-wrap: wrap; }
+.task .row-actions { flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
 .task .title { font-size: 20px; font-weight: 600; word-wrap: break-word; }
 .task .notes { color: var(--muted); font-size: 16px; white-space: pre-wrap; margin-top: 2px; }
 .task .next-pill {
@@ -1303,6 +1306,11 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .step input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
 .step.done { color: var(--muted); text-decoration: line-through; }
 .move-btn.next-day { white-space: nowrap; }
+/* The hidden date box behind "Pick a day" (only its picker shows). */
+.pick-day-input { position: fixed; left: 50%; top: 40%; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; }
+.move-btn.catch-up { white-space: nowrap; }
+.move-btn.catch-up[data-armed] { border-color: var(--accent); color: var(--accent); }
+.fitin-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
 /* PT test events, grouped like the Air Force test */
 #pt-events { flex-direction: column; align-items: stretch; }
