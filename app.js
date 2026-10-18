@@ -248,7 +248,10 @@ function planDay(day) {
   const heavyFirst = (a, b) => energy.level === "high" ? (effortOf(b) === "heavy") - (effortOf(a) === "heavy") : 0;
   // Body fine but heart low: movement and quick wins first, long sit-down tasks later.
   const mindLow = mindLowBodyOk(day);
-  const moodFirst = (a, b) => mindLow ? moodBoostScore(b) - moodBoostScore(a) : 0;
+  // Annoyed: physical jobs first, brain-heavy ones later.
+  const annoyed = !mindLow && annoyedDay(day);
+  const moodFirst = (a, b) => mindLow ? moodBoostScore(b) - moodBoostScore(a)
+    : annoyed ? burnOffScore(b, day) - burnOffScore(a, day) : 0;
   const timed = active.filter(t => t.time);
   const untimed = active.filter(t => !t.time);
   const chores = doneLast(spreadBrain(sortChores(untimed.filter(t => kindOf(t) === "chore")).sort((a, b) => moodFirst(a, b) || heavyFirst(a, b))));
@@ -259,7 +262,7 @@ function planDay(day) {
   const choreMinutes = chores.filter(t => !t.done).reduce((s, t) => s + (minutesLeft(t) ?? 15), 0);
   const summary = summaryText(day, timed.filter(t => !isWorkShift(t)), ofLevel("important"), ofLevel("normal").concat(workouts), chores, ofLevel("optional"), choreMinutes)
     + (held.length ? ` ${plural(held.length, "job")} can wait for a better day.` : "");
-  return { list, energy, held, active, timed, untimed, chores, workouts, ofLevel, choreMinutes, summary, mindLow, bats, brainOver,
+  return { list, energy, held, active, timed, untimed, chores, workouts, ofLevel, choreMinutes, summary, mindLow, annoyed, bats, brainOver,
     load: physicalMinutes(active), shift: workHoursFor(day), free: freeMinutes(day), planned: plannedMinutes(active, day) };
 }
 
@@ -328,12 +331,13 @@ function renderDay() {
     return;
   }
 
-  const movement = ["🏃", p.mindLow ? "Movement · good for your mood 💛" : "Movement", workouts, "s-workout"];
+  const moveFirst = p.mindLow || p.annoyed;
+  const movement = ["🏃", p.mindLow ? "Movement · good for your mood 💛" : p.annoyed ? "Movement · burns off the annoyed 🔥" : "Movement", workouts, "s-workout"];
   const sections = [
     ["📅", currentDay === tk ? "Today's schedule" : "Schedule", timed, "s-schedule"],
-    ...(p.mindLow ? [movement] : []),          // low mood, able body: move first
+    ...(moveFirst ? [movement] : []),          // low mood or annoyed: move first
     ["🔥", "Important", ofLevel("important"), "s-important"],
-    ...(p.mindLow ? [] : [movement]),
+    ...(moveFirst ? [] : [movement]),
     ["📝", "To do", ofLevel("normal"), "s-normal"],
     ["🧹", "Chores" + (choreMinutes ? ` · about ${formatMinutes(choreMinutes)}` : ""), chores, "s-chores"],
     ["🌿", "Optional", ofLevel("optional"), "s-optional"],
@@ -681,6 +685,13 @@ function renderSuggestions(p, recovery) {
       "movement and quick wins come first (both lift your mood), and long sit-down tasks wait until later. A walk outside counts!";
     box.appendChild(m);
   }
+  if (p.annoyed) {
+    const m = document.createElement("div");
+    m.className = "mood-mode";
+    m.textContent = "😤 Annoyed today, so your list is reordered: hands-on jobs and movement come first " +
+      "(they burn it off), and brain-heavy tasks wait until later. Your brain battery is a bit smaller today too.";
+    box.appendChild(m);
+  }
   if (recovery) box.appendChild(recoveryCard(recovery));
   if (p.brainOver && p.brainOver.length) box.appendChild(brainOverCard(p));
 
@@ -826,6 +837,7 @@ function taskRow(t, isNext) {
   if (!t.dueDate && level === "important" && !t.done) chips.push(["chip imp", "Important"]);
   if (!t.dueDate && level === "optional" && !t.done) chips.push(["chip opt", "Optional"]);
   if (mindLowBodyOk(day) && moodBoostScore(t) >= 2) chips.push(["chip mood", "💛 Mood boost"]);
+  else if (annoyedDay(day) && burnOffScore(t, day) >= 2) chips.push(["chip mood", "🔥 Burns it off"]);
   const g = t.external && t.external.google;
   if (g && g.imported) chips.push(["chip gcal", "📆 Google"]);
   if (isTodo(t)) chips.push(["chip mstodo", "✔️ " + todoListName(t)]);

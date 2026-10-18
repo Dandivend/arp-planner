@@ -20,7 +20,8 @@ function focusQueue(day) {
   try { held = new Set(planDay(day).held.map(t => t.id)); } catch {}
   const list = tasksFor(day).filter(t => !t.done && !isWorkShift(t) && kindOf(t) !== "event");
   const rank = t => (LEVEL_RANK[levelOf(t, day)] ?? 1) + (held.has(t.id) ? 3 : 0) + (brainTiming(t, day) ? 2 : 0);
-  list.sort((a, b) => rank(a) - rank(b) || (a.time || "99").localeCompare(b.time || "99") || byTime(a, b));
+  const annoyed = annoyedDay(day);
+  list.sort((a, b) => rank(a) - rank(b) || (annoyed ? burnOffScore(b, day) - burnOffScore(a, day) : 0) || (a.time || "99").localeCompare(b.time || "99") || byTime(a, b));
   const ordered = spreadBrain(list);
   const skipped = ordered.filter(t => focusSkipped.includes(t.id));
   return [...ordered.filter(t => !focusSkipped.includes(t.id)), ...skipped];

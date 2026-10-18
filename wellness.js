@@ -27,6 +27,12 @@ const FEELINGS = [
     "Do the must-dos, skip the could-dos, and get to bed early.",
     "Coffee is a band-aid, sleep is the cure. Plan an early night.",
   ] },
+  { id: "annoyed", emoji: "😤", label: "Annoyed", score: 2.5, lines: [
+    "Annoyed is allowed. Let's put that energy somewhere useful.",
+    "Hands busy, brain resting: the physical jobs go first today.",
+    "Burn it off: a brisk walk, loud music, a good scrub.",
+    "The fiddly thinking can wait until the fizz settles.",
+  ] },
   { id: "meh", emoji: "😕", label: "Meh", score: 2, lines: [
     "Go easy on yourself today. Optional stuff can wait.",
     "Meh days happen. One small win is plenty.",
@@ -327,7 +333,7 @@ function energyFor(day) {
     else if (c.cycleDay > len - 5) add(-0.5, "late luteal (PMS) days");
   }
   if (b) add({ energized: 1, good: 0.5, little_sore: -0.5, very_sore: -1.5, drained: -1.5, sick: -3 }[b.id], b.label.toLowerCase());
-  if (f) add({ great: 0.5, good: 0.25, okay: 0, tired: -1, meh: -0.5, rough: -1.5 }[f.id], f.id === "okay" ? null : "feeling " + f.label.toLowerCase());
+  if (f) add({ great: 0.5, good: 0.25, okay: 0, tired: -1, annoyed: -0.25, meh: -0.5, rough: -1.5 }[f.id], f.id === "okay" ? null : "feeling " + f.label.toLowerCase());
   // A short night (under 7 hours planned) costs energy.
   const slept = sleepHoursBefore(day);
   if (slept < 7) add(slept < 6 ? -0.75 : -0.4, `${Math.round(slept * 2) / 2} hr of sleep`);
@@ -454,7 +460,7 @@ function batteriesFor(day, list = tasksFor(day)) {
   const f = feelingOf(entry), b = bodyOf(entry), c = cycleInfo(day);
   const brain = { cap: BATTERY_FULL, why: [] }, body = { cap: BATTERY_FULL, why: [] };
   const scale = (bat, x, why) => { if (x && x !== 1) { bat.cap *= x; if (why && x < 1) bat.why.push(why); } };
-  if (f) scale(brain, { great: 1.1, good: 1.05, meh: 0.85, tired: 0.75, rough: 0.6 }[f.id], "feeling " + f.label.toLowerCase());
+  if (f) scale(brain, { great: 1.1, good: 1.05, meh: 0.85, tired: 0.75, annoyed: 0.8, rough: 0.6 }[f.id], "feeling " + f.label.toLowerCase());
   if (f && f.id === "tired") scale(body, 0.9, "feeling tired");
   if (b) scale(body, { energized: 1.15, good: 1.05, little_sore: 0.85, very_sore: 0.6, drained: 0.7, sick: 0.3 }[b.id], b.label.toLowerCase());
   if (b && (b.id === "drained" || b.id === "sick")) scale(brain, b.id === "sick" ? 0.6 : 0.8, b.label.toLowerCase());
@@ -582,7 +588,7 @@ function brainTiming(t, day) {
 // same load feels heavier, so the meter fills faster.
 const CHAOS_BOOST = {
   sick: [1.5, "you're sick"], drained: [1.4, "you're drained"], very_sore: [1.35, "you're very sore"],
-  tired: [1.3, "you're tired"], little_sore: [1.1, "you're a little sore"],
+  tired: [1.3, "you're tired"], annoyed: [1.15, "you're annoyed"], little_sore: [1.1, "you're a little sore"],
 };
 const CHAOS_LEVELS = [
   [25, "😌", "Calm"], [50, "🙂", "Busy"], [75, "😬", "Hectic"], [90, "🥵", "Frantic"], [101, "🤯", "Total chaos"],
@@ -625,6 +631,26 @@ function moodBoostScore(t) {
   if (k === "chore" && effortOf(t) !== "light") return 1;          // physical jobs clear the head
   if (k === "task" && mins >= 60 && effortOf(t) === "light") return -2;  // long sit-down thinking: later
   return 0;
+}
+
+// ---------- annoyed ----------
+// Annoyed: hard thinking is hard to settle into, but moving burns it off. Physical jobs
+// first, brain-heavy ones later. (A hurting body still gets no extra physical push.)
+function annoyedDay(day) {
+  const entry = moods[day] || {};
+  const f = feelingOf(entry);
+  return !!(f && f.id === "annoyed");
+}
+
+function burnOffScore(t, day) {
+  if (t.done || t.time) return 0;                                  // scheduled things stay put
+  const b = bodyOf(moods[day] || {});
+  const bodyOk = !b || ["energized", "good", "little_sore"].includes(b.id);
+  const k = kindOf(t), effort = effortOf(t);
+  let s = 0;
+  if (bodyOk && k === "workout") s += 3;                           // the best outlet there is
+  else if (bodyOk && (k === "chore" || effort !== "light")) s += effort === "light" ? 1 : 2;
+  return s - { light: 0, medium: 1, heavy: 2 }[brainOf(t)];        // thinking jobs: later
 }
 
 // ---------- recovery days ----------
