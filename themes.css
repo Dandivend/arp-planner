@@ -1,0 +1,145 @@
+/* Themes: light/dark mode + seasonal palettes. Set by themes.js on <html>:
+   data-mode="dark|light"  data-season="spring|summer|fall|winter|classic".
+   Screen only, so printing always uses the clean print layout. */
+
+@media screen {
+  /* ---------- Seasons (accent, second colour, background tint) ---------- */
+  :root[data-season] { --accent-soft: color-mix(in srgb, var(--accent) 15%, var(--card)); --season-2: var(--accent); }
+  :root[data-season="classic"] { --accent: #4fc1a6; --accent-ink: #0f2a24; --season-2: #d12d33; }
+  :root[data-season="spring"]  { --accent: #ee93b8; --accent-ink: #2a1020; --season-2: #8fd18a; --bg-glow: #261d28; }
+  :root[data-season="summer"]  { --accent: #f6bd45; --accent-ink: #2a1d05; --season-2: #3fc1d9; --bg-glow: #262317; }
+  :root[data-season="fall"]    { --accent: #ec8a42; --accent-ink: #2a1405; --season-2: #c0533a; --bg-glow: #281f18; }
+  :root[data-season="winter"]  { --accent: #86c8ff; --accent-ink: #0c1d2e; --season-2: #d4e4f7; --bg-glow: #1b2331; }
+
+  .brand { color: var(--accent); }
+  .topbar { border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, var(--accent), var(--season-2)) 1; }
+  .tab.active { background: var(--accent); color: var(--accent-ink); }
+  .add-btn, .idea-add { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+  .add-btn:hover { background: color-mix(in srgb, var(--accent) 24%, var(--card)); }
+  .chip-btn.on { background: var(--accent-soft); }
+
+  /* ---------- Light mode ---------- */
+  :root[data-mode="light"] {
+    color-scheme: light;
+    --bg: #f5f3ef; --bg-glow: #fffaf2; --card: #ffffff; --card-hover: #fbfaf7;
+    --ink: #24262b; --muted: #6a707b; --line: #e3ded6; --field: #ffffff;
+    --today: #d9822b; --today-ink: #8a4b0f; --today-soft: #fdf0df;
+    --danger: #c94040; --danger-soft: #fbeaea; --done: #9aa0a8;
+  }
+  :root[data-mode="light"][data-season="classic"] { --accent: #1f8f78; --accent-ink: #fff; }
+  :root[data-mode="light"][data-season="spring"]  { --accent: #d4568f; --accent-ink: #fff; --bg-glow: #fff1f7; }
+  :root[data-mode="light"][data-season="summer"]  { --accent: #d99000; --accent-ink: #fff; --bg-glow: #fff7e2; }
+  :root[data-mode="light"][data-season="fall"]    { --accent: #c9621b; --accent-ink: #fff; --bg-glow: #fff1e4; }
+  :root[data-mode="light"][data-season="winter"]  { --accent: #2f7fc6; --accent-ink: #fff; --bg-glow: #edf5ff; }
+
+  [data-mode="light"] .topbar { background: rgba(255, 255, 255, .88); }
+  [data-mode="light"] .badge { border-color: #f0c590; }
+  [data-mode="light"] .task.done { background: #f4f3f0; }
+  [data-mode="light"] .task .check-btn { color: #fff; }
+  [data-mode="light"] .chip { background: #f3f2ef; color: #5b616b; border-color: #e3ded6; }
+  [data-mode="light"] .chip.imp { color: #c03a3a; border-color: #f0c4c4; background: #fdf0f0; }
+  [data-mode="light"] .chip.opt, [data-mode="light"] .chip.good-day { color: #1f8a57; border-color: #bfe5cf; background: #eefaf3; }
+  [data-mode="light"] .chip.held { color: #6a707b; }
+  [data-mode="light"] .chip.burnout { color: #a35c0c; border-color: #f0cf9f; background: #fff6e8; }
+  [data-mode="light"] .chip.burnout.high { color: #b8322a; border-color: #f2b9b4; background: #fff0ee; }
+  [data-mode="light"] .chip.due { background: color-mix(in srgb, var(--chip) 10%, white); }
+  [data-mode="light"] .task.risk { border-color: #f0cf9f; }
+  [data-mode="light"] .load-warning { color: #a35c0c; background: #fff6e8; border-color: #f0cf9f; }
+  [data-mode="light"] .section-label.s-important { color: #c94040; }
+  [data-mode="light"] .section-label.s-chores { color: #7b55c9; }
+  [data-mode="light"] .section-label.s-optional { color: #1f8a57; }
+  [data-mode="light"] .section-label.s-workout { color: #a87800; }
+  [data-mode="light"] .section-label.s-held { color: #8a8f99; }
+  [data-mode="light"] .area-label { color: #7b6aa8; }
+  [data-mode="light"] .sort-btn.active, [data-mode="light"] .seg button.active { background: #ecebe7; }
+  [data-mode="light"] .seg .p-optional.active { background: #eefaf3; color: #1f8a57; }
+  [data-mode="light"] .seg .p-important.active { background: #fdf0f0; color: #c03a3a; }
+  [data-mode="light"] .icon-btn:hover { background: #f0efeb; }
+  [data-mode="light"] .toast, [data-mode="light"] .chart-tip { background: #fff; border-color: #e3ded6; box-shadow: 0 10px 30px rgba(0, 0, 0, .15); }
+  [data-mode="light"] .idea, [data-mode="light"] .wp-day { background: #faf9f6; border-color: #e8e4dd; }
+  [data-mode="light"] .idea-moves, [data-mode="light"] .suggest-cycle ul { color: #454a53; }
+  [data-mode="light"] .i-light { background: #eefaf3; color: #1f8a57; }
+  [data-mode="light"] .i-moderate { background: #fff6e0; color: #a36b00; }
+  [data-mode="light"] .i-hard { background: #fdf0f0; color: #c03a3a; }
+  [data-mode="light"] .pt-chip, [data-mode="light"] .recap-nudge { background: #fff6e0; color: #8a5a00; border-color: #f0d9a0; }
+  [data-mode="light"] .pt-countdown { color: #a36b00; }
+  [data-mode="light"] .side-note, [data-mode="light"] .suggest-note, [data-mode="light"] .energy-line { color: #454a53; }
+  [data-mode="light"] .suggest-card { border-color: #d9d2ee; background: #faf8ff; }
+  [data-mode="light"] .suggest-card h3, [data-mode="light"] .hc-edit { color: #6b55c4; }
+  [data-mode="light"] .suggest-cycle, [data-mode="light"] .cycle-col { background: #faf9f6; border-color: #ebe6f3; }
+  [data-mode="light"] .cycle-blurb { color: #5a5470; }
+  [data-mode="light"] .cycle-col-title { color: #7b6aa8; }
+  [data-mode="light"] .cycle-fact { background: #f3effd; color: #3f3566; }
+  [data-mode="light"] .home-checkin, [data-mode="light"] .fun-card, [data-mode="light"] .mood-card {
+    background: linear-gradient(135deg, #f6f2ff, #ffffff); border-color: #ddd3f5;
+  }
+  [data-mode="light"] .fun-tab.active, [data-mode="light"] .fun-next, [data-mode="light"] .mood-btn.chosen { background: #efe9ff; }
+  [data-mode="light"] .checkin-tabs { border-bottom-color: #e6e0f3; }
+  [data-mode="light"] .checkin-reply, [data-mode="light"] .mood-card.answered .mood-question { color: #5a5470; }
+  [data-mode="light"] .dl-row { border-bottom-color: #efebe5; }
+  [data-mode="light"] .dl-row:hover { background: #f7f5f1; }
+  [data-mode="light"] .home-rec, [data-mode="light"] .recovery-title { color: #c0507a; }
+  [data-mode="light"] .recovery-card { background: linear-gradient(135deg, #fff0f5, #fff8fb); border-color: #f3c3d5; }
+  [data-mode="light"] .recovery-text { color: #6b3a4d; }
+  [data-mode="light"] .recovery-idea { background: #fff; border-color: #f3c3d5; }
+  [data-mode="light"] .recovery-idea.done { color: #b08597; }
+  [data-mode="light"] .ri-check { color: #fff; }
+  [data-mode="light"] .start-chip { background: #fdf0f4; border-color: #f3c3d5; }
+  [data-mode="light"] .pill-btn.chosen { background: #fde3ea; }
+  [data-mode="light"] .tucked { border-color: #bfe5cf; color: #1f8a57; }
+  [data-mode="light"] .hbar-track { background: #efede9; }
+  [data-mode="light"] .bars .grid { stroke: #ecebe7; }
+  [data-mode="light"] .bars .axis { stroke: #d9d5ce; }
+  [data-mode="light"] .bars .tick { fill: #7a808a; }
+  [data-mode="light"] .danger { border-color: #f0c4c4 !important; }
+  [data-mode="light"] .danger[data-armed], [data-mode="light"] .error-bar { color: #fff; }
+  [data-mode="light"] .disclaimer { color: #8a8f99; }
+  [data-mode="light"] .cell .peek.due { color: #b8650f; }
+  [data-mode="light"] .field input::placeholder, [data-mode="light"] .field textarea::placeholder { color: #a0a5ad; }
+  [data-mode="light"] dialog { box-shadow: 0 24px 70px rgba(0, 0, 0, .2); }
+  [data-mode="light"] dialog::backdrop { background: rgba(40, 30, 20, .3); }
+  [data-mode="light"] .critter { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .25)); }
+  [data-mode="light"] .task.next { box-shadow: 0 0 0 4px rgba(217, 130, 43, .12); }
+}
+
+/* ---------- Falling seasonal bits (petals, sparkles, leaves, snow, feathers) ---------- */
+#season-fx { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+main, .topbar { position: relative; z-index: 1; }
+.topbar { position: sticky; z-index: 5; }
+.fx-bit {
+  position: absolute; top: -8vh; font-size: 20px; opacity: .22;
+  animation: fx-fall linear infinite, fx-sway ease-in-out infinite alternate;
+}
+[data-mode="light"] .fx-bit { opacity: .35; }
+@keyframes fx-fall { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(118vh) rotate(320deg); } }
+@keyframes fx-sway { from { margin-left: -24px; } to { margin-left: 24px; } }
+@media (prefers-reduced-motion: reduce), print { #season-fx { display: none; } }
+
+/* ---------- Appearance settings ---------- */
+.theme-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+.theme-row .fit-label { min-width: 70px; }
+.season-swatch {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--field);
+  color: var(--ink); border-radius: 999px; padding: 5px 12px; font-weight: 600; font-size: 14px;
+}
+.season-swatch .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 2px color-mix(in srgb, var(--sw) 30%, transparent); }
+.season-swatch.on { border-color: var(--accent); background: var(--accent-soft); }
+
+.brand { white-space: nowrap; }
+@media (max-width: 600px) { .brand { font-size: 18px; } .tab { padding: 8px 12px; } }
+
+@media screen {
+  [data-mode="light"] .work-pill, [data-mode="light"] .home-work { color: #5b616b; }
+  [data-mode="light"] .work-pill.over { color: #a35c0c; border-color: #f0cf9f; background: #fff6e8; }
+  [data-mode="light"] .home-work.over { color: #a35c0c; }
+  [data-mode="light"] .chip.clash { color: #2f6db0; border-color: #c4daf2; background: #eef5fd; }
+}
+
+@media screen {
+  [data-mode="light"] .overload.red { color: #a8231b; background: #fff0ee; border-color: #f2b9b4; }
+  [data-mode="light"] .overload.amber { color: #a35c0c; background: #fff6e8; border-color: #f0cf9f; }
+  [data-mode="light"] .home-work.over { color: #b8322a; }
+  [data-mode="light"] .work-toggle.on { background: #e6f0fc; border-color: #4a8ad8; color: #1f5fa8; }
+  [data-mode="light"] .cell.workday .work-tag { color: #2f6db0; }
+  [data-mode="light"] .cell.offday .work-tag { color: #1f8a57; }
+}

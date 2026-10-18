@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ARP Planner</title>
+  <link rel="icon" href="icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon.png">
+  <meta name="theme-color" content="#121419">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="themes.css">
+  <script src="themes.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">ARP Planner</h1>
+    <nav class="tabs" role="tablist">
+      <button id="tab-home" class="tab active" role="tab">Home</button>
+      <button id="tab-day" class="tab" role="tab">Day</button>
+      <button id="tab-month" class="tab" role="tab">Calendar</button>
+      <button id="tab-todo" class="tab" role="tab">To Do</button>
+      <button id="tab-recap" class="tab" role="tab">Recap</button>
+      <button id="tab-settings" class="tab tab-icon" role="tab" title="Settings: cycle and fitness setup">⚙️</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HOME (main menu) -->
+    <section id="home-view">
+     <div class="day-layout">
+      <div class="day-main">
+        <div class="hello">
+          <div id="home-greeting" class="hello-title"></div>
+          <div id="home-date" class="date"></div>
+        </div>
+
+        <button id="home-checkin" class="home-checkin"></button>
+
+        <div class="home-card">
+          <div class="home-card-head">
+            <h3>📋 Today</h3>
+            <button id="home-open-day" class="link-btn">Open today ›</button>
+          </div>
+          <p id="home-summary" class="home-summary"></p>
+          <div id="home-next" class="home-next"></div>
+          <div id="home-energy" class="energy-line"></div>
+        </div>
+
+        <button id="recap-nudge" class="recap-nudge" hidden></button>
+
+        <div class="home-card" id="home-deadlines-card">
+          <h3>⏰ Coming up</h3>
+          <div id="home-deadlines"></div>
+        </div>
+
+        <div class="home-card" id="home-cycle-card">
+          <h3>🌸 Your cycle</h3>
+          <div id="home-cycle"></div>
+        </div>
+
+        <div class="home-card">
+          <h3>📋 This week</h3>
+          <div id="week-plan" class="week-plan"></div>
+        </div>
+      </div>
+
+      <aside class="day-side">
+        <div class="side-card fun-card" id="fun-card">
+          <div class="fun-tabs">
+            <button id="fun-tab-bird" class="fun-tab active">🦜 Grey facts</button>
+            <button id="fun-tab-goat" class="fun-tab">🐐 Goat facts</button>
+          </div>
+          <div id="fun-fact" class="fun-fact"></div>
+          <div class="fun-foot">
+            <span id="fun-count" class="fun-count"></span>
+            <button id="fun-next" class="fun-next">Another one! ›</button>
+          </div>
+        </div>
+      </aside>
+     </div>
+    </section>
+
+    <!-- DAY VIEW: just the day's events and tasks -->
+    <section id="day-view" hidden>
+     <div class="day-layout with-chaos">
+      <!-- Chaos meter: a flask that bubbles harder (and finally explodes) as free time runs out -->
+      <aside class="chaos-side" title="How much of your free time the day uses up">
+        <div class="chaos-title">🌪️ Chaos</div>
+        <div id="chaos-flask" class="flask" data-stage="0">
+          <div class="flask-steam"><span>💨</span><span>💨</span></div>
+          <div class="flask-cap"></div>
+          <div class="flask-glass">
+            <div id="chaos-liquid" class="flask-liquid"><div id="chaos-bubbles" class="bubbles"></div></div>
+            <!-- Shadow smoke in the empty part when some tasks have no time: the day may be bigger than it looks -->
+            <div id="chaos-shadow" class="flask-shadow" hidden></div>
+            <div class="flask-ticks"></div>
+            <svg class="cracks" viewBox="0 0 60 270" preserveAspectRatio="none" aria-hidden="true">
+              <path class="crack c1" d="M8 40 L18 62 L12 80 L22 104" />
+              <path class="crack c2" d="M52 120 L42 138 L48 150 L38 172 L44 190" />
+              <path class="crack c3" d="M14 190 L26 206 L18 222 L30 240" />
+              <path class="crack c3" d="M46 60 L38 76 L44 88" />
+            </svg>
+          </div>
+          <div class="flask-boom"><span class="boom-word">💥</span>
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </div>
+        <div id="chaos-emoji" class="chaos-emoji"></div>
+        <div id="chaos-value" class="chaos-value"></div>
+        <div id="chaos-note" class="chaos-note" hidden></div>
+        <button id="chaos-shadow-note" class="chaos-shadow-note" hidden></button>
+      </aside>
+
+      <div class="day-main">
+      <div class="nav-row">
+        <button id="prev-day" class="nav-btn">&#8249; Previous day</button>
+        <button id="today-btn" class="nav-btn today">Today</button>
+        <button id="next-day" class="nav-btn">Next day &#8250;</button>
+        <button class="nav-btn print-btn" data-print title="Print this day, or save it as a PDF">🖨️ Print / PDF</button>
+      </div>
+
+      <div class="day-heading">
+        <div>
+          <div id="day-weekday" class="weekday"></div>
+          <div id="day-date" class="date"></div>
+        </div>
+        <div class="heading-right">
+          <span id="day-badge" class="badge"></span>
+          <button id="focus-btn" class="focus-btn" title="One thing at a time">🎯 Focus</button>
+          <button id="checkin-btn" class="pencil-btn" title="How are you feeling?">✏️</button>
+        </div>
+      </div>
+
+      <div class="list-head">
+        <span id="day-progress" class="progress"></span>
+        <span id="energy-pill" class="energy-pill"></span>
+        <span id="work-pill" class="work-pill"></span>
+        <span class="spacer"></span>
+        <div class="sort-toggle" role="group" aria-label="Sort tasks">
+          <button id="sort-plan" class="sort-btn active">By importance</button>
+          <button id="sort-time" class="sort-btn">By time</button>
+        </div>
+      </div>
+
+      <!-- Free time: a live countdown for today -->
+      <div id="free-timer" class="free-timer">
+        <div class="ft-top">
+          <span id="ft-label" class="ft-label"></span>
+          <span id="ft-time" class="ft-time"></span>
+        </div>
+        <div class="ft-bar"><span id="ft-fill" class="ft-fill"></span></div>
+        <div id="ft-sub" class="ft-sub"></div>
+      </div>
+      <!-- 🧠 Brain and 💪 Body batteries -->
+      <div id="batteries" class="batteries"></div>
+      <div id="overload" class="overload" hidden></div>
+
+      <ul id="task-list" class="task-list"></ul>
+      <p id="empty-day" class="empty">Nothing planned for this day yet.</p>
+
+      <button id="add-task" class="add-btn">+ Add a task</button>
+
+      <!-- Everything below is ideas and suggestions, not her tasks -->
+      <div id="tips-divider" class="tips-divider" hidden><span>💡 Ideas &amp; suggestions</span></div>
+
+      <!-- To-dos with no day yet (and overdue ones): things she could fit in -->
+      <div id="fitin-card" class="fitin-card" hidden>
+        <div class="fitin-head">
+          <h3>✔️ Could fit in</h3>
+          <span id="fitin-free" class="fitin-free"></span>
+        </div>
+        <ul id="fitin-list" class="fitin-list"></ul>
+        <button id="fitin-more" class="link-btn" hidden></button>
+      </div>
+
+      <!-- Suggestions the planner adds (recovery, cycle care, warnings) -->
+      <div id="suggest-card" class="suggest-card" hidden>
+        <h3>💡 Suggested for you</h3>
+        <div id="suggest-list"></div>
+      </div>
+      </div>
+
+      <aside class="day-side">
+        <div class="side-card" id="activity-card">
+          <h3>🏃 Physical activity ideas</h3>
+          <div id="activity-ideas"></div>
+        </div>
+      </aside>
+     </div>
+    </section>
+
+    <!-- MONTH VIEW -->
+    <section id="month-view" hidden>
+      <div class="nav-row">
+        <button id="prev-month" class="nav-btn">&#8249;</button>
+        <h2 id="month-title" class="month-title"></h2>
+        <button id="next-month" class="nav-btn">&#8250;</button>
+        <button id="this-month" class="nav-btn today">This month</button>
+        <button id="work-toggle" class="nav-btn work-toggle" title="Color workdays blue and days off green">💼 Work days</button>
+        <button class="nav-btn print-btn" data-print title="Print this month, or save it as a PDF">🖨️ Print / PDF</button>
+      </div>
+      <p class="hint">Click a day to see it and plan it.</p>
+      <div class="month-grid" id="month-grid"></div>
+      <!-- What the colours and icons mean: tucked behind a button -->
+      <button id="legend-btn" class="legend-btn" aria-expanded="false" aria-controls="legend-box">🗺️ Legend <span class="section-chevron">▾</span></button>
+      <div id="legend-box" class="legend-box" hidden>
+        <div id="phase-legend" class="phase-legend" hidden></div>
+        <div id="fit-legend" class="fit-legend" hidden></div>
+        <div class="fit-legend">🎉 Tinted days are holidays · ❗ Something is due that day · 🛑 No free time left that day · ✔️ From Microsoft To Do</div>
+        <div id="work-legend" class="fit-legend" hidden><span class="lg-work">■</span> Workday · <span class="lg-off">■</span> Day off</div>
+      </div>
+    </section>
+
+    <!-- TO DO: her Microsoft To Do lists -->
+    <section id="todo-view" hidden>
+      <div class="todo-top">
+        <h2 class="view-title">✔️ To Do</h2>
+        <span class="spacer"></span>
+        <span id="todo-synced" class="hint-small"></span>
+        <button id="todo-sync" class="nav-btn">🔄 Sync now</button>
+      </div>
+      <div id="todo-body"></div>
+    </section>
+
+    <!-- SETTINGS: one-time setup for cycle + fitness -->
+    <section id="settings-view" hidden>
+      <h2 class="view-title">⚙️ Settings</h2>
+      <p class="hint">Set these up once. The planner uses them every day to plan around your energy.</p>
+
+      <div class="fit-card">
+        <h3>🎨 Appearance</h3>
+        <div id="appearance-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🕒 Time zone &amp; clock</h3>
+        <div id="tz-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>📆 Google Calendar</h3>
+        <div id="google-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>✔️ Microsoft To Do</h3>
+        <div id="microsoft-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>⌚ Google Health <span class="beta-tag">test</span></h3>
+        <div id="health-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>📱 Her phone</h3>
+        <div id="phone-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>💼 Work schedule</h3>
+        <p class="hint-small">Your days on and off, and your hours. The planner uses them to see how much free time you really have and to spread out heavy jobs.</p>
+        <div id="work-hours" class="work-hours"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>😴 Sleep schedule</h3>
+        <p class="hint-small">When you plan to go to bed and get up each day. Your free time is counted between these, and short nights lower your energy forecast.</p>
+        <div id="sleep-hours" class="work-hours"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🔋 Brain &amp; body</h3>
+        <div id="brain-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🌸 Cycle</h3>
+        <div id="cycle-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🏃 Fitness goals</h3>
+        <p class="hint-small">Pick what you're working toward. The planner suggests workouts each day to match your goals and how your body is doing.</p>
+        <div id="fitness-goals" class="goal-grid"></div>
+      </div>
+
+      <div id="pt-box" class="fit-card">
+        <h3>🎖️ PT test</h3>
+        <div class="fit-row">
+          <label>Test date <input id="pt-date" type="date"></label>
+          <span id="pt-countdown" class="pt-countdown"></span>
+        </div>
+        <div class="fit-row" id="pt-events"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🗓️ Workouts</h3>
+        <div class="fit-row">
+          <span class="fit-label">Workouts per week</span><select id="sessions"></select>
+          <span class="fit-label">Usual length</span><select id="session-min"></select>
+        </div>
+      </div>
+
+      <div class="fit-card">
+        <h3>❤️ Favorite moves</h3>
+        <p class="hint-small">Favorites show up more often in your plans.</p>
+        <div id="favorites" class="day-chips"></div>
+      </div>
+    </section>
+
+    <!-- RECAP VIEW -->
+    <section id="recap-view" hidden>
+      <div class="nav-row">
+        <div class="sort-toggle" role="group" aria-label="Recap period">
+          <button class="sort-btn" data-period="week">Week</button>
+          <button class="sort-btn" data-period="month">Month</button>
+          <button class="sort-btn" data-period="year">Year</button>
+        </div>
+        <button id="recap-prev" class="nav-btn">&#8249;</button>
+        <h2 id="recap-title" class="month-title recap-title"></h2>
+        <button id="recap-next" class="nav-btn">&#8250;</button>
+      </div>
+      <p id="recap-headline" class="recap-headline"></p>
+      <div id="recap-tiles" class="tiles"></div>
+      <div class="chart-card">
+        <div class="chart-head">
+          <h3>Things you got done</h3>
+          <div class="legend" id="done-legend"></div>
+        </div>
+        <div id="done-chart" class="chart"></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-card">
+          <h3>How you felt</h3>
+          <div id="feel-chart" class="hbars"></div>
+        </div>
+        <div class="chart-card">
+          <h3>How your body felt</h3>
+          <div id="body-chart" class="hbars"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- CHECK-IN (opened from the pencil) -->
+  <dialog id="checkin-dialog">
+    <div class="checkin-dlg">
+      <h2>How are you today?</h2>
+      <p id="checkin-day" class="dialog-day"></p>
+      <div class="checkin-tabs" role="tablist">
+        <button id="ck-tab-feel" class="ck-tab active" role="tab">😊 Feelings</button>
+        <button id="ck-tab-body" class="ck-tab" role="tab">💪 Body</button>
+      </div>
+      <div id="checkin-pane"></div>
+      <div class="dialog-buttons">
+        <span class="spacer"></span>
+        <button type="button" id="checkin-done" class="primary">Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ADD / EDIT TASK -->
+  <dialog id="task-dialog">
+    <form id="task-form" method="dialog">
+      <h2 id="dialog-title">Add a task</h2>
+      <p id="dialog-day" class="dialog-day"></p>
+
+      <div class="field">
+        <span>What kind?</span>
+        <div class="seg" id="f-kind" role="group">
+          <button type="button" data-value="event">📅 Event</button>
+          <button type="button" data-value="task">✏️ Task</button>
+          <button type="button" data-value="chore">🧹 Chore</button>
+          <button type="button" data-value="workout">🏃 Workout</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>What</span>
+        <input id="f-title" type="text" placeholder="e.g. Pick up groceries" required autocomplete="off">
+      </label>
+      <p id="f-remembered" class="remembered" hidden></p>
+
+      <div class="field chore-only">
+        <span id="details-label">Details</span>
+        <div class="when-row">
+          <select id="f-minutes" aria-label="How long"></select>
+          <select id="f-area" aria-label="Where"></select>
+        </div>
+        <p id="f-steps-note" class="remembered" hidden>☑️ Added up from its sub-tasks. Change their ⏱ times to change this.</p>
+      </div>
+
+      <div class="field">
+        <span>How physical is it?</span>
+        <div class="seg" id="f-effort" role="group">
+          <button type="button" data-value="light">🪶 Light</button>
+          <button type="button" data-value="medium">🚶 Medium</button>
+          <button type="button" data-value="heavy">🏋️ Heavy</button>
+        </div>
+        <p class="hint-small">Heavy jobs wait for a better day on low-energy days and period days 1–2, unless they're due or important.</p>
+      </div>
+
+      <div class="field">
+        <span>How much brainpower?</span>
+        <div class="seg" id="f-brain" role="group">
+          <button type="button" data-value="light">🪶 Easy</button>
+          <button type="button" data-value="medium">🌀 Some</button>
+          <button type="button" data-value="heavy">🧠 Lots</button>
+        </div>
+        <p class="hint-small">Thinking, deciding, people and noise all count. Cleaning a messy room is 🧠 Lots even though it's not heavy lifting.</p>
+      </div>
+
+      <div class="field">
+        <span>How important?</span>
+        <label class="check"><input id="f-has-due" type="checkbox"> It has a deadline</label>
+        <div id="due-row" class="due-row">
+          <span>Needs to be done by</span>
+          <input id="f-due" type="date">
+          <p class="hint-small">It starts out <b class="g">green (optional)</b> and turns <b class="r">red (important)</b> as the deadline gets closer. It stays on your list each day until it's done.</p>
+        </div>
+        <div class="seg" id="f-priority" role="group">
+          <button type="button" data-value="optional" class="p-optional">Optional</button>
+          <button type="button" data-value="normal" class="p-normal">Normal</button>
+          <button type="button" data-value="important" class="p-important">Important</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span>When</span>
+        <div class="when-row">
+          <span class="when-label end-only">Starts</span>
+          <select id="f-hour" aria-label="Hour"></select>
+          <span class="colon">:</span>
+          <select id="f-minute" aria-label="Minute"></select>
+          <select id="f-ampm" aria-label="AM or PM">
+            <option>AM</option><option>PM</option>
+          </select>
+        </div>
+        <div class="when-row end-only">
+          <span class="when-label">Ends</span>
+          <select id="f-end-hour" aria-label="End hour"></select>
+          <span class="colon">:</span>
+          <select id="f-end-minute" aria-label="End minute"></select>
+          <select id="f-end-ampm" aria-label="End AM or PM">
+            <option>AM</option><option>PM</option>
+          </select>
+        </div>
+        <p class="hint-small end-only">Pick an end time or a length above. The other one fills in for you.</p>
+      </div>
+
+      <label class="field">
+        <span>Notes <em>(optional)</em></span>
+        <textarea id="f-notes" rows="3"></textarea>
+      </label>
+
+      <div class="dialog-buttons">
+        <button type="button" id="delete-task" class="danger">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" id="cancel-task" class="secondary">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- CHANGE WORKOUT -->
+  <dialog id="swap-dialog">
+    <div class="checkin-dlg">
+      <h2>🔄 Change workout</h2>
+      <p id="swap-current" class="dialog-day"></p>
+      <div id="swap-list" class="swap-list"></div>
+      <div class="dialog-buttons">
+        <span class="spacer"></span>
+        <button type="button" id="swap-cancel" class="secondary">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="error-bar" class="error-bar" hidden></div>
+  <div id="chart-tip" class="chart-tip" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="store.js"></script>
+  <script src="phoneapi.js"></script>
+  <!-- the phone app's own syncs (they answer /api/… there; on the PC they stay idle) -->
+  <script src="syncs/merge.js"></script>
+  <script src="syncs/google-auth.js"></script>
+  <script src="syncs/drive.js"></script>
+  <script src="syncs/tz.js"></script>
+  <script src="syncs/gcal.js"></script>
+  <script src="syncs/mstodo.js"></script>
+  <script src="vendor/lottie.min.js"></script>
+  <script src="animals.js"></script>
+  <script src="app.js"></script>
+  <script src="wellness.js"></script>
+  <script src="holidays.js"></script>
+  <script src="checkin.js"></script>
+  <script src="recap.js"></script>
+  <script src="fitness.js"></script>
+  <script src="home.js"></script>
+  <script src="signin.js"></script>
+  <script src="google.js"></script>
+  <script src="microsoft.js"></script>
+  <script src="todo.js"></script>
+  <script src="health.js"></script>
+  <script src="phone.js"></script>
+  <script src="syncs/phoneapp.js"></script>
+  <script src="focus.js"></script>
+  <script src="funfacts.js"></script>
+</body>
+</html>
