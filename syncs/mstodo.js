@@ -587,6 +587,7 @@ const PhoneMS = {
         // this phone as the one that syncs To Do, and share that right away.
         await DeviceStore.load();
         if (syncOwnerOf(DeviceStore.data.profile, "microsoft") !== "phone") {
+          await PhoneDrive.readyToTakeOver();
           await PhoneDrive.sync(false);
           await DeviceStore.putProfile({ syncOwner: { ...(DeviceStore.data.profile.syncOwner || {}), microsoft: "phone" } });
           await PhoneDrive.sync(false);

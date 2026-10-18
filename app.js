@@ -1882,12 +1882,13 @@ if (Store === ApiStore) {
   // The phone app: sw.js keeps it working offline. A newly published version downloads in the
   // background and is swapped in (a quick reload) once she isn't typing or in a dialog.
   let reg = null, reloading = false;
+  const hadVersion = !!navigator.serviceWorker.controller;     // (first visit: nothing to swap out)
   const swapWhenSafe = () => {
     if (!reg || !reg.waiting || celebrating || userIsEditing() || document.querySelector("dialog[open]")) return;
     reg.waiting.postMessage("update");
   };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloading) return;
+    if (reloading || !hadVersion) return;
     reloading = true;
     location.reload();
   });

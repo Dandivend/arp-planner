@@ -325,6 +325,7 @@ const PhoneCalendar = {
         // then mark this phone as the one that syncs Google, and share that right away.
         await DeviceStore.load();
         if (syncOwnerOf(DeviceStore.data.profile, "google") !== "phone") {
+          await PhoneDrive.readyToTakeOver();
           await PhoneDrive.sync(false);
           await DeviceStore.putProfile({ syncOwner: { ...(DeviceStore.data.profile.syncOwner || {}), google: "phone" } });
           await PhoneDrive.sync(false);

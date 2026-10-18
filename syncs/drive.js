@@ -60,6 +60,8 @@ const PhoneDrive = {
         const text = await PhoneGoogle.request("drive", "GET", "/files/" + file.id, null, { alt: "media" }, { text: true });
         remote = JSON.parse(text);
         result.downloaded = true;
+        // The PC's copy of her planner has arrived: her phone may take the Calendar / To Do syncs over.
+        if (remote.savedBy === "pc") await this.saveState({ pcSeen: true });
         result.changedHere = await DeviceStore.mergeIn(remote);
       }
       const local = DeviceStore.data;
@@ -83,6 +85,16 @@ const PhoneDrive = {
       this.busy = false;
       if (typeof view !== "undefined" && view === "settings" && typeof renderPhoneApp === "function") renderPhoneApp();
     }
+  },
+
+  // Before her phone takes the Google / To Do syncs over from the PC it must have the PC's copy of
+  // her planner (with its links), or her events and to-dos would come in a second time.
+  async readyToTakeOver() {
+    if ((await this.state()).pcSeen) return;
+    await this.sync(false);
+    if ((await this.state()).pcSeen) return;
+    throw new PhoneApiError("Waiting for your planner to arrive from Logan's PC: connect your Google Drive there first " +
+      "(PC planner → Settings → 📱 Her phone → ☁️ Connect her Google Drive).");
   },
 
   // Sync a little later (after a change), or soon (after signing in).
