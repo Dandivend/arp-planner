@@ -220,7 +220,9 @@ function showError(msg) {
   bar.textContent = msg;
   bar.hidden = false;
   clearTimeout(showError.t);
-  showError.t = setTimeout(() => (bar.hidden = true), 5000);
+  // Long messages stay longer; a tap closes it.
+  showError.t = setTimeout(() => (bar.hidden = true), Math.max(5000, msg.length * 70));
+  bar.onclick = () => (bar.hidden = true);
 }
 
 // ---------- day view ----------

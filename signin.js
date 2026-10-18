@@ -30,8 +30,11 @@ async function signinPost(service, route, body) {
 // Start a paste-back sign-in. remote = make a link for her phone (from the PC).
 async function startPasteSignin(service, remote, rerender) {
   try {
+    const fresh = !!SIGNIN[service];
     const { url } = await signinPost(service, "connect");
     SIGNIN[service] = { link: url, pasted: "", remote };
+    // (Starting over looks the same on screen, so say it worked.)
+    if (fresh) showToast(remote ? "🔄 Fresh sign-in ready. Copy the link again and send her the new one." : "🔄 Fresh sign-in ready. Open the sign-in again.");
   } catch (e) { showError(e.message); }
   rerender();
 }
