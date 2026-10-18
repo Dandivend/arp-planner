@@ -1306,8 +1306,16 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .step input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
 .step.done { color: var(--muted); text-decoration: line-through; }
 .move-btn.next-day { white-space: nowrap; }
-/* The hidden date box behind "Pick a day" (only its picker shows). */
-.pick-day-input { position: fixed; left: 50%; top: 40%; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; }
+/* "Pick a day" chooser */
+.pick-day-dialog { width: min(420px, 94vw); padding: 18px 20px; }
+.pick-day-title { margin: 0 0 14px; font-size: 17px; }
+.pick-day-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+.pick-day-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card-hover); color: var(--ink); font-size: 15px; }
+.pick-day-btn span { color: var(--muted); font-size: 13px; }
+.pick-day-btn:hover, .pick-day-btn:focus-visible { border-color: var(--accent); }
+.pick-day-later { display: flex; align-items: center; gap: 8px; margin: 16px 0 10px; flex-wrap: wrap; }
+.pick-day-later input { flex: 1; min-width: 140px; }
 .move-btn.catch-up { white-space: nowrap; }
 .move-btn.catch-up[data-armed] { border-color: var(--accent); color: var(--accent); }
 .fitin-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }

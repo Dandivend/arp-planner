@@ -1090,26 +1090,60 @@ function nextDaysProblem(t) {
   showToast(`😴 "${t.title}" is ${when}'s problem now.`, "Undo", () => persist(before));
 }
 
-// "Pick a day": the phone's own date picker, then move it there.
+// "Pick a day": a small chooser with the next week's days as one-tap buttons, and a date box
+// for anything later. (A hidden date picker didn't always hand the day back on her phone.)
 function pickDayFor(t) {
-  document.querySelectorAll(".pick-day-input").forEach(x => x.remove());
-  const input = document.createElement("input");
-  input.type = "date";
-  input.className = "pick-day-input";
-  input.min = todayKey();
-  input.value = t.date && t.date > todayKey() ? addDays(t.date, 1) : addDays(todayKey(), 1);
-  document.body.appendChild(input);
-  input.addEventListener("change", () => {
-    const day = input.value;
-    input.remove();
+  let dlg = $("pick-day-dialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "pick-day-dialog";
+    dlg.className = "pick-day-dialog";
+    dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });   // tap outside to close
+    document.body.appendChild(dlg);
+  }
+  dlg.innerHTML = "";
+  const tk = todayKey();
+  const move = day => {
+    dlg.close();
     if (!day || day === t.date) return;
     const before = { ...t };
     persist({ ...t, date: day });
-    const when = day === todayKey() ? "today" : day === addDays(todayKey(), 1) ? "tomorrow"
+    const when = day === tk ? "today" : day === addDays(tk, 1) ? "tomorrow"
       : fromKey(day).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
     showToast(`📅 "${t.title}" moved to ${when}.`, "Undo", () => persist(before));
-  });
-  try { input.showPicker(); } catch { input.focus(); input.click(); }
+  };
+
+  dlg.appendChild(el("h3", "pick-day-title", `📅 Move "${t.title}" to…`));
+  const grid = el("div", "pick-day-grid");
+  for (let i = 0; i <= 7; i++) {
+    const day = addDays(tk, i);
+    if (day === t.date) continue;
+    const d = fromKey(day);
+    const b = el("button", "pick-day-btn");
+    b.type = "button";
+    b.append(el("b", "", i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString(undefined, { weekday: "short" })),
+      el("span", "", d.toLocaleDateString(undefined, { month: "short", day: "numeric" })));
+    b.addEventListener("click", () => move(day));
+    grid.appendChild(b);
+  }
+  dlg.appendChild(grid);
+
+  const row = el("div", "pick-day-later");
+  row.appendChild(el("span", "", "Later:"));
+  const input = el("input");
+  input.type = "date";
+  input.min = tk;
+  input.value = addDays(tk, 8);
+  const go = el("button", "g-btn primary", "Move");
+  go.type = "button";
+  go.addEventListener("click", () => move(input.value));
+  row.append(input, go);
+  dlg.appendChild(row);
+  const cancel = el("button", "link-btn", "Never mind");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => dlg.close());
+  dlg.appendChild(cancel);
+  dlg.showModal();
 }
 
 // Set a task row on fire: flames lick up, it chars, crumbles to ash and is gone.
