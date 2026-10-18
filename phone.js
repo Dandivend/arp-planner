@@ -74,6 +74,15 @@ function driveSection(onPc) {
   box.appendChild(el("p", "hint-small", `Last synced ${ago(d.lastSync)}` + (d.phoneSeen ? ` · her phone app last saved ${ago(d.phoneSeen)}` : "") +
     ". It also syncs by itself every few minutes while the planner runs."));
   if (d.lastError) box.appendChild(el("p", "g-error", "⚠️ " + d.lastError));
+  // A fresh sign-in without disconnecting (Disconnect would cancel her phone app's Google sign-in too).
+  box.appendChild(signinButtons("drive", "Sign in to her Drive again", async () => {
+    try { window.open((await signinPost("drive", "connect")).url, "_blank"); } catch (e) { showError(e.message); }
+  }, false, rerender));
+  if (SIGNIN.drive) box.appendChild(pasteSigninPanel("drive", async () => {
+    driveStatus = null;
+    showToast("🔁 Her Google Drive is signed in again.");
+    await fetch("/api/drive/sync", { method: "POST", body: "{}" }).catch(() => {});
+  }, rerender));
   if (onPc) {
     const dis = el("button", "g-btn danger-link", "Disconnect her Drive");
     dis.addEventListener("click", async () => {

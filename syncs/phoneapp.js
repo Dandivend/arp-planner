@@ -78,6 +78,16 @@ async function renderPhoneApp() {
     "changes go to your Drive whenever you're online, and Logan's PC picks them up from there."));
   if (d.lastError) box.appendChild(el("p", "g-error", "⚠️ Last problem: " + d.lastError));
   box.appendChild(el("p", "hint-small", "📆 Google Calendar and ✔️ To Do sync from this phone. Their cards are above."));
+  // A fresh sign-in without disconnecting (Disconnect would cancel the PC's Drive sign-in too).
+  const again = el("button", "link-btn", "🔁 Sign in to Google again");
+  again.title = "Get a fresh Google sign-in. Nothing is disconnected.";
+  again.addEventListener("click", () => startPasteSignin("google", false, renderPhoneApp));
+  box.appendChild(again);
+  if (SIGNIN.google) box.appendChild(pasteSigninPanel("google", async () => {
+    showToast("🔁 Signed in to Google again.");
+    if (typeof loadGoogleStatus === "function") await loadGoogleStatus();
+    PhoneDrive.soon(500);
+  }, renderPhoneApp));
 }
 
 if (STANDALONE) {
