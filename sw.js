@@ -2,8 +2,8 @@
 // It keeps a copy of every app file so the planner opens with no connection, and when a new
 // version is published it downloads it in the background; the page then swaps it in when
 // she isn't in the middle of something. publish.ps1 stamps BUILD and FILES.
-const BUILD = "20261019-082319";
-const FILES = ["./", "animals.js", "app.js", "checkin.js", "config.js", "fitness.js", "focus.js", "funfacts.js", "google.js", "health.js", "holidays.js", "home.js", "icon-512.png", "icon-maskable.png", "icon.png", "index.html", "manifest.webmanifest", "microsoft.js", "phone.js", "phoneapi.js", "recap.js", "signin.js", "store.js", "style.css", "themes.css", "themes.js", "todo.js", "wellness.js", "animals/husky.json", "animals/parrot.json", "syncs/drive.js", "syncs/gcal.js", "syncs/google-auth.js", "syncs/merge.js", "syncs/mstodo.js", "syncs/phoneapp.js", "syncs/tz.js", "vendor/lottie.min.js"];
+const BUILD = "20261019-083407";
+const FILES = ["./", "animals.js", "app.js", "checkin.js", "config.js", "fitness.js", "focus.js", "funfacts.js", "google.js", "health.js", "holidays.js", "home.js", "icon-512.png", "icon-maskable.png", "icon.png", "index.html", "manifest.webmanifest", "microsoft.js", "phone.js", "phoneapi.js", "privacy.html", "recap.js", "signin.js", "store.js", "style.css", "terms.html", "themes.css", "themes.js", "todo.js", "wellness.js", "animals/husky.json", "animals/parrot.json", "syncs/drive.js", "syncs/gcal.js", "syncs/google-auth.js", "syncs/merge.js", "syncs/mstodo.js", "syncs/phoneapp.js", "syncs/tz.js", "vendor/lottie.min.js"];
 const CACHE = "arp-" + BUILD;
 
 self.addEventListener("install", e => {
