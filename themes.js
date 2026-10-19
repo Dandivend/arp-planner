@@ -115,12 +115,12 @@ function renderSeasonFx(season) {
   if (THEME_PETS[season] && location.protocol.startsWith("http")) startPets(THEME_PETS[season]);
   else document.getElementById("molly-peek")?.remove();
   const bits = SEASONS[season].bits;
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 22; i++) {
     const s = document.createElement("span");
     s.className = "fx-bit";
     s.textContent = bits[i % bits.length];
-    s.style.left = `${(i * 7.3 + Math.random() * 6) % 100}vw`;
-    s.style.fontSize = `${14 + Math.random() * 12}px`;
+    s.style.left = `${(i * 4.7 + Math.random() * 5) % 100}vw`;
+    s.style.fontSize = `${18 + Math.random() * 16}px`;
     const fall = 16 + Math.random() * 14, sway = 3 + Math.random() * 3;
     s.style.animationDuration = `${fall}s, ${sway}s`;
     s.style.animationDelay = `${-Math.random() * fall}s, ${-Math.random() * sway}s`;
@@ -265,7 +265,7 @@ function renderAppearance() {
   cb.type = "checkbox";
   cb.checked = t.effects;
   cb.addEventListener("change", () => saveTheme({ effects: cb.checked }));
-  fx.append(cb, " Falling petals / leaves / snow in the background");
+  fx.append(cb, " ✨ Floating theme bits in the background (petals, leaves, snow, pumpkins and witches, paw prints, Molly and Ori peeking in…)");
   box.appendChild(fx);
 
   const snd = el("label", "check");

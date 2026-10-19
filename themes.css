@@ -133,10 +133,10 @@
 main, .topbar { position: relative; z-index: 1; }
 .topbar { position: sticky; z-index: 5; }
 .fx-bit {
-  position: absolute; top: -8vh; font-size: 20px; opacity: .22;
+  position: absolute; top: -8vh; font-size: 20px; opacity: .4;
   animation: fx-fall linear infinite, fx-sway ease-in-out infinite alternate;
 }
-[data-mode="light"] .fx-bit { opacity: .35; }
+[data-mode="light"] .fx-bit { opacity: .5; }
 @keyframes fx-fall { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(118vh) rotate(320deg); } }
 @keyframes fx-sway { from { margin-left: -24px; } to { margin-left: 24px; } }
 /* Molly (African grey theme) peeking in from a screen edge */
@@ -190,3 +190,12 @@ main, .topbar { position: relative; z-index: 1; }
 :root[data-season="halloween"] .fx-bit, :root[data-season="christmas"] .fx-bit, :root[data-season="easter"] .fx-bit,
 :root[data-season="valentines"] .fx-bit, :root[data-season="stpatricks"] .fx-bit, :root[data-season="july4"] .fx-bit,
 :root[data-season="thanksgiving"] .fx-bit, :root[data-season="newyear"] .fx-bit { opacity: .6; scale: 1.5; }
+
+/* The floating theme bits show through the big panels (a little see-through), and pass behind the
+   buttons (which stay solid). */
+@media screen {
+  .home-card, .side-card, .fit-card, .task, .cell, .tile, .chart-card, .joy-row, .fidget-card, .fitin-item,
+  .free-timer, .battery, .ai-card, .logan-day, .suggest-card, .fun-card {
+    background-color: color-mix(in srgb, var(--card) 78%, transparent) !important;
+  }
+}

@@ -435,6 +435,7 @@ function renderFreeTimer() {
   const shown = ft.past ? 0 : chaos.pct;
   renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
   renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
+  renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -592,6 +593,26 @@ function eruptFlask() {
   }, 900);
 }
 $("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
+
+// Study day: the vial glows softly (it's learning!) and a graduation cap floats around it.
+const isStudy = t => /\b(stud(y|ying|ies)|homework|exam|quiz|lecture|course ?work|learn(ing)?|revis(e|ion|ing)|flash ?cards)\b/i.test(t.title || "");
+function renderStudy(show) {
+  const flask = $("chaos-flask");
+  flask.classList.toggle("studying", show);
+  let cap = flask.querySelector(".flask-cap-grad");
+  if (!show) { if (cap) cap.remove(); return; }
+  if (cap) return;
+  cap = document.createElement("div");
+  cap.className = "flask-cap-grad";
+  cap.title = "Study time 🎓";
+  cap.innerHTML = `<svg viewBox="0 0 64 44" aria-hidden="true">
+    <path d="M14 20 v12 q18 10 36 0 v-12" fill="#2a2f45"/>
+    <path d="M32 4 L62 16 L32 28 L2 16 Z" fill="#363c58" stroke="#5a6386" stroke-width="1.5"/>
+    <circle cx="32" cy="16" r="2.6" fill="#f2c14e"/>
+    <path d="M32 16 Q46 20 52 24 L52 34" stroke="#f2c14e" stroke-width="2.2" fill="none"/>
+    <path d="M49 34 l3 8 l3 -8 z" fill="#f2c14e"/></svg><i class="spark s1">✨</i><i class="spark s2">✨</i>`;
+  flask.appendChild(cap);
+}
 
 // Workout day: a little dumbbell floats and bobs around the vial until the workout is done.
 function renderDumbbell(show) {

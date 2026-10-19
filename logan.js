@@ -185,7 +185,11 @@ async function loganSetup(box, picking) {
   }
 }
 
-$("tab-logan").addEventListener("click", () => showView("logan"));
+$("tab-logan").addEventListener("click", () => {
+  // Free right now? A little surprise for her (not on Logan's own PC).
+  if (loganStatus() === "free" && !ON_PC) showMissYou();
+  showView("logan");
+});
 $("logan-prev").addEventListener("click", () => { loganCursor.setMonth(loganCursor.getMonth() - 1); renderLogan(); });
 $("logan-next").addEventListener("click", () => { loganCursor.setMonth(loganCursor.getMonth() + 1); renderLogan(); });
 $("logan-today").addEventListener("click", () => { loganCursor = null; loganSelected = null; renderLogan(); });
@@ -312,4 +316,58 @@ async function renderTogether() {
     row.appendChild(add);
     box.appendChild(row);
   }
+}
+
+// ---------- What Logan's doing right now (shown on the tab) ----------
+// 💤 in his sleep hours, 💼 in a work event, 📅 in any other event, 💗 free.
+let loganNow = { at: 0, events: [] };
+async function refreshLoganNow() {
+  try {
+    const cal = await loganCalendarId();
+    if (!cal) return;
+    const now = Date.now();
+    const res = await lgPost("theirs", { calendarId: cal, timeMin: new Date(now - 864e5).toISOString(), timeMax: new Date(now + 864e5).toISOString() });
+    loganNow = { at: now, events: (res.events || []).filter(e => !e.allDay) };
+  } catch {}
+  updateLoganTab();
+}
+function loganStatus() {
+  if (!loganNow.at) return null;
+  const la = loganAwake(), now = Date.now();
+  const cur = loganNow.events.filter(e => Date.parse(e.start) <= now && now < Date.parse(e.end));
+  if (cur.some(e => /\b(work|shift|duty|office)\b/i.test(e.title))) return "work";
+  const m = toMin(zLocal(now, la.zone).time), bed = toMin(la.end), wake = toMin(la.start);
+  const asleep = bed < wake ? m >= bed && m < wake : m >= bed || m < wake;
+  if (asleep) return "sleep";
+  return cur.length ? "busy" : "free";
+}
+const LOGAN_STATUS = { sleep: ["💤", "Logan's asleep"], work: ["💼", "Logan's working"], busy: ["📅", "Logan's busy"], free: ["💗", "Logan's free right now"] };
+function updateLoganTab() {
+  const tab = $("tab-logan");
+  const st = loganStatus(), [icon, words] = LOGAN_STATUS[st] || ["", "What Logan's up to"];
+  tab.textContent = icon ? `Logan ${icon}` : "Logan";
+  tab.title = words;
+  tab.dataset.status = st || "";
+}
+setTimeout(refreshLoganNow, 4000);
+setInterval(refreshLoganNow, 10 * 60 * 1000);
+setInterval(updateLoganTab, 60 * 1000);
+
+function showMissYou() {
+  document.querySelector(".miss-you")?.remove();
+  const o = el("div", "miss-you");
+  o.appendChild(el("div", "miss-text", "I MISS YOU ARP!!!"));
+  o.appendChild(el("div", "miss-sub", "💙 from Logan"));
+  if (!calmMode()) for (let i = 0; i < 26; i++) {
+    const h = el("span", "miss-heart", ["💗", "💖", "💙", "❤️", "💕"][i % 5]);
+    h.style.left = `${Math.random() * 100}vw`;
+    h.style.fontSize = `${18 + Math.random() * 26}px`;
+    h.style.animationDelay = `${Math.random() * 1.2}s`;
+    h.style.animationDuration = `${2.4 + Math.random() * 1.6}s`;
+    o.appendChild(h);
+  }
+  o.addEventListener("click", () => o.remove());
+  document.body.appendChild(o);
+  if (typeof buzz === "function") buzz([30, 60, 30, 60, 120]);
+  setTimeout(() => o.remove(), 4500);
 }
