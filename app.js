@@ -827,11 +827,11 @@ function taskRow(t, isNext) {
   if (t.dueDate && !t.done) chips.push(["chip due", dueLabel(t, day), color]);
   if (kindOf(t) === "chore") {
     const where = t.area && t.area !== "Anywhere" ? ` · ${t.area}` : "";
-    chips.push(["chip", `🧹 ${lengthLabel(t, m => formatHrsMin(m * 60)) || formatMinutes(15)}${where}`]);
+    chips.push(["chip", `🧹 ${t.minutesGuess ? "≈ " : ""}${lengthLabel(t, m => formatHrsMin(m * 60)) || formatMinutes(15)}${where}`]);
   }
   if (kindOf(t) === "workout" && t.minutes) chips.push(["chip", `🏃 ${formatMinutes(t.minutes)}`]);
   if ((kindOf(t) === "task" || kindOf(t) === "event") && minutesLeft(t) !== null) {
-    chips.push(["chip", `⏱ ${lengthLabel(t, m => formatHrsMin(m * 60))}`]);
+    chips.push(["chip", `⏱ ${t.minutesGuess ? "≈ " : ""}${lengthLabel(t, m => formatHrsMin(m * 60))}`]);
   }
   if (isWorkShift(t)) {
     chips.push(["chip work-shift-chip", "💼 Work shift · counted as work, not a task"]);
@@ -1438,7 +1438,7 @@ function render() {
   brainByName = null;              // brainpower she rated by name: re-read from the latest tasks
   if (view !== "day" && view !== "month") setFireFloor(0);
   if (view === "home") renderHome();
-  else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); }
+  else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); renderAssistant(); }
   else if (view === "month") renderMonth();
   else if (view === "todo") renderTodo();
   else if (view === "settings") {
@@ -1448,6 +1448,7 @@ function render() {
     if (STANDALONE) renderPhoneApp(); else if (ON_PC) renderPhoneSettings(); else renderPcOnlyNotes();
     renderCycleSettings();
     renderBrainSettings();
+    renderAiSettings();
     renderFitness();
   }
   else renderRecap();
@@ -1794,7 +1795,15 @@ async function saveFromDialog() {
   if (task.date) warnIfOverloaded(task.date);
 }
 
-async function persist(task, rerender = true) {
+// by: "her" (anything she does on screen) or "claude" (the Claude helper). When she moves a task
+// herself it's marked (herMove), so Claude's automatic re-plans leave it where she put it; when she
+// sets a length herself it's no longer a guess.
+async function persist(task, rerender = true, { by = "her" } = {}) {
+  const old = tasks.find(t => t.id === task.id);
+  if (by === "her" && old) {
+    if ((old.date || null) !== (task.date || null) || (old.time || null) !== (task.time || null)) task = { ...task, herMove: new Date().toISOString() };
+    if (old.minutesGuess && old.minutes !== task.minutes) task = { ...task, minutesGuess: false };
+  }
   try {
     const saved = await Store.put(task);
     const i = tasks.findIndex(t => t.id === saved.id);

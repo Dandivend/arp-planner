@@ -1418,3 +1418,23 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .feel-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 .feel-nav .g-btn { margin-left: auto; }
 .feel-top { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+
+/* 🤖 Claude helper */
+.ai-card { border: 1px solid color-mix(in srgb, #b48cff 45%, var(--line)); border-radius: var(--radius); padding: 12px 14px;
+  margin: 10px 0 14px; background: color-mix(in srgb, #b48cff 6%, var(--card)); }
+.ai-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ai-head h3 { margin: 0; font-size: 16px; }
+.ai-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.ai-log { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.ai-msg { padding: 7px 11px; border-radius: 12px; font-size: 15px; line-height: 1.4; max-width: 92%; }
+.ai-msg.you { align-self: flex-end; background: var(--accent-soft); color: var(--ink); }
+.ai-msg.auto { align-self: flex-end; background: transparent; color: var(--muted); font-size: 13.5px; }
+.ai-msg.claude, .ai-msg.ask { align-self: flex-start; background: var(--card-hover); }
+.ai-msg.error { align-self: flex-start; color: var(--danger); }
+.ai-msg.thinking { color: var(--muted); font-style: italic; }
+.ai-msg .link-btn, .ai-msg .g-btn { margin-left: 8px; }
+.ai-undone { color: var(--muted); font-size: 13px; margin-left: 6px; }
+.ai-form { display: flex; gap: 8px; margin-top: 8px; }
+.ai-form input { flex: 1; min-width: 0; }
+.ai-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 8px 0 2px; }
+.ai-key-actions { display: flex; gap: 8px; margin: 8px 0; }

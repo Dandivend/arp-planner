@@ -29,6 +29,7 @@ async function setCheckin(fields) {
   render();
   try {
     moods[day] = await Store.putMood(day, fields);
+    if (typeof aiCheckinChanged === "function") aiCheckinChanged(day);
   } catch {
     showError("Couldn't save that. Try closing and reopening the planner.");
   }

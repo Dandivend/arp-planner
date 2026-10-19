@@ -155,6 +155,8 @@
       <!-- 🧠 Brain and 💪 Body batteries -->
       <div id="batteries" class="batteries"></div>
       <div id="overload" class="overload" hidden></div>
+      <!-- 🤖 The Claude helper (Settings → AI integration; off by default) -->
+      <div id="ai-card" class="ai-card" hidden></div>
 
       <ul id="task-list" class="task-list"></ul>
       <p id="empty-day" class="empty">Nothing planned for this day yet.</p>
@@ -273,6 +275,11 @@
       <div class="fit-card">
         <h3>🔋 Brain &amp; body</h3>
         <div id="brain-settings"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🤖 AI integration</h3>
+        <div id="ai-settings"></div>
       </div>
 
       <div class="fit-card">
@@ -509,6 +516,7 @@
   <script src="phone.js"></script>
   <script src="syncs/phoneapp.js"></script>
   <script src="focus.js"></script>
+  <script src="assistant.js"></script>
   <script src="funfacts.js"></script>
 </body>
 </html>
