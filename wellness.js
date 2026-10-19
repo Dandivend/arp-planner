@@ -565,6 +565,36 @@ const CHAOS_LEVELS = [
   [25, "😌", "Calm"], [50, "🙂", "Busy"], [75, "😬", "Hectic"], [90, "🥵", "Frantic"], [101, "🤯", "Total chaos"],
 ];
 
+// ---------- task emojis ----------
+// Each task's little emoji (it floats around the chaos vial while she's in that task's time slot).
+// Her own pick is t.emoji; otherwise a best guess from the title and kind.
+const EMOJI_GUESSES = [
+  [/\blogan\b/i, "❤️"], [/work ?shift|dayshift|nightshift|\bshift\b|\bwork\b/i, "💼"], [/meeting|sergeant|briefing|formation/i, "🗣️"],
+  [/allergy|shot\b|vaccin|injection|blood ?work|lab\b/i, "💉"],
+  [/doctor|dentist|appointment|appt|clinic|pharmacy|meds\b|medical|pcm\b|dr\.? |intake|sleep study/i, "🩺"],
+  [/therapy|counsel|cope\b|coaching|coach\b/i, "🧠"], [/ballet|dance/i, "🩰"], [/cello|violin/i, "🎻"],
+  [/stud(y|ying)|homework|exam|quiz|lecture|class|learn|flash ?cards/i, "📚"], [/read/i, "📖"],
+  [/laundry|wash (clothes|sheets)|fold/i, "🧺"], [/sheets|make bed|bed/i, "🛏️"], [/dish/i, "🍽️"], [/vacuum/i, "🧹"],
+  [/clean|tidy|scrub|mop|dust|organi[sz]e|declutter/i, "🧽"], [/trash|garbage|recycl/i, "🗑️"],
+  [/grocer|shopping|costco|walmart|target|store/i, "🛒"], [/meal ?prep|cook|dinner|lunch|breakfast|bake/i, "🍳"],
+  [/gym|workout|lift|squat|strength|pt test|run\b|running/i, "🏋️"],
+  [/walk|hike/i, "🚶‍♀️"], [/yoga|stretch/i, "🧘"], [/swim/i, "🏊"], [/bike|cycle/i, "🚴"],
+  [/molly|bird|parrot/i, "🦜"], [/\bori\b|\bcat\b|litter/i, "🐱"], [/goat/i, "🐐"], [/dog|husky/i, "🐶"], [/vet\b/i, "🐾"],
+  [/water (the )?plants|garden|plant/i, "🪴"], [/car\b|oil\b|tires?\b|gas\b|drive|pick ?up|drop ?off/i, "🚗"],
+  [/shred|paperwork|papers|file stuff|files\b/i, "📄"],
+  [/bill|pay|budget|tax|bank/i, "💳"], [/email|reply|text|call|phone/i, "📱"], [/mail|package|post office/i, "📦"],
+  [/hair|nails|shower|bath|pamper|skin/i, "🛁"], [/nap|sleep|rest/i, "😴"], [/game|gaming/i, "🎮"], [/movie|tv|show/i, "🎬"],
+  [/paint|draw|craft|art/i, "🎨"], [/music|guitar|piano|sing/i, "🎵"], [/birthday|party/i, "🎉"], [/date|friends|hang ?out/i, "🫂"],
+  [/church/i, "⛪"], [/travel|flight|airport/i, "✈️"], [/school/i, "🏫"],
+];
+function guessEmoji(t) {
+  const title = t.title || "";
+  if (isWorkShift(t)) return "💼";
+  for (const [re, e] of EMOJI_GUESSES) if (re.test(title)) return e;
+  return { workout: "🏋️", chore: "🧹", event: "📅", joy: "🌈" }[kindOf(t)] || "✏️";
+}
+const emojiOf = t => t.emoji || guessEmoji(t);
+
 // ---------- rejuvenation (joy) ----------
 // Hobbies and fun (kind "joy", or anything "with Logan"): they refill her instead of draining her.
 // Joy on a day buffers the chaos meter: it fills more slowly and never reaches full chaos.

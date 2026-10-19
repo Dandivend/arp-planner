@@ -239,7 +239,8 @@ const DeviceStore = {
   },
   async putProfile(profile) {
     await this.load();
-    this.data.profile = { ...this.data.profile, ...profile, updatedAt: nowIso() };
+    const when = nowIso();
+    this.data.profile = { ...this.data.profile, ...profile, _stamps: stampProfile(this.data.profile, profile, when), updatedAt: when };
     await this._save("profile");
     return { ...this.data.profile };
   },

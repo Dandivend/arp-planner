@@ -436,6 +436,7 @@ function renderFreeTimer() {
   renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
   renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
   renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
+  renderNowEmoji(isToday && !ft.past ? nowTaskEmoji(day, p) : null);
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -593,6 +594,29 @@ function eruptFlask() {
   }, 900);
 }
 $("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
+
+// Right now: the emoji of whatever she's in the middle of (a timed task, or her work shift).
+function nowTaskEmoji(day, p) {
+  const n = nowLocal(), m = n.getHours() * 60 + n.getMinutes();
+  const cur = p.list.filter(t => !t.done && !t.deleted && t.time && t.date === day)
+    .filter(t => { const s = toMin(t.time); return m >= s && m < s + (minutesLeft(t) ?? t.minutes ?? 30); })
+    .sort((a, b) => (isWorkShift(a) - isWorkShift(b)) || b.time.localeCompare(a.time));     // the most specific first
+  if (cur.length) return { emoji: emojiOf(cur[0]), title: cur[0].title };
+  if (atWork(day, `${pad(n.getHours())}:${pad(n.getMinutes())}`)) return { emoji: "💼", title: "Work" };
+  return null;
+}
+function renderNowEmoji(now) {
+  const flask = $("chaos-flask");
+  let f = flask.querySelector(".flask-now");
+  if (!now) { if (f) f.remove(); return; }
+  if (!f) {
+    f = document.createElement("div");
+    f.className = "flask-now";
+    flask.appendChild(f);
+  }
+  if (f.textContent !== now.emoji) f.textContent = now.emoji;
+  f.title = "Right now: " + now.title;
+}
 
 // Study day: the vial glows softly (it's learning!) and a graduation cap floats around it.
 const isStudy = t => /\b(stud(y|ying|ies)|homework|exam|quiz|lecture|course ?work|learn(ing)?|revis(e|ion|ing)|flash ?cards)\b/i.test(t.title || "");
@@ -1973,6 +1997,30 @@ function updateDialogVisibility() {
     kind === "workout" ? "e.g. Primal squats + stretch" : "e.g. Pick up groceries";
 }
 
+// The emoji box in the task dialog: her pick, or the best guess (updated as she types the title).
+let emojiChosen = false;
+const EMOJI_IDEAS = ["💼", "📚", "🧺", "🧹", "🛒", "🍳", "🏋️", "🚶‍♀️", "🩺", "💳", "📱", "🪴", "🦜", "🐱", "❤️", "🎮", "🎨", "🛁", "😴", "📅", "✏️", "🌈"];
+function fillEmojiPicker(task) {
+  emojiChosen = !!(task && task.emoji);
+  const input = $("f-emoji");
+  input.value = task ? emojiOf(task) : "✏️";
+  const ideas = $("f-emoji-ideas");
+  ideas.innerHTML = "";
+  for (const e of EMOJI_IDEAS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "emoji-idea";
+    b.textContent = e;
+    b.addEventListener("click", () => { input.value = e; emojiChosen = true; });
+    ideas.appendChild(b);
+  }
+}
+$("f-emoji").addEventListener("input", () => { emojiChosen = true; });
+$("f-title").addEventListener("input", () => {
+  if (emojiChosen) return;
+  $("f-emoji").value = guessEmoji({ title: $("f-title").value, kind: getSeg("f-kind") || "task", time: null });
+});
+
 function openDialog(task) {
   editing = task || null;
   const day = task ? task.date || todayKey() : currentDay;    // a to-do may have no day yet
@@ -1988,6 +2036,7 @@ function openDialog(task) {
   setSeg("f-effort", task ? effortOf(task) : "light");
   effortTouched = !!task;
   setSeg("f-brain", task ? brainOf(task) : "medium");
+  fillEmojiPicker(task);
   brainTouched = !!(task && (task.brain || rememberedBrain(task)));
   setDuration(task ? task.minutes || null : 15);
   // A task whose steps have times: its length is their total, set from the steps themselves.
@@ -2061,6 +2110,7 @@ async function saveFromDialog() {
     area: kind === "chore" ? $("f-area").value : null,
     effort: getSeg("f-effort") || "light",
     brain: getSeg("f-brain") || "medium",
+    emoji: emojiChosen ? ($("f-emoji").value.trim() || null) : (editing && editing.emoji) || null,
   };
   await persist(task);
   if (task.date) warnIfOverloaded(task.date);
