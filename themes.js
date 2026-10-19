@@ -44,7 +44,8 @@ function themePref() {
 // Calm mode: fewer moving, flashing and dramatic things (easier on the senses).
 const calmMode = () => !!themePref().calm;
 
-let fxKey = null;
+let fxKey = null, mollyTimer = null;
+const MOLLY_PICS = 11;           // molly/molly-1.webp … (Molly, their African grey)
 function applyTheme() {
   const t = themePref();
   const season = currentThemeName();
@@ -70,7 +71,10 @@ function renderSeasonFx(season) {
     document.body.prepend(box);
   }
   box.innerHTML = "";
-  if (!season) return;
+  clearInterval(mollyTimer);
+  if (!season) { document.getElementById("molly-peek")?.remove(); return; }
+  if (season === "grey" && location.protocol.startsWith("http")) startMolly();
+  else document.getElementById("molly-peek")?.remove();
   const bits = SEASONS[season].bits;
   for (let i = 0; i < 14; i++) {
     const s = document.createElement("span");
@@ -83,6 +87,38 @@ function renderSeasonFx(season) {
     s.style.animationDelay = `${-Math.random() * fall}s, ${-Math.random() * sway}s`;
     box.appendChild(s);
   }
+}
+
+// African grey theme: now and then Molly peeks in from the left or right edge of the screen,
+// has a look around, and slides back out. (Small, see-through to taps, never over dialogs.)
+function startMolly() {
+  let peek = document.getElementById("molly-peek");
+  if (!peek) {
+    peek = document.createElement("div");
+    peek.id = "molly-peek";
+    peek.setAttribute("aria-hidden", "true");
+    document.body.appendChild(peek);
+  }
+  peek.innerHTML = "";
+  let last = 0;
+  const show = () => {
+    if (document.hidden || !document.getElementById("molly-peek")) return;
+    let n;
+    do n = 1 + Math.floor(Math.random() * MOLLY_PICS); while (n === last && MOLLY_PICS > 1);
+    last = n;
+    const img = new Image();
+    const side = Math.random() < 0.5 ? "left" : "right";
+    img.className = "molly-pop " + side;
+    img.alt = "";
+    img.src = `molly/molly-${n}.webp`;
+    img.style.top = `${18 + Math.random() * 58}vh`;
+    img.style.height = `${100 + Math.random() * 40}px`;
+    img.style.setProperty("--tilt", `${(side === "left" ? 1 : -1) * (4 + Math.random() * 8)}deg`);
+    peek.appendChild(img);
+    setTimeout(() => img.remove(), 6200);
+  };
+  setTimeout(show, 1500);
+  mollyTimer = setInterval(show, 8000);
 }
 
 async function saveTheme(changes) {

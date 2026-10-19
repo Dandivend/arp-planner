@@ -120,6 +120,22 @@ main, .topbar { position: relative; z-index: 1; }
 [data-mode="light"] .fx-bit { opacity: .35; }
 @keyframes fx-fall { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(118vh) rotate(320deg); } }
 @keyframes fx-sway { from { margin-left: -24px; } to { margin-left: 24px; } }
+/* Molly (African grey theme) peeking in from a screen edge */
+#molly-peek { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.molly-pop { position: absolute; width: auto; opacity: .92; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .35)); }
+.molly-pop.left { left: 0; animation: molly-left 6s ease-in-out forwards; }
+.molly-pop.right { right: 0; animation: molly-right 6s ease-in-out forwards; }
+@keyframes molly-left {
+  0%, 100% { transform: translateX(-105%) rotate(var(--tilt)); }
+  18%, 80% { transform: translateX(-24%) rotate(var(--tilt)); }
+  45% { transform: translateX(-20%) rotate(calc(var(--tilt) * -1)); }
+}
+@keyframes molly-right {
+  0%, 100% { transform: translateX(105%) rotate(var(--tilt)); }
+  18%, 80% { transform: translateX(24%) rotate(var(--tilt)); }
+  45% { transform: translateX(20%) rotate(calc(var(--tilt) * -1)); }
+}
+@media (prefers-reduced-motion: reduce), print { #molly-peek { display: none; } }
 @media (prefers-reduced-motion: reduce), print { #season-fx { display: none; } }
 
 /* ---------- Appearance settings ---------- */
