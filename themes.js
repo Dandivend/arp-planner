@@ -11,8 +11,9 @@ const SEASONS = {
   goat: { label: "Goat", emoji: "🐐", bits: ["🐐", "🌿", "🌾"], sw: "#c9a27a", animal: true },
   grey: { label: "African grey", emoji: "🦜", bits: ["🪶", "🪶", "❤️"], sw: "#e5484e", animal: true },
   ori: { label: "Ori the cat", emoji: "🐱", bits: ["🐾", "🐾", "💙"], sw: "#5ab8ff", animal: true },
+  pets: { label: "Ori & Molly", emoji: "🐾", bits: ["🐾", "🪶", "💙", "❤️"], sw: "#8a7cf0", animal: true },
 };
-const ANIMAL_THEMES = ["goat", "grey", "ori"];
+const ANIMAL_THEMES = ["goat", "grey", "ori", "pets"];
 const THEME_CACHE = "arpPlanner.theme";   // per-device copy so the look applies instantly
 
 // Real-life season (northern hemisphere, by month): Mar-May spring, Jun-Aug summer,
@@ -45,7 +46,9 @@ function themePref() {
 const calmMode = () => !!themePref().calm;
 
 let fxKey = null, mollyTimer = null;
-const MOLLY_PICS = 11;           // molly/molly-1.webp … (Molly, their African grey)
+// Photos of their pets that peek in on their themes: <dir>/<dir>-1.webp … (add more: raise count).
+const PET_PICS = { molly: 11, ori: 31 };       // Molly the African grey, Ori the Siamese
+const THEME_PETS = { grey: ["molly"], ori: ["ori"], pets: ["ori", "molly"] };
 function applyTheme() {
   const t = themePref();
   const season = currentThemeName();
@@ -73,7 +76,7 @@ function renderSeasonFx(season) {
   box.innerHTML = "";
   clearInterval(mollyTimer);
   if (!season) { document.getElementById("molly-peek")?.remove(); return; }
-  if (season === "grey" && location.protocol.startsWith("http")) startMolly();
+  if (THEME_PETS[season] && location.protocol.startsWith("http")) startPets(THEME_PETS[season]);
   else document.getElementById("molly-peek")?.remove();
   const bits = SEASONS[season].bits;
   for (let i = 0; i < 14; i++) {
@@ -89,9 +92,9 @@ function renderSeasonFx(season) {
   }
 }
 
-// African grey theme: now and then Molly peeks in from the left or right edge of the screen,
-// has a look around, and slides back out. (Small, see-through to taps, never over dialogs.)
-function startMolly() {
+// Pet themes: now and then Molly (or Ori, or both taking turns) peeks in from the left or right
+// edge of the screen, has a look around, and slides back out. (Small, see-through to taps.)
+function startPets(pets) {
   let peek = document.getElementById("molly-peek");
   if (!peek) {
     peek = document.createElement("div");
@@ -100,17 +103,19 @@ function startMolly() {
     document.body.appendChild(peek);
   }
   peek.innerHTML = "";
-  let last = 0;
+  const last = {};
+  let turn = Math.floor(Math.random() * pets.length);
   const show = () => {
     if (document.hidden || !document.getElementById("molly-peek")) return;
-    let n;
-    do n = 1 + Math.floor(Math.random() * MOLLY_PICS); while (n === last && MOLLY_PICS > 1);
-    last = n;
+    const pet = pets[turn++ % pets.length];
+    let pic;
+    do pic = `${pet}/${pet}-${1 + Math.floor(Math.random() * PET_PICS[pet])}.webp`; while (pic === last[pet] && PET_PICS[pet] > 1);
+    last[pet] = pic;
     const img = new Image();
     const side = Math.random() < 0.5 ? "left" : "right";
     img.className = "molly-pop " + side;
     img.alt = "";
-    img.src = `molly/molly-${n}.webp`;
+    img.src = pic;
     img.style.top = `${18 + Math.random() * 58}vh`;
     img.style.height = `${100 + Math.random() * 40}px`;
     img.style.setProperty("--tilt", `${(side === "left" ? 1 : -1) * (4 + Math.random() * 8)}deg`);
@@ -193,7 +198,7 @@ function renderAppearance() {
   for (const [id, label] of [["any", "🎲 Any, at random"], ["theme", "🎨 Match my animal theme"], ["goat", "🐐 Goat"],
     ["parrot", "🦜 Grey"], ["husky", "🐺 Husky"], ["cat", "🐱 Ori"]]) {
     const b = el("button", "season-swatch" + ((t.critter || "any") === id ? " on" : ""), label);
-    if (id === "theme") b.title = "Goat theme → goat, African grey → parrot, Ori → Ori. Other themes: any animal.";
+    if (id === "theme") b.title = "Goat theme → goat, African grey → parrot, Ori → Ori, Ori & Molly → both. Other themes: any animal.";
     b.addEventListener("click", () => saveTheme({ critter: id }));
     critRow.appendChild(b);
   }

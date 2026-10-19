@@ -228,12 +228,14 @@ function buildCritter(name) {
 
 // Which animal runs (Settings → Appearance → Task-done animal): any of them at random, the one
 // that matches an animal theme, or always the same one.
-const THEME_ANIMAL = { goat: "goat", grey: "parrot", ori: "cat" };
+const THEME_ANIMAL = { goat: "goat", grey: "parrot", ori: "cat", pets: ["cat", "parrot"] };
 let lastAnimal = null;
 function pickAnimal() {
   const want = typeof themePref === "function" ? themePref().critter || "any" : "any";
   if (ANIMALS[want]) return (lastAnimal = want);
-  if (want === "theme" && THEME_ANIMAL[currentThemeName()]) return (lastAnimal = THEME_ANIMAL[currentThemeName()]);
+  const mine = want === "theme" && THEME_ANIMAL[currentThemeName()];
+  if (Array.isArray(mine)) return (lastAnimal = mine.find(n => n !== lastAnimal) || mine[0]);   // take turns
+  if (mine) return (lastAnimal = mine);
   const names = Object.keys(ANIMALS).filter(n => n !== lastAnimal);
   lastAnimal = names[Math.floor(Math.random() * names.length)];
   return lastAnimal;

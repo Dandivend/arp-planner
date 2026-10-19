@@ -27,7 +27,7 @@ const MOOD_GROUPS = [
       ["Okay", { en: 0, pl: 0.25, br: 0 }],
       ["Accepted"], ["Appreciated"], ["Balanced", { en: 0, br: 0.75 }], ["Blessed"], ["Calm", { br: 0.5 }],
       ["Carefree", { br: 0 }], ["Chill", { en: -1, br: 0 }], ["Comfortable"], ["Compassionate"], ["Connected"],
-      ["Content"], ["Cosy", { en: -1, br: 0 }], ["Empathetic"], ["Fulfilled"], ["Good", { en: 0, pl: 1 }],
+      ["Content"], ["Cozy", { en: -1, br: 0, id: "cosy" }], ["Empathetic"], ["Fulfilled"], ["Good", { en: 0, pl: 1 }],
       ["Grateful"], ["Grounded", { en: 0, br: 0.75 }], ["Included"], ["Loved"], ["Mellow", { en: -1 }],
       ["Peaceful", { br: 0.5 }], ["Pleasant", { en: 0, pl: 1 }], ["Relieved", { en: 0 }], ["Respected"], ["Safe"],
       ["Satisfied"], ["Secure"], ["Serene", { br: 0.5 }], ["Supported"], ["Sympathetic"], ["Touched"],
