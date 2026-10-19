@@ -47,7 +47,7 @@ const calmMode = () => !!themePref().calm;
 
 let fxKey = null, mollyTimer = null;
 // Photos of their pets that peek in on their themes: <dir>/<dir>-1.webp … (add more: raise count).
-const PET_PICS = { molly: 11, ori: 31 };       // Molly the African grey, Ori the Siamese
+const PET_PICS = { molly: 11, ori: 40 };       // Molly the African grey, Ori the Siamese
 const THEME_PETS = { grey: ["molly"], ori: ["ori"], pets: ["ori", "molly"] };
 function applyTheme() {
   const t = themePref();
