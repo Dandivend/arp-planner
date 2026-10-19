@@ -1,11 +1,11 @@
 // 🫧 Fidgets (Settings → bottom → Fidgets): a zen sand garden and a board of click toys.
-// Gentle phone buzzes (on by default) and soft sounds (off by default), both switchable here.
+// Gentle phone buzzes and satisfying sounds (both on by default), switchable here.
 
 let fidgetPrefCache = null;
 function fidgetPrefs() {
   if (!fidgetPrefCache) {
-    try { fidgetPrefCache = { buzz: true, sound: false, ...JSON.parse(localStorage.getItem("arpPlanner.fidget") || "{}") }; }
-    catch { fidgetPrefCache = { buzz: true, sound: false }; }
+    try { fidgetPrefCache = { buzz: true, sound: true, ...JSON.parse(localStorage.getItem("arpPlanner.fidget") || "{}") }; }
+    catch { fidgetPrefCache = { buzz: true, sound: true }; }
   }
   return fidgetPrefCache;
 }
@@ -14,25 +14,148 @@ function setFidgetPref(k, v) {
   try { localStorage.setItem("arpPlanner.fidget", JSON.stringify(fidgetPrefCache)); } catch {}
 }
 
-// Little sounds, made on the spot (no files): a click, a thock, a tick.
+// Satisfying sounds, made on the spot (no files). Each press varies a little (pitch, tone), so a
+// hundred clicks never sound like a recording on repeat.
 let audioCtx = null;
-function fidgetSound(kind = "click") {
-  if (!fidgetPrefs().sound) return;
+function fctx() {
   try {
     audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    const t = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
-    const f = { click: 1800, thock: 220, tick: 3200, pop: 600 }[kind] || 1200;
-    o.type = kind === "thock" ? "sine" : "square";
-    o.frequency.setValueAtTime(f, t);
-    o.frequency.exponentialRampToValueAtTime(f * (kind === "pop" ? 2.2 : .5), t + .05);
-    g.gain.setValueAtTime(kind === "thock" ? .25 : .06, t);
-    g.gain.exponentialRampToValueAtTime(.0001, t + (kind === "thock" ? .12 : .05));
-    o.connect(g).connect(audioCtx.destination);
-    o.start(t);
-    o.stop(t + .15);
-  } catch {}
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  } catch { return null; }
 }
-const fidgetFeel = (ms, sound) => { buzz(ms); fidgetSound(sound); };
+let fidgetBus = null;                            // everything goes through a gentle compressor: loud but never harsh
+function fout(ctx) {
+  if (!fidgetBus || fidgetBus.context !== ctx) {
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = .002; comp.release.value = .15;
+    const g = ctx.createGain();
+    g.gain.value = 1.6;
+    comp.connect(g).connect(ctx.destination);
+    fidgetBus = comp;
+  }
+  return fidgetBus;
+}
+const vary = (x, amt = .08) => x * (1 + (Math.random() * 2 - 1) * amt);
+function tone(ctx, { at = 0, type = "sine", f0, f1 = f0, dur = .12, vol = .5, attack = .002 }) {
+  const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  o.connect(g).connect(fout(ctx));
+  o.start(t);
+  o.stop(t + dur + .02);
+}
+let noiseBuf = null;
+function noise(ctx, { at = 0, dur = .05, type = "bandpass", freq = 2000, q = 1, vol = .5, f1 = null }) {
+  if (!noiseBuf || noiseBuf.sampleRate !== ctx.sampleRate) {
+    noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const t = ctx.currentTime + at, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = noiseBuf;
+  f.type = type; f.frequency.setValueAtTime(freq, t); f.Q.value = q;
+  if (f1) f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + .002);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  src.connect(f).connect(g).connect(fout(ctx));
+  src.start(t, Math.random() * 1.5);
+  src.stop(t + dur + .02);
+}
+
+const FIDGET_SOUNDS = {
+  thock(ctx) {                                   // the big red button: a deep, round THOCK
+    const p = vary(1, .1);
+    tone(ctx, { type: "sine", f0: 165 * p, f1: 70 * p, dur: .22, vol: .9 });
+    tone(ctx, { type: "triangle", f0: 330 * p, f1: 160 * p, dur: .08, vol: .35 });
+    noise(ctx, { type: "lowpass", freq: 2200, dur: .045, vol: .55 });
+    noise(ctx, { at: .004, freq: vary(4200), q: 3, dur: .02, vol: .3 });
+  },
+  click(ctx) {                                   // a toggle switch: crisp snap… and a tiny settle
+    noise(ctx, { freq: vary(3400, .15), q: 4, dur: .025, vol: .75 });
+    tone(ctx, { type: "square", f0: vary(1150), f1: vary(700), dur: .03, vol: .18 });
+    noise(ctx, { at: .045, freq: vary(2600, .15), q: 5, dur: .018, vol: .3 });
+  },
+  key(ctx) {                                     // a chunky mechanical key: clack + low body
+    const p = vary(1, .12);
+    noise(ctx, { freq: 1900 * p, q: 2, dur: .035, vol: .8 });
+    tone(ctx, { type: "sine", f0: 260 * p, f1: 140 * p, dur: .09, vol: .55 });
+    noise(ctx, { at: .006, type: "highpass", freq: 5000, dur: .012, vol: .25 });
+  },
+  keyup(ctx) { noise(ctx, { freq: vary(2400, .15), q: 3, dur: .02, vol: .3 }); },
+  tick(ctx, n = 5) {                             // slider notches: the pitch climbs as it goes up
+    const f = 700 + n * 95;
+    tone(ctx, { type: "triangle", f0: vary(f, .03), f1: vary(f * .9, .03), dur: .05, vol: .45 });
+    noise(ctx, { freq: f * 3, q: 6, dur: .012, vol: .35 });
+  },
+  pop(ctx) {                                     // a pop-it bubble: boop!
+    const p = vary(1, .18);
+    tone(ctx, { type: "sine", f0: 260 * p, f1: 820 * p, dur: .07, vol: .8 });
+    noise(ctx, { type: "bandpass", freq: 900 * p, q: 1.5, dur: .03, vol: .35 });
+  },
+  fanfare(ctx) {                                 // all popped: a happy little arpeggio
+    [523, 659, 784, 1047].forEach((f, i) => tone(ctx, { at: i * .08, type: "triangle", f0: f, dur: .22, vol: .45 }));
+  },
+  stone(ctx) {                                   // a pebble settling into sand
+    tone(ctx, { type: "sine", f0: vary(210), f1: 120, dur: .16, vol: .5 });
+    noise(ctx, { type: "lowpass", freq: 900, dur: .25, vol: .35, f1: 300 });
+  },
+  wave(ctx) {                                    // the wave washing over the sand: a long, soft whoosh
+    noise(ctx, { type: "bandpass", freq: 300, f1: 1400, q: .6, dur: .9, vol: .5 });
+    noise(ctx, { at: .7, type: "bandpass", freq: 1400, f1: 260, q: .6, dur: 1.3, vol: .45 });
+    noise(ctx, { at: 1.1, type: "highpass", freq: 3500, dur: .9, vol: .08 });   // fizzy foam
+  },
+};
+function fidgetSound(kind = "click", arg) {
+  if (!fidgetPrefs().sound) return;
+  const ctx = fctx();
+  if (ctx && FIDGET_SOUNDS[kind]) { try { FIDGET_SOUNDS[kind](ctx, arg); } catch {} }
+}
+
+// Raking sand: a soft, continuous shhhh that follows how fast her finger moves.
+const sandSound = {
+  src: null, gain: null,
+  start() {
+    if (!fidgetPrefs().sound || this.src) return;
+    const ctx = fctx();
+    if (!ctx) return;
+    const len = ctx.sampleRate * 3, buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    let b0 = 0, b1 = 0, b2 = 0;
+    for (let i = 0; i < len; i++) {              // pink-ish noise: warm, like grains of sand
+      const w = Math.random() * 2 - 1;
+      b0 = .99765 * b0 + w * .099; b1 = .963 * b1 + w * .2965; b2 = .57 * b2 + w * 1.0526;
+      d[i] = (b0 + b1 + b2 + w * .1848) * .2;
+    }
+    const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+    src.buffer = buf; src.loop = true;
+    bp.type = "bandpass"; bp.frequency.value = 1100; bp.Q.value = .5;
+    lp.type = "lowpass"; lp.frequency.value = 3200;
+    g.gain.value = .0001;
+    src.connect(bp).connect(lp).connect(g).connect(fout(ctx));
+    src.start();
+    this.src = src; this.gain = g; this.bp = bp;
+  },
+  speed(px) {                                    // px moved this frame
+    if (!this.gain) return;
+    const ctx = fctx(), v = Math.min(.55, px / 28);
+    this.gain.gain.setTargetAtTime(v, ctx.currentTime, .05);
+    this.bp.frequency.setTargetAtTime(800 + px * 25, ctx.currentTime, .08);
+  },
+  stop() {
+    if (!this.src) return;
+    const ctx = fctx(), src = this.src;
+    this.gain.gain.setTargetAtTime(.0001, ctx.currentTime, .12);
+    setTimeout(() => { try { src.stop(); } catch {} }, 600);
+    this.src = this.gain = null;
+  },
+};
+
+const fidgetFeel = (ms, sound, arg) => { buzz(ms); fidgetSound(sound, arg); };
 
 function renderFidgets() {
   const box = $("fidget-body");
@@ -41,7 +164,7 @@ function renderFidgets() {
   box.innerHTML = "";
 
   const prefs = el("div", "fidget-prefs");
-  for (const [k, label] of [["buzz", "📳 Gentle buzzes"], ["sound", "🔊 Soft sounds"]]) {
+  for (const [k, label] of [["buzz", "📳 Gentle buzzes"], ["sound", "🔊 Sounds"]]) {
     const l = el("label", "ai-toggle");
     const cb = el("input");
     cb.type = "checkbox";
@@ -100,8 +223,11 @@ function renderFidgets() {
   const keys = el("div", "toy-cell toy-keys");
   for (const k of ["A", "R", "P", "♥", "✓"]) {
     const key = el("button", "toy-key", k);
-    key.addEventListener("pointerdown", () => { key.classList.add("down"); fidgetFeel(10, "click"); });
-    for (const ev of ["pointerup", "pointerleave", "pointercancel"]) key.addEventListener(ev, () => key.classList.remove("down"));
+    key.addEventListener("pointerdown", () => { key.classList.add("down"); fidgetFeel(10, "key"); });
+    for (const ev of ["pointerup", "pointerleave", "pointercancel"]) key.addEventListener(ev, () => {
+      if (key.classList.contains("down")) fidgetSound("keyup");
+      key.classList.remove("down");
+    });
     keys.appendChild(key);
   }
   board.appendChild(keys);
@@ -114,7 +240,7 @@ function renderFidgets() {
   slider.value = "5";
   let lastNotch = 5;
   slider.addEventListener("input", () => {
-    if (Number(slider.value) !== lastNotch) { lastNotch = Number(slider.value); fidgetFeel(6, "tick"); }
+    if (Number(slider.value) !== lastNotch) { lastNotch = Number(slider.value); fidgetFeel(6, "tick", lastNotch); }
   });
   sliderCell.append(slider, el("div", "toy-ticks", "· · · · · · · · · · ·"));
   board.appendChild(sliderCell);
@@ -128,7 +254,7 @@ function renderFidgets() {
       p.classList.add("popped");
       fidgetFeel(12, "pop");
       if (popBtns.every(b => b.classList.contains("popped"))) {
-        setTimeout(() => { for (const b of popBtns) b.classList.remove("popped"); fidgetFeel([20, 40, 20], "thock"); }, 500);
+        setTimeout(() => { for (const b of popBtns) b.classList.remove("popped"); fidgetFeel([20, 40, 20], "fanfare"); }, 500);
       }
     });
     popBtns.push(p);
@@ -146,14 +272,28 @@ function setupZen(canvas, smoothBtn) {
   let w = 0, h = 0, dpr = 1;
   const stones = [];
 
-  function grain() {
-    ctx.fillStyle = SAND;
-    ctx.fillRect(0, 0, w, h);
-    for (let i = 0; i < (w * h) / 60; i++) {           // a little texture
-      ctx.fillStyle = Math.random() < .5 ? "rgba(255,255,255,.18)" : "rgba(120,95,60,.10)";
-      ctx.fillRect(Math.random() * w, Math.random() * h, 1.4, 1.4);
+  // A sheet of fresh, smooth sand (kept off screen; the wave pours it back over her raking).
+  let fresh = null;
+  function makeFresh() {
+    fresh = document.createElement("canvas");
+    fresh.width = w * dpr; fresh.height = h * dpr;
+    const f = fresh.getContext("2d");
+    f.setTransform(dpr, 0, 0, dpr, 0, 0);
+    f.fillStyle = SAND;
+    f.fillRect(0, 0, w, h);
+    for (let i = 0; i < (w * h) / 60; i++) {            // a little texture
+      f.fillStyle = Math.random() < .5 ? "rgba(255,255,255,.18)" : "rgba(120,95,60,.10)";
+      f.fillRect(Math.random() * w, Math.random() * h, 1.4, 1.4);
     }
   }
+  function pour(x) {                                    // fresh sand from the left edge up to x
+    if (x <= 0) return;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(fresh, 0, 0, Math.min(fresh.width, x * dpr), fresh.height, 0, 0, Math.min(fresh.width, x * dpr), fresh.height);
+    ctx.restore();
+  }
+  function grain() { makeFresh(); pour(w); }
   function drawStone(s) {
     for (let r = s.r + 10; r < s.r + 70; r += 9) {     // raked rings around it
       ctx.beginPath();
@@ -196,7 +336,7 @@ function setupZen(canvas, smoothBtn) {
   // Rake: four tines drawn along her finger, each a groove with a light ridge beside it.
   let last = null, moved = 0, dist = 0;
   const at = e => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); last = at(e); moved = 0; });
+  canvas.addEventListener("pointerdown", e => { canvas.setPointerCapture(e.pointerId); last = at(e); moved = 0; sandSound.start(); });
   canvas.addEventListener("pointermove", e => {
     if (!last) return;
     const p = at(e), dx = p.x - last.x, dy = p.y - last.y, len = Math.hypot(dx, dy);
@@ -220,6 +360,7 @@ function setupZen(canvas, smoothBtn) {
     }
     moved += len;
     dist += len;
+    sandSound.speed(len);
     if (dist > 60) { dist = 0; buzz(3); }
     last = p;
   });
@@ -228,23 +369,48 @@ function setupZen(canvas, smoothBtn) {
       const s = { ...at(e), r: 12 + Math.random() * 9, tilt: Math.random() * Math.PI };
       stones.push(s);
       drawStone(s);
-      fidgetFeel(25, "thock");
+      fidgetFeel(25, "stone");
     }
     last = null;
+    sandSound.stop();
   };
   canvas.addEventListener("pointerup", end);
-  canvas.addEventListener("pointercancel", () => { last = null; });
+  canvas.addEventListener("pointercancel", () => { last = null; sandSound.stop(); });
 
+  // A wave washes across from left to right, leaving smooth sand behind it.
+  let washing = false;
   smoothBtn.addEventListener("click", () => {
+    if (washing) return;
+    washing = true;
     stones.length = 0;
-    let n = 0;
-    const step = () => {                                   // sweep a fresh layer of sand over it
-      ctx.fillStyle = "rgba(230,214,182,.22)";
-      ctx.fillRect(0, 0, w, h);
-      if (++n < 14) requestAnimationFrame(step); else grain();
+    const t0 = performance.now(), dur = calmMode() ? 2600 : 1900;
+    const ease = t => 1 - Math.pow(1 - t, 2.2);
+    fidgetSound("wave");
+    buzz([15, 60, 25, 80, 15]);
+    const frame = now => {
+      const t = Math.min(1, (now - t0) / dur), x = ease(t) * (w + 90) - 40;
+      pour(x - 26);
+      // wet, darker sand just behind the wave, then the foamy, wobbly crest
+      const wet = ctx.createLinearGradient(x - 90, 0, x - 20, 0);
+      wet.addColorStop(0, "rgba(150,118,78,0)");
+      wet.addColorStop(1, "rgba(150,118,78,.28)");
+      ctx.fillStyle = wet;
+      ctx.fillRect(Math.max(0, x - 90), 0, 70, h);
+      ctx.beginPath();
+      ctx.moveTo(x - 30, 0);
+      for (let y = 0; y <= h; y += 6) ctx.lineTo(x + Math.sin(y / 23 + now / 140) * 9 + Math.sin(y / 9 + now / 90) * 3, y);
+      ctx.lineTo(x - 30, h);
+      ctx.closePath();
+      const foam = ctx.createLinearGradient(x - 30, 0, x + 10, 0);
+      foam.addColorStop(0, "rgba(120,190,215,.35)");
+      foam.addColorStop(.7, "rgba(235,248,252,.85)");
+      foam.addColorStop(1, "rgba(255,255,255,.95)");
+      ctx.fillStyle = foam;
+      ctx.fill();
+      if (t < 1) requestAnimationFrame(frame);
+      else { pour(w); washing = false; }
     };
-    step();
-    fidgetFeel([10, 30, 10], "tick");
+    requestAnimationFrame(frame);
   });
 }
 

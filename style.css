@@ -1645,3 +1645,11 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .emoji-ideas { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 200px; }
 .emoji-idea { border: 1px solid var(--line); background: var(--card); border-radius: 8px; font-size: 18px; width: 34px; height: 34px; padding: 0; }
 .emoji-idea:hover { border-color: var(--accent); }
+
+/* ✨ The task she's in the middle of right now glows in the theme's colour */
+.task.now { border-color: var(--accent) !important; animation: now-glow 2.6s ease-in-out infinite; }
+@keyframes now-glow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { box-shadow: 0 0 0 2px var(--accent), 0 0 26px color-mix(in srgb, var(--accent) 60%, transparent), 0 0 46px color-mix(in srgb, var(--season-2) 30%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .task.now { animation: none; box-shadow: 0 0 0 2px var(--accent), 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent); } }

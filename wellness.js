@@ -170,8 +170,15 @@ function calendarShiftFor(day) {
   return ev ? { start: ev.time, end: addMinutesTo(ev.time, ev.minutes || 8 * 60), fromCalendar: true, title: ev.title } : null;
 }
 
-// The shift that starts on this day: from her calendar if there is one, else Settings.
-const workHoursFor = day => calendarShiftFor(day) || settingsShiftFor(day);
+// When her work comes from Google Calendar (the setting is on and her shifts are coming in), the
+// calendar decides: a day with no work event on it is a day off 🌴. Otherwise, Settings' weekly hours.
+let calWorkMemo = { tasks: null, n: -1, on: false };
+function calendarRunsWork() {
+  if (!workFromCal().enabled) return false;
+  if (calWorkMemo.tasks !== tasks || calWorkMemo.n !== tasks.length) calWorkMemo = { tasks, n: tasks.length, on: tasks.some(isWorkShift) };
+  return calWorkMemo.on;
+}
+const workHoursFor = day => calendarShiftFor(day) || (calendarRunsWork() ? null : settingsShiftFor(day));
 const isWorkday = day => !!workHoursFor(day);
 
 // Work as blocks of minutes within this day (0-1440): today's shift (cut at midnight if it

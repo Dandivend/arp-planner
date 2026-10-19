@@ -406,6 +406,7 @@ function formatHrsMin(sec) {
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
 }
 
+let n0 = 0;                                   // the minute the "now" glow was last checked
 function renderFreeTimer() {
   if (!timerPlan) return;
   const day = currentDay, p = timerPlan;
@@ -437,6 +438,12 @@ function renderFreeTimer() {
   renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
   renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
   renderNowEmoji(isToday && !ft.past ? nowTaskEmoji(day, p) : null);
+  if (isToday && n0 !== (n0 = Math.floor(Date.now() / 60000))) {                // once a minute: move the "now" glow
+    for (const li of document.querySelectorAll("#task-list .task[data-id]")) {
+      const t = tasks.find(x => x.id === li.dataset.id);
+      if (t) li.classList.toggle("now", isHappeningNow(t, day));
+    }
+  }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -594,6 +601,13 @@ function eruptFlask() {
   }, 900);
 }
 $("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
+
+// Is she in the middle of this one right now? (Today, timed, and the clock is inside its slot.)
+function isHappeningNow(t, day) {
+  if (t.done || t.deleted || !t.time || day !== todayKey() || t.date !== day) return false;
+  const n = nowLocal(), m = n.getHours() * 60 + n.getMinutes(), s = toMin(t.time);
+  return m >= s && m < s + (isWorkShift(t) ? shiftMinutes(workHoursFor(day) || { start: t.time, end: t.time }) || t.minutes || 480 : (minutesLeft(t) ?? t.minutes ?? 30));
+}
 
 // Right now: the emoji of whatever she's in the middle of (a timed task, or her work shift).
 function nowTaskEmoji(day, p) {
@@ -1067,7 +1081,8 @@ function taskRow(t, isNext) {
   const day = currentDay;
   const level = levelOf(t, day);
   const li = document.createElement("li");
-  li.className = `task lvl-${level}` + (t.done ? " done" : "") + (isNext ? " next" : "");
+  li.className = `task lvl-${level}` + (t.done ? " done" : "") + (isNext ? " next" : "") + (isHappeningNow(t, day) ? " now" : "");
+  li.dataset.id = t.id;
   const color = colorOf(t, day);
   if (color) li.style.setProperty("--lvl", color);
   li.title = "Click to edit";

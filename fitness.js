@@ -594,8 +594,9 @@ function renderWorkHours() {
   row.appendChild(input);
   wrap.appendChild(row);
   wrap.appendChild(el("p", "hint-small",
-    "On days with one of these events, its start and end times are your work hours (instead of the hours above), " +
-    "and it's not counted as a task. Overnight shifts carry over into the next morning."));
+    "On days with one of these events, its start and end times are your work hours, and it's not counted as a task. " +
+    "Any day without one is a 🌴 Day off (the hours above are only used if your calendar has no work events at all). " +
+    "Overnight shifts carry over into the next morning."));
   box.appendChild(wrap);
 }
 
