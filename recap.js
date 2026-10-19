@@ -9,6 +9,7 @@ const KIND_SERIES = [
   { id: "task", label: "Tasks", color: "#d95926" },
   { id: "chore", label: "Chores", color: "#199e70" },
   { id: "workout", label: "Workouts", color: "#c98500" },   // slot 4 (yellow)
+  { id: "joy", label: "Joy", color: "#d6609a" },
 ];
 const MONTHS_SHORT = Array.from({ length: 12 }, (_, i) => new Date(2024, i, 1).toLocaleDateString(undefined, { month: "short" }));
 
@@ -78,15 +79,15 @@ function renderRecap() {
       });
     }
   }
-  for (const b of buckets) b.counts = { event: 0, task: 0, chore: 0, workout: 0 };
+  for (const b of buckets) b.counts = { event: 0, task: 0, chore: 0, workout: 0, joy: 0 };
   for (const t of done) {
     const d = t.doneDate || t.date;
     const b = buckets.find(x => (recapPeriod === "year" ? d.startsWith(x.key) : d === x.key));
-    if (b) b.counts[kindOf(t)]++;
+    if (b) b.counts[b.counts[kindOf(t)] === undefined ? "task" : kindOf(t)]++;
   }
 
   const periodWord = recapPeriod;
-  const best = buckets.reduce((m, b) => { const n = b.counts.event + b.counts.task + b.counts.chore + b.counts.workout; return n > m.n ? { n, b } : m; }, { n: 0, b: null });
+  const best = buckets.reduce((m, b) => { const n = Object.values(b.counts).reduce((s, x) => s + x, 0); return n > m.n ? { n, b } : m; }, { n: 0, b: null });
   let headline = done.length
     ? `You got ${plural(done.length, "thing")} done this ${periodWord}! 🎉`
     : `A quiet ${periodWord} so far. Rest counts too 💛`;
@@ -94,7 +95,15 @@ function renderRecap() {
   if (recoveryDays >= 2) headline += ` You also gave yourself ${recoveryDays} recovery days. That's how you avoid burning out.`;
   $("recap-headline").textContent = headline;
 
+  // ❤️ Time with Logan, and 🌈 rejuvenation: what she did (or what happened, for calendar events).
+  const happened = t => t.done || (kindOf(t) === "event" && t.date && t.date < tk) || (kindOf(t) === "event" && t.date === tk && t.time && t.time < (n => `${pad(n.getHours())}:${pad(n.getMinutes())}`)(nowLocal()));
+  const lengthOf = t => t.minutes || (kindOf(t) === "event" ? 60 : 30);
+  const inPeriod = live.filter(t => inRange(t.doneDate && t.done ? t.doneDate : t.date) && (t.date || "") <= tk && happened(t));
+  const withLogan = inPeriod.filter(isLogan), joyDone = inPeriod.filter(isJoy);
+  const loganMin = withLogan.reduce((s, t) => s + lengthOf(t), 0), joyMin = joyDone.reduce((s, t) => s + lengthOf(t), 0);
   const tiles = [
+    ["❤️", loganMin ? formatHrsMin(loganMin * 60) : "0", `with Logan${withLogan.length ? ` · ${plural(withLogan.length, "time")}` : ""} 🥰`],
+    ["🌈", joyMin ? formatHrsMin(joyMin * 60) : "0", "of rejuvenation"],
     ["✅", done.length, "things done"],
     ["🧹", chores.length, `chores · ${choreMin ? formatMinutes(choreMin) : "0 min"}`],
     ["🔥", important, "important / deadline items"],

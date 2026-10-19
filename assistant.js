@@ -85,7 +85,9 @@ Be warm, brief and concrete: 1-3 short sentences, plain words, no lists unless s
 
 How her planner works:
 - Tasks have a date (YYYY-MM-DD), optional time (HH:MM, 24h), a length in minutes, priority (important / normal / optional),
-  a body load (light/medium/heavy) and a brain load (light/medium/heavy). Kinds: task, chore, event, workout.
+  a body load (light/medium/heavy) and a brain load (light/medium/heavy). Kinds: task, chore, event, workout, joy.
+- "joy" = hobbies and fun that refill her (rejuvenation). Protect them: don't move them off a day to make room, and
+  suggest adding a little joy to heavy days.
 - She has two batteries a day: brain (thinking) and body (physical). Her job is mostly brain work. Brain-heavy work
   fits best in her bestThinkingTime (not the first 2 hours after waking or the last 2 before bed).
 - Her feelings and body check-in change her energy. Respect low days: fewer, easier things; push optional work.
@@ -113,7 +115,7 @@ const AI_TOOLS = [
   { name: "add_task", description: "Add a new task to her planner.",
     input_schema: { type: "object", properties: {
       title: { type: "string" }, date: { type: "string" }, time: { type: ["string", "null"] }, minutes: { type: "integer" },
-      guess: { type: "boolean" }, kind: { enum: ["task", "chore", "event"] }, priority: { enum: ["important", "normal", "optional"] },
+      guess: { type: "boolean" }, kind: { enum: ["task", "chore", "event", "joy"] }, priority: { enum: ["important", "normal", "optional"] },
       brain: { enum: ["light", "medium", "heavy"] }, body: { enum: ["light", "medium", "heavy"] }, notes: { type: "string" },
     }, required: ["title", "date"] } },
   { name: "ask_to_delete", description: "Ask her to confirm deleting a task. Shows her a Delete button; nothing is deleted until she taps it.",
@@ -160,7 +162,7 @@ async function aiRunTool(name, input, batch, auto) {
     const now = new Date().toISOString();
     const t = {
       id: newId(), date: input.date, time: TIME_RE.test(input.time || "") ? input.time : null, title: String(input.title).slice(0, 200),
-      notes: input.notes || "", done: false, doneDate: null, kind: ["task", "chore", "event"].includes(input.kind) ? input.kind : "task",
+      notes: input.notes || "", done: false, doneDate: null, kind: ["task", "chore", "event", "joy"].includes(input.kind) ? input.kind : "task",
       priority: LEVELS.includes(input.priority) ? input.priority : "normal", dueDate: null,
       minutes: input.minutes > 0 ? Math.round(input.minutes) : null, minutesGuess: !!(input.minutes > 0 && input.guess),
       area: null, effort: LOADS.includes(input.body) ? input.body : null, brain: LOADS.includes(input.brain) ? input.brain : null,

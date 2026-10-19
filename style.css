@@ -1162,7 +1162,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #day-view .nav-row { gap: 6px; }
   .topbar .tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-    display: grid; grid-template-columns: repeat(6, 1fr);
+    display: grid; grid-template-columns: repeat(7, 1fr);
     border-radius: 0; border: 0; border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(8px);
   }
@@ -1175,6 +1175,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #tab-day::before { content: "📋"; }
   #tab-month::before { content: "📅"; }
   #tab-todo::before { content: "✔️"; }
+  #tab-joy::before { content: "🌈"; }
   #tab-recap::before { content: "📊"; }
   .topbar .tabs .tab-icon { font-size: 20px; justify-content: center; }
   .topbar .tabs .tab-icon::after { content: "Settings"; font-size: 11.5px; }
@@ -1445,3 +1446,61 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .easy-picks ul { margin: 6px 0 0; padding-left: 18px; }
 .easy-picks .link-btn { text-align: left; }
 @media screen { [data-mode="light"] .chip.brain-light { color: #1f7a52; border-color: #bfe5cf; background: #eefaf3; } }
+
+/* 📍 Which day she's looking at */
+.day-banner { margin: 10px 0 4px; padding: 10px 14px; border-radius: 12px; font-weight: 800; font-size: 16px; letter-spacing: .02em;
+  text-align: center; border: 2px solid var(--b); color: var(--b); background: color-mix(in srgb, var(--b) 14%, var(--card)); }
+.day-banner[data-when="today"] { --b: #f0a24a; }
+.day-banner[data-when="tomorrow"] { --b: #5ab0ff; }
+.day-banner[data-when="future"] { --b: #b48cff; }
+.day-banner[data-when="past"] { --b: #9aa3ad; }
+@media screen { [data-mode="light"] .day-banner[data-when="today"] { --b: #c9621b; } [data-mode="light"] .day-banner[data-when="tomorrow"] { --b: #2b7fd0; }
+  [data-mode="light"] .day-banner[data-when="future"] { --b: #7b55c9; } [data-mode="light"] .day-banner[data-when="past"] { --b: #6a707b; } }
+@media print { .day-banner { display: none; } }
+
+/* 🌈 Joy in the chaos flask: love goop, hearts, vine */
+.flask-liquid { background: linear-gradient(to top, color-mix(in srgb, color-mix(in srgb, var(--liq), #ff6fb0 var(--joy, 0%)) 70%, black),
+  color-mix(in srgb, var(--liq), #ff6fb0 var(--joy, 0%)) 85%, color-mix(in srgb, color-mix(in srgb, var(--liq), #ff9fcd var(--joy, 0%)) 70%, white)); }
+.joy-hearts { position: absolute; inset: 10px 0 0 0; pointer-events: none; overflow: visible; z-index: 3; }
+.joy-hearts span { position: absolute; bottom: 10%; opacity: 0; animation: joy-rise ease-in infinite; }
+@keyframes joy-rise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: .95; } 100% { transform: translateY(-260px) scale(1.1) rotate(12deg); opacity: 0; } }
+.joy-vine { position: absolute; left: -16px; bottom: 0; width: 20px; height: var(--grow, 0%); overflow: hidden; pointer-events: none; transition: height 1.4s ease-out; z-index: 2; }
+.joy-vine svg { position: absolute; bottom: 0; left: 0; width: 20px; height: 270px; }
+.joy-vine .vf { position: absolute; left: -2px; font-size: 13px; opacity: 0; transition: opacity .8s; }
+.joy-vine[data-flowers="1"] .vf:nth-of-type(1), .joy-vine[data-flowers="2"] .vf:nth-of-type(-n+2),
+.joy-vine[data-flowers="3"] .vf:nth-of-type(-n+3), .joy-vine[data-flowers="4"] .vf { opacity: 1; }
+.chaos-joy-note { font-size: 12.5px; color: #ff9fcd; text-align: center; margin-top: 4px; }
+@media screen { [data-mode="light"] .chaos-joy-note { color: #b8407a; } }
+.section-label.s-joy { color: #ff8fc4; }
+@media screen { [data-mode="light"] .section-label.s-joy { color: #b8407a; } }
+
+/* 🌈 Rejuvenation tab */
+.joy-week { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px; }
+.joy-stat { flex: 1 1 200px; padding: 10px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, #ff6fb0 40%, var(--line));
+  background: color-mix(in srgb, #ff6fb0 8%, var(--card)); font-weight: 700; }
+.joy-sub { margin: 16px 0 8px; font-size: 16px; }
+.joy-list { display: flex; flex-direction: column; gap: 6px; }
+.joy-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.joy-emoji { font-size: 22px; }
+.joy-name { font-weight: 700; flex: 1 1 140px; }
+.joy-len { color: var(--muted); font-size: 14px; }
+.joy-acts { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.joy-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.joy-add input:not(.joy-emoji-in) { flex: 1 1 200px; }
+.joy-emoji-in { width: 56px; text-align: center; }
+
+/* 😈 The imp who bounces on the flames when the day is on fire */
+.ff-imp { position: fixed; bottom: 26px; left: 0; width: 72px; height: 72px; display: none; animation: imp-travel 9s linear infinite alternate; z-index: 2; }
+#fire-floor[data-level="2"] .ff-imp { display: block; }
+.imp-hop { width: 100%; height: 100%; animation: imp-bounce .55s cubic-bezier(.3, 0, .6, 1) infinite alternate; }
+.imp-hop svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, .4)); }
+.imp-wing { transform-origin: 90% 60%; animation: imp-flap .18s ease-in-out infinite alternate; }
+.imp-wing.r { transform-origin: 10% 60%; animation-delay: -.09s; }
+.imp-say { position: absolute; bottom: 62px; left: 40px; white-space: nowrap; background: #2a1020; color: #ffd0dc; border: 1px solid #e2445e;
+  border-radius: 10px; padding: 2px 8px; font-size: 13px; font-weight: 700; }
+.imp-say.pop { animation: imp-say .35s ease-out; }
+@keyframes imp-travel { from { left: 2%; } to { left: calc(96% - 72px); } }
+@keyframes imp-bounce { from { transform: translateY(0) scaleY(.88) rotate(-6deg); } to { transform: translateY(-46px) scaleY(1.04) rotate(8deg); } }
+@keyframes imp-flap { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
+@keyframes imp-say { from { transform: scale(.5); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ff-imp, .imp-hop, .joy-hearts span { animation: none; } }

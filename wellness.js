@@ -327,7 +327,7 @@ const effortOf = t => t.effort || (kindOf(t) === "chore" ? "medium" : "light");
 
 // Should this task wait for a better day? Never if it's due soon, important or scheduled.
 function holdReason(t, day, energy) {
-  if (t.done || t.time) return null;
+  if (t.done || t.time || isJoy(t)) return null;          // fun never waits for a "better day"
   const urgent = (t.dueDate && daysBetween(day, t.dueDate) <= 1) || t.priority === "important";
   if (urgent) return null;
   if (energy.brainHold && energy.brainHold.has(t.id)) return BRAIN_HOLD;
@@ -391,6 +391,7 @@ const isSocial = t => !t.done && !t.deleted && kindOf(t) === "event" && !!t.time
 
 function guessBrain(t) {
   const k = kindOf(t), title = t.title || "";
+  if (k === "joy") return "light";
   if (k === "workout") return "light";
   if (k === "event") return isSocial({ ...t, done: false }) && !MOVING_EVENT.test(title) ? "heavy" : "medium";
   if (BRAIN_LOTS.test(title)) return "heavy";
@@ -564,6 +565,18 @@ const CHAOS_LEVELS = [
   [25, "😌", "Calm"], [50, "🙂", "Busy"], [75, "😬", "Hectic"], [90, "🥵", "Frantic"], [101, "🤯", "Total chaos"],
 ];
 
+// ---------- rejuvenation (joy) ----------
+// Hobbies and fun (kind "joy", or anything "with Logan"): they refill her instead of draining her.
+// Joy on a day buffers the chaos meter: it fills more slowly and never reaches full chaos.
+const isLogan = t => /\blogan\b/i.test(t.title || "");
+const isJoy = t => kindOf(t) === "joy" || /\bwith logan\b/i.test(t.title || "");
+const JOY_FULL = 120;                // 2 hours of joy = the full buffer
+function joyFor(day) {
+  const list = tasksFor(day).filter(t => !t.deleted && isJoy(t) && !isWorkShift(t));
+  const minutes = list.reduce((s, t) => s + (t.minutes || 30), 0);
+  return { list, minutes, frac: Math.min(1, minutes / JOY_FULL) };
+}
+
 function chaosFor(day, ft) {
   const entry = moods[day] || {};
   const f = feelingOf(entry), b = bodyOf(entry);
@@ -577,14 +590,17 @@ function chaosFor(day, ft) {
     if (fb > boost + 0.01) [boost, reason] = [fb, "you're feeling " + f.label];
   }
   if (energyFor(day).earlyPeriod && boost < 1.25) { boost = 1.25; reason = "it's an early period day"; }
+  const joy = joyFor(day);
+  boost = 1 + (boost - 1) * (1 - 0.5 * joy.frac);        // joy softens the "fills faster"
   let used;
   if (ft.planned <= 0) used = 0;
   else if (ft.total <= 0) used = 1.2;
   else used = ft.planned / ft.total;
   // A full day (all free time used) reads about 90; going over pins it at 100.
-  const pct = Math.max(0, Math.min(100, Math.round(used * 90 * boost)));
+  let pct = Math.max(0, Math.min(100, Math.round(used * 90 * boost * (1 - 0.3 * joy.frac))));
+  if (joy.minutes >= 30) pct = Math.min(pct, 89);         // a day with fun in it never hits full chaos
   const [, emoji, label] = CHAOS_LEVELS.find(l => pct < l[0]);
-  return { pct, emoji, label, boost, reason };
+  return { pct, emoji, label, boost, reason, joy };
 }
 
 // ---------- body fine, heart not ----------

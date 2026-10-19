@@ -259,14 +259,26 @@ function planDay(day) {
   const untimed = active.filter(t => !t.time);
   const chores = doneLast(spreadBrain(sortChores(untimed.filter(t => kindOf(t) === "chore")).sort((a, b) => moodFirst(a, b) || heavyFirst(a, b))));
   const workouts = doneLast(untimed.filter(t => kindOf(t) === "workout"));
-  const others = untimed.filter(t => kindOf(t) !== "chore" && kindOf(t) !== "workout");
+  const joy = doneLast(untimed.filter(t => isJoy(t)));
+  const others = untimed.filter(t => kindOf(t) !== "chore" && kindOf(t) !== "workout" && !isJoy(t));
   const ofLevel = lvl => doneLast(spreadBrain(others.filter(t => levelOf(t, day) === lvl)
     .sort((a, b) => (urgency(b, day) || 0) - (urgency(a, day) || 0) || moodFirst(a, b) || heavyFirst(a, b) || byTime(a, b))));
   const choreMinutes = chores.filter(t => !t.done).reduce((s, t) => s + (minutesLeft(t) ?? 15), 0);
   const summary = summaryText(day, timed.filter(t => !isWorkShift(t)), ofLevel("important"), ofLevel("normal").concat(workouts), chores, ofLevel("optional"), choreMinutes)
     + (held.length ? ` ${plural(held.length, "job")} can wait for a better day.` : "");
-  return { list, energy, held, active, timed, untimed, chores, workouts, ofLevel, choreMinutes, summary, mindLow, annoyed, moodOrder, bats, brainOver,
+  return { list, energy, held, active, timed, untimed, chores, workouts, joy, ofLevel, choreMinutes, summary, mindLow, annoyed, moodOrder, bats, brainOver,
     load: physicalMinutes(active), shift: workHoursFor(day), free: freeMinutes(day), planned: plannedMinutes(active, day) };
+}
+
+// A big coloured banner under the day buttons, so it's always obvious which day she's looking at.
+function renderDayBanner(day, tk) {
+  const b = $("day-banner");
+  const n = daysBetween(tk, day);
+  const when = n === 0 ? "TODAY" : n === 1 ? "TOMORROW" : n === -1 ? "YESTERDAY"
+    : n > 0 ? `${n} DAYS FROM NOW` : `${-n} DAYS AGO`;
+  b.dataset.when = n === 0 ? "today" : n > 0 ? (n === 1 ? "tomorrow" : "future") : "past";
+  b.textContent = `${n === 0 ? "📍" : n > 0 ? "🔜" : "⏪"} You're looking at ${when} · ` +
+    fromKey(day).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
 // Has she checked in (feelings or body) for this day?
@@ -279,6 +291,7 @@ function renderDay() {
   const hol = holidayOn(currentDay);
   $("day-date").textContent = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) +
     (hol ? `  ·  ${hol.emoji} ${hol.name}` : "");
+  renderDayBanner(currentDay, tk);
   $("day-badge").textContent =
     currentDay === tk ? "Today" :
     currentDay === addDays(tk, 1) ? "Tomorrow" :
@@ -343,6 +356,7 @@ function renderDay() {
     ...(moveFirst ? [] : [movement]),
     ["📝", "To do", ofLevel("normal"), "s-normal"],
     ["🧹", "Chores" + (choreMinutes ? ` · about ${formatMinutes(choreMinutes)}` : ""), chores, "s-chores"],
+    ["🌈", "Rejuvenation · fills you back up", p.joy, "s-joy"],
     ["🌿", "Optional", ofLevel("optional"), "s-optional"],
     ["💤", "Can wait for a better day", held, "s-held"],
   ];
@@ -419,13 +433,17 @@ function renderFreeTimer() {
   // Chaos meter: how much of her free time the day eats, faster when she's worn out.
   const chaos = chaosFor(day, ft);
   const shown = ft.past ? 0 : chaos.pct;
-  renderChaosFlask(shown);
+  renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const note = $("chaos-note");
   note.hidden = !(chaos.boost > 1 && !ft.past);
   if (!note.hidden) note.textContent = `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`;
+  const joyNote = $("chaos-joy-note");
+  joyNote.hidden = ft.past || !chaos.joy.minutes;
+  if (!joyNote.hidden) joyNote.textContent = `🌈 ${formatMinutes(chaos.joy.minutes)} of joy is calming the chaos` +
+    (chaos.joy.minutes >= 30 ? " (it can't boil over today) 💖" : " 💖");
 
   // Endless-task alert: no free time left at all (or barely any).
   const warn = $("overload");
@@ -457,24 +475,30 @@ function renderFreeTimer() {
 // Liquid rises with the chaos %, turning from green to red. Bubbles get more numerous and
 // faster as it fills; past 50% the flask wobbles, past 75% it cracks and steams, and at 90%+
 // it shakes hard. At 100% it bursts (💥) every few seconds.
-function renderChaosFlask(pct) {
+// joy (0-1): rejuvenation on this day. It blends a pink "love" layer into the goop, slows the
+// bubbles, floats hearts up out of the flask, and grows a flowering vine up its side.
+function renderChaosFlask(pct, joy = 0) {
   const flask = $("chaos-flask");
   const liquid = $("chaos-liquid");
   liquid.style.height = `${Math.max(pct, 3)}%`;
   const colour = `hsl(${Math.round(135 * (1 - pct / 100))}, 78%, 50%)`;
   liquid.style.setProperty("--liq", colour);
+  liquid.style.setProperty("--joy", `${Math.round(joy * 70)}%`);
   flask.style.setProperty("--liq", colour);   // the explosion splashes the same colour
   flask.dataset.stage = pct < 25 ? "0" : pct < 50 ? "1" : pct < 75 ? "2" : pct < 90 ? "3" : "4";
+  if (joy >= 0.25 && flask.dataset.stage > "1") flask.dataset.stage = String(Number(flask.dataset.stage) - 1);   // calmer
   flask.classList.toggle("boom", pct >= 100);
+  flask.classList.toggle("joyful", joy > 0);
+  renderJoyBits(joy);
 
   // Only rebuild the bubbles when the amount changes enough to matter.
-  const bucket = Math.round(pct / 8);
+  const bucket = Math.round(pct / 8) + "-" + Math.round(joy * 4);
   const box = $("chaos-bubbles");
   if (box.dataset.bucket === String(bucket)) return;
   box.dataset.bucket = String(bucket);
   box.innerHTML = "";
-  const count = Math.min(30, 3 + bucket * 2);
-  const speed = Math.max(0.8, 3.4 - pct / 38);          // seconds per rise: faster when fuller
+  const count = Math.min(30, 3 + Math.round(pct / 8) * 2);
+  const speed = Math.max(0.8, 3.4 - pct / 38) * (1 + joy);          // seconds per rise: faster when fuller, calmer with joy
   for (let i = 0; i < count; i++) {
     const b = document.createElement("span");
     b.className = "bubble";
@@ -486,6 +510,41 @@ function renderChaosFlask(pct) {
     b.style.animationDuration = `${dur}s, ${0.6 + Math.random() * 0.6}s`;
     b.style.animationDelay = `${-Math.random() * dur}s, ${-Math.random()}s`;
     box.appendChild(b);
+  }
+}
+
+// Hearts drifting up out of the flask, and a vine that climbs higher (and flowers) with more joy.
+let joyKey = "";
+function renderJoyBits(joy) {
+  const flask = $("chaos-flask");
+  let hearts = flask.querySelector(".joy-hearts"), vine = flask.querySelector(".joy-vine");
+  if (!hearts) {
+    hearts = document.createElement("div");
+    hearts.className = "joy-hearts";
+    vine = document.createElement("div");
+    vine.className = "joy-vine";
+    vine.innerHTML = `<svg viewBox="0 0 24 270" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M12 270 C2 240 22 220 12 190 C2 160 22 140 12 110 C2 80 22 60 12 30 C8 18 12 8 12 0" fill="none" stroke="#5fc46a" stroke-width="3" stroke-linecap="round"/>
+      <path d="M12 230 q-10 -6 -12 -14 q10 2 12 14 M12 170 q10 -6 12 -14 q-10 2 -12 14 M12 110 q-10 -6 -12 -14 q10 2 12 14 M12 50 q10 -6 12 -14 q-10 2 -12 14" fill="#4cae5a"/>
+    </svg><span class="vf" style="bottom:22%">🌸</span><span class="vf" style="bottom:48%">🌼</span><span class="vf" style="bottom:72%">🌸</span><span class="vf" style="bottom:94%">🌷</span>`;
+    flask.append(hearts, vine);
+  }
+  vine.style.setProperty("--grow", `${Math.round(joy * 100)}%`);
+  vine.dataset.flowers = String(Math.round(joy * 4));
+  const key = String(Math.round(joy * 6));
+  if (key === joyKey) return;
+  joyKey = key;
+  hearts.innerHTML = "";
+  if (calmMode()) return;
+  const n = Math.round(joy * 6);
+  for (let i = 0; i < n; i++) {
+    const h = document.createElement("span");
+    h.textContent = ["💖", "💕", "❤️", "💗"][i % 4];
+    h.style.left = `${15 + Math.random() * 60}%`;
+    h.style.animationDuration = `${3.5 + Math.random() * 2.5}s`;
+    h.style.animationDelay = `${-Math.random() * 5}s`;
+    h.style.fontSize = `${11 + Math.random() * 7}px`;
+    hearts.appendChild(h);
   }
 }
 
@@ -567,12 +626,42 @@ function setFireFloor(level, text) {
     const label = document.createElement("div");
     label.className = "ff-label";
     floor.appendChild(label);
+    floor.appendChild(makeImp());
     document.body.appendChild(floor);
   }
   floor.hidden = !level;
   floor.dataset.level = String(level || 0);
   floor.querySelector(".ff-label").textContent = text || "";
   document.body.classList.toggle("on-fire", !!level);
+}
+
+// A little whimsical demon who bounces along the flames, cackling, when the day is fully on fire.
+const IMP_LINES = ["hehehe 😈", "WHEEE!", "chaos wins! 🎉", "boing boing", "lol same", "it's fine 🔥", "*cackles*", "toasty!"];
+function makeImp() {
+  const box = document.createElement("div");
+  box.className = "ff-imp";
+  box.innerHTML = `<div class="imp-hop"><svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M18 14 L13 1 L25 11 Z M46 14 L51 1 L39 11 Z" fill="#f6d36b"/>
+    <path class="imp-wing" d="M12 30 Q-2 18 2 38 Q8 34 14 38 Z" fill="#7a2a8a"/>
+    <path class="imp-wing r" d="M52 30 Q66 18 62 38 Q56 34 50 38 Z" fill="#7a2a8a"/>
+    <path d="M44 50 Q58 56 60 46 Q62 42 58 44" stroke="#c2304a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M57 41 l5 1 l-3 4 z" fill="#c2304a"/>
+    <ellipse cx="32" cy="36" rx="20" ry="21" fill="#e2445e"/>
+    <ellipse cx="32" cy="42" rx="12" ry="11" fill="#f37a8c" opacity=".55"/>
+    <ellipse cx="24" cy="30" rx="5" ry="6" fill="#fff"/><ellipse cx="40" cy="30" rx="5" ry="6" fill="#fff"/>
+    <circle cx="25" cy="31" r="2.6" fill="#1b0f1a"/><circle cx="39" cy="31" r="2.6" fill="#1b0f1a"/>
+    <path d="M18 23 l9 3 M46 23 l-9 3" stroke="#7a1430" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M21 40 Q32 54 43 40 Z" fill="#5a0f22"/>
+    <path d="M24 41 l2 4 l2 -4 M36 41 l2 4 l2 -4" fill="#fff"/>
+    <path d="M27 49 Q32 46 37 49 Q32 52 27 49" fill="#ff8fa3"/>
+    <path d="M22 56 l-2 6 M42 56 l2 6" stroke="#c2304a" stroke-width="4" stroke-linecap="round"/>
+  </svg><span class="imp-say"></span></div>`;
+  const say = box.querySelector(".imp-say");
+  let i = Math.floor(Math.random() * IMP_LINES.length);
+  const talk = () => { say.textContent = IMP_LINES[i++ % IMP_LINES.length]; say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop"); };
+  talk();
+  setInterval(() => { if (!box.closest("[hidden]")) talk(); }, 3200);
+  return box;
 }
 
 // After saving a task, warn right away if it made the day impossible.
@@ -1465,7 +1554,7 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "recap", "settings"]) {
+  for (const name of ["home", "day", "month", "todo", "joy", "recap", "settings"]) {
     $(name + "-view").hidden = v !== name;
     $("tab-" + name).classList.toggle("active", v === name);
   }
@@ -1483,6 +1572,7 @@ function render() {
   else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); renderAssistant(); }
   else if (view === "month") renderMonth();
   else if (view === "todo") renderTodo();
+  else if (view === "joy") renderJoy();
   else if (view === "settings") {
     renderAppearance();
     renderTimeZone();
@@ -1732,7 +1822,7 @@ function updateDialogVisibility() {
   const kind = getSeg("f-kind");
   $("task-form").classList.toggle("is-chore", kind === "chore");
   $("task-form").classList.toggle("is-workout", kind === "workout");
-  $("task-form").classList.toggle("is-task", kind === "task");
+  $("task-form").classList.toggle("is-task", kind === "task" || kind === "joy");
   $("task-form").classList.toggle("is-event", kind === "event");
   $("details-label").textContent = kind === "chore" ? "Details" : "How long will this take?";
   const hasDue = $("f-has-due").checked;
@@ -1916,6 +2006,7 @@ function setLegendOpen(open) {
 $("legend-btn").addEventListener("click", () => setLegendOpen($("legend-box").hidden));
 try { setLegendOpen(localStorage.getItem("arpPlanner.legend") === "1"); } catch { setLegendOpen(false); }
 $("tab-todo").addEventListener("click", () => showView("todo"));
+$("tab-joy").addEventListener("click", () => showView("joy"));
 $("tab-recap").addEventListener("click", () => { recapAnchor = todayKey(); showView("recap"); });
 const goDay = day => { currentDay = day; showOptional = false; render(); };
 $("prev-day").addEventListener("click", () => goDay(addDays(currentDay, -1)));

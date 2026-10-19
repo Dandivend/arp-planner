@@ -20,6 +20,7 @@
       <button id="tab-day" class="tab" role="tab">Day</button>
       <button id="tab-month" class="tab" role="tab">Calendar</button>
       <button id="tab-todo" class="tab" role="tab">To Do</button>
+      <button id="tab-joy" class="tab" role="tab" title="Rejuvenation: hobbies and fun">Joy</button>
       <button id="tab-recap" class="tab" role="tab">Recap</button>
       <button id="tab-settings" class="tab tab-icon" role="tab" title="Settings: cycle and fitness setup">⚙️</button>
     </nav>
@@ -110,6 +111,7 @@
         <div id="chaos-emoji" class="chaos-emoji"></div>
         <div id="chaos-value" class="chaos-value"></div>
         <div id="chaos-note" class="chaos-note" hidden></div>
+        <div id="chaos-joy-note" class="chaos-joy-note" hidden></div>
         <button id="chaos-shadow-note" class="chaos-shadow-note" hidden></button>
       </aside>
 
@@ -120,6 +122,7 @@
         <button id="next-day" class="nav-btn">Next day &#8250;</button>
         <button class="nav-btn print-btn" data-print title="Print this day, or save it as a PDF">🖨️ Print / PDF</button>
       </div>
+      <div id="day-banner" class="day-banner" data-when="today"></div>
 
       <div class="day-heading">
         <div>
@@ -319,6 +322,13 @@
     </section>
 
     <!-- RECAP VIEW -->
+    <!-- REJUVENATION: hobbies and fun that fill her back up -->
+    <section id="joy-view" hidden>
+      <h2 class="view-title">🌈 Rejuvenation</h2>
+      <p class="hint">Hobbies and fun things that aren't work. Add them to your days: joy calms the chaos meter, and a day with fun in it never boils over. 💖</p>
+      <div id="joy-body"></div>
+    </section>
+
     <section id="recap-view" hidden>
       <div class="nav-row">
         <div class="sort-toggle" role="group" aria-label="Recap period">
@@ -382,6 +392,7 @@
           <button type="button" data-value="task">✏️ Task</button>
           <button type="button" data-value="chore">🧹 Chore</button>
           <button type="button" data-value="workout">🏃 Workout</button>
+          <button type="button" data-value="joy">🌈 Joy</button>
         </div>
       </div>
 
@@ -518,6 +529,7 @@
   <script src="syncs/phoneapp.js"></script>
   <script src="focus.js"></script>
   <script src="assistant.js"></script>
+  <script src="joy.js"></script>
   <script src="funfacts.js"></script>
 </body>
 </html>
