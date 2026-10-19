@@ -434,6 +434,7 @@ function renderFreeTimer() {
   const chaos = chaosFor(day, ft);
   const shown = ft.past ? 0 : chaos.pct;
   renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
+  renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -535,6 +536,7 @@ function pokeFlask() {
   void flask.offsetWidth;
   flask.classList.add("poked");
   buzz(Math.round(8 + power * 35));
+  if (typeof playVialTink === "function") playVialTink(power);
   if (calmMode()) return;                                   // calm mode: just a gentle wobble
   const real = lastFlask.pct;
   if (real >= 75 && n >= 8) return eruptFlask();
@@ -553,6 +555,7 @@ function eruptFlask() {
   flask.classList.remove("poked");
   flask.classList.add("erupting");
   buzz([40, 30, 40, 30, 60, 30, 90, 40, 250]);
+  if (typeof playEruption === "function") playEruption();
   const colour = getComputedStyle($("chaos-liquid")).getPropertyValue("--liq") || "hsl(10, 78%, 50%)";
   setTimeout(() => {
     flask.classList.remove("erupting");
@@ -589,6 +592,23 @@ function eruptFlask() {
   }, 900);
 }
 $("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
+
+// Workout day: a little dumbbell floats and bobs around the vial until the workout is done.
+function renderDumbbell(show) {
+  const side = $("chaos-flask");
+  let bell = side.querySelector(".flask-bell");
+  if (!show) { if (bell) bell.remove(); return; }
+  if (bell) return;
+  bell = document.createElement("div");
+  bell.className = "flask-bell";
+  bell.title = "Workout today 💪";
+  bell.innerHTML = `<svg viewBox="0 0 64 28" aria-hidden="true">
+    <rect x="14" y="11" width="36" height="6" rx="3" fill="#c7ccd6"/>
+    <rect x="6" y="3" width="9" height="22" rx="3" fill="#5a63f0"/><rect x="0" y="7" width="7" height="14" rx="2.5" fill="#7b83ff"/>
+    <rect x="49" y="3" width="9" height="22" rx="3" fill="#5a63f0"/><rect x="57" y="7" width="7" height="14" rx="2.5" fill="#7b83ff"/>
+    <rect x="16" y="12" width="32" height="1.6" rx=".8" fill="#fff" opacity=".6"/></svg>`;
+  side.appendChild(bell);
+}
 
 // Hearts drifting up out of the flask, and a vine that climbs higher (and flowers) with more joy.
 let joyKey = "";
@@ -1645,7 +1665,7 @@ function showView(v) {
 function render() {
   brainByName = null;              // brainpower she rated by name: re-read from the latest tasks
   if (view !== "day" && view !== "month") setFireFloor(0);
-  if (view === "home") renderHome();
+  if (view === "home") { renderHome(); if (typeof renderTogether === "function") renderTogether(); }
   else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); renderAssistant(); }
   else if (view === "month") renderMonth();
   else if (view === "todo") renderTodo();

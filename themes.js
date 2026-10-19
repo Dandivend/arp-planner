@@ -212,6 +212,14 @@ function renderAppearance() {
   fx.append(cb, " Falling petals / leaves / snow in the background");
   box.appendChild(fx);
 
+  const snd = el("label", "check");
+  const scb = el("input");
+  scb.type = "checkbox";
+  scb.checked = !!t.sounds;
+  scb.addEventListener("change", () => { saveTheme({ sounds: scb.checked }); if (scb.checked && typeof playAnimalSound === "function") setTimeout(() => playAnimalSound("parrot"), 100); });
+  snd.append(scb, " 🔊 Sound effects: each animal makes its sound when you finish a task (chirp, meow, bleat, awoo), and the chaos vial tinks and rumbles");
+  box.appendChild(snd);
+
   const calm = el("label", "check calm-check");
   const ccb = el("input");
   ccb.type = "checkbox";

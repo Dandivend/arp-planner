@@ -8,6 +8,24 @@ let loganSelected = null;               // the day she tapped
 const loganCache = {};                  // "YYYY-MM" -> { at, events } (or { loading })
 let loganCals = null;                   // her calendars (to find / pick his)
 
+// Times here are always on HER clock (Seattle), even when Logan opens it on his PC in Tokyo.
+const herZone = () => (profile && profile.timeZone) || "America/Los_Angeles";
+const LOGAN_AWAKE = { start: "07:00", end: "23:00", zone: "Asia/Tokyo" };
+const loganAwake = () => ({ ...LOGAN_AWAKE, ...((profile && profile.loganAwake) || {}) });
+function zLocal(when, zone = herZone()) {
+  const p = SyncTZ.parts(typeof when === "number" ? when : Date.parse(when), zone);
+  return { day: `${p.y}-${pad(p.mo)}-${pad(p.d)}`, time: `${pad(p.h)}:${pad(p.mi)}` };
+}
+// The moment that is <minutes> after midnight of <day> in <zone>.
+function msAt(day, minutes, zone) {
+  const [y, m, d] = day.split("-").map(Number);
+  const wall = Date.UTC(y, m - 1, d) + minutes * 60000;
+  let t = wall;
+  for (let i = 0; i < 2; i++) t = wall - SyncTZ.offsetAt(t, zone) * 60000;
+  return t;
+}
+const herToday = () => zLocal(Date.now()).day;
+
 const lgPost = (route, body) => fetch("/api/google/" + route, {
   method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}),
 }).then(async r => { const res = await r.json().catch(() => ({})); if (!r.ok) throw new Error(res.error || "That didn't work."); return res; });
@@ -19,14 +37,14 @@ function loganDays(ev) {
     for (let d = ev.start; d < (ev.end || addDays(ev.start, 1)); d = addDays(d, 1)) days.push(d);
     return days.length ? days : [ev.start];
   }
-  const s = SyncTZ.toLocal(ev.start), e = SyncTZ.toLocal(ev.end || ev.start);
+  const s = zLocal(ev.start), e = zLocal(ev.end || ev.start);
   const days = [];
   for (let d = s.day; d <= e.day; d = addDays(d, 1)) { if (d === e.day && e.time === "00:00" && d !== s.day) break; days.push(d); }
   return days;
 }
 function loganWhen(ev, day) {
   if (ev.allDay) return "All day";
-  const s = SyncTZ.toLocal(ev.start), e = SyncTZ.toLocal(ev.end || ev.start);
+  const s = zLocal(ev.start), e = zLocal(ev.end || ev.start);
   const from = s.day === day ? formatTime(s.time) : "…", to = e.day === day ? formatTime(e.time) : "…";
   return `${from} – ${to}`;
 }
@@ -35,7 +53,7 @@ function loganWhen(ev, day) {
 function loganOwnTime(ev) {
   if (ev.allDay || !/T\d\d:\d\d/.test(ev.start)) return "";
   const own = t => (t || "").slice(11, 16);
-  const s = SyncTZ.toLocal(ev.start);
+  const s = zLocal(ev.start);
   if (s.time === own(ev.start)) return "";
   return `  ·  his time ${formatTime(own(ev.start))} – ${formatTime(own(ev.end))}`;
 }
@@ -66,7 +84,7 @@ async function loadLoganMonth(key) {
 }
 
 function renderLogan() {
-  const tk = todayKey();
+  const tk = herToday();
   if (!loganCursor) { loganCursor = fromKey(tk); loganCursor.setDate(1); }
   if (!loganSelected) loganSelected = tk;
   const y = loganCursor.getFullYear(), m = loganCursor.getMonth();
@@ -126,9 +144,10 @@ function renderLogan() {
     if (ev.notes) item.appendChild(el("div", "lg-notes", ev.notes.replace(/<[^>]+>/g, " ")));
     sel.appendChild(item);
   }
-  sel.appendChild(el("p", "hint-small", "Times are on your clock. Logan's calendar can't be changed from here."));
+  sel.appendChild(el("p", "hint-small", "Times are on Ariel's Seattle clock (Logan's own time beside them). His calendar can't be changed from here."));
   box.appendChild(sel);
 
+  box.appendChild(loganAwakeRow());
   const change = el("button", "link-btn", "Pick a different calendar for Logan");
   change.addEventListener("click", () => { box.innerHTML = ""; loganSetup(box, true); });
   box.appendChild(change);
@@ -170,3 +189,108 @@ $("tab-logan").addEventListener("click", () => showView("logan"));
 $("logan-prev").addEventListener("click", () => { loganCursor.setMonth(loganCursor.getMonth() - 1); renderLogan(); });
 $("logan-next").addEventListener("click", () => { loganCursor.setMonth(loganCursor.getMonth() + 1); renderLogan(); });
 $("logan-today").addEventListener("click", () => { loganCursor = null; loganSelected = null; renderLogan(); });
+
+// Logan's usual waking hours (his own clock), for "free time together".
+function loganAwakeRow() {
+  const la = loganAwake();
+  const row = el("div", "fit-row logan-awake");
+  row.appendChild(el("span", "fit-label", "Logan is usually awake"));
+  const mk = val => { const i = el("input"); i.type = "time"; i.value = val; return i; };
+  const a = mk(la.start), b = mk(la.end);
+  const save = async () => {
+    try { profile = await Store.putProfile({ loganAwake: { ...la, start: a.value || la.start, end: b.value || la.end } }); } catch {}
+    togetherCache = null;
+    showToast("💙 Saved. Free time together is worked out with these hours.");
+  };
+  a.addEventListener("change", save);
+  b.addEventListener("change", save);
+  row.append(a, el("span", "", "to"), b, el("span", "hint-small", "his time (Tokyo)"));
+  return row;
+}
+
+// ---------- 💙 Free time together (Home) ----------
+// Her free time (awake, minus work and anything timed on her list) overlapped with his
+// (awake, minus everything on his calendar), over the next week. Slots of 30 minutes or more.
+let togetherCache = null;                 // { at, slots }
+function subtractBusy(free, busy) {
+  let out = free.map(x => [...x]);
+  for (const [bs, be] of busy) {
+    const next = [];
+    for (const [s, e] of out) {
+      if (be <= s || bs >= e) { next.push([s, e]); continue; }
+      if (bs > s) next.push([s, bs]);
+      if (be < e) next.push([be, e]);
+    }
+    out = next;
+  }
+  return out;
+}
+async function freeTogether(days = 7) {
+  if (togetherCache && Date.now() - togetherCache.at < 10 * 60 * 1000) return togetherCache.slots;
+  const cal = await loganCalendarId();
+  if (!cal) return null;
+  const zone = herZone(), now = Date.now(), la = loganAwake();
+  const res = await lgPost("theirs", { calendarId: cal, timeMin: new Date(now - 864e5).toISOString(), timeMax: new Date(now + (days + 1) * 864e5).toISOString() });
+  const hisBusy = (res.events || []).filter(e => !e.allDay).map(e => [Date.parse(e.start), Date.parse(e.end)]);
+  const hisFree = [];
+  const hisFirst = zLocal(now - 864e5, la.zone).day;
+  for (let i = 0; i < days + 2; i++) {
+    const d = addDays(hisFirst, i);
+    let s = toMin(la.start), e = toMin(la.end);
+    if (e <= s) e += 1440;
+    hisFree.push([msAt(d, s, la.zone), msAt(d, e, la.zone)]);
+  }
+  const herFree = [], herBusy = [];
+  const first = zLocal(now).day;
+  for (let i = 0; i < days; i++) {
+    const d = addDays(first, i), w = awakeWindow(d);
+    herFree.push([msAt(d, w.start, zone), msAt(d, w.end, zone)]);
+    const shift = workHoursFor(d);
+    if (shift) herBusy.push([msAt(d, toMin(shift.start), zone), msAt(d, toMin(shift.start) + shiftMinutes(shift), zone)]);
+    for (const t of tasks) {
+      if (t.deleted || t.done || t.date !== d || !t.time || isLogan(t)) continue;      // time with Logan isn't "busy"
+      herBusy.push([msAt(d, toMin(t.time), zone), msAt(d, toMin(t.time) + (t.minutes || 30), zone)]);
+    }
+  }
+  const mine = subtractBusy(herFree, herBusy), his = subtractBusy(hisFree, hisBusy);
+  const slots = [];
+  for (const [a, b] of mine) for (const [c, d] of his) {
+    const s = Math.max(a, c, now), e = Math.min(b, d);
+    if (e - s >= 30 * 60000) slots.push([s, e]);
+  }
+  slots.sort((x, y) => x[0] - y[0]);
+  togetherCache = { at: Date.now(), slots };
+  return slots;
+}
+
+async function renderTogether() {
+  const card = $("home-together"), box = $("home-together-list");
+  if (!card) return;
+  let slots;
+  try { slots = await freeTogether(); } catch { slots = null; }
+  card.hidden = !slots;
+  if (!slots) return;
+  box.innerHTML = "";
+  if (!slots.length) { box.appendChild(el("p", "hint-small", "No free time in common this week yet. 💙")); return; }
+  const tk = herToday(), la = loganAwake();
+  for (const [s, e] of slots.slice(0, 6)) {
+    const a = zLocal(s), b = zLocal(e), ha = zLocal(s, la.zone), hb = zLocal(e, la.zone);
+    const dayName = a.day === tk ? "Today" : a.day === addDays(tk, 1) ? "Tomorrow" : fromKey(a.day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    const mins = Math.round((e - s) / 60000);
+    const row = el("div", "together-row");
+    row.append(el("b", "", `${dayName} · ${formatTime(a.time)} – ${formatTime(b.time)}`),
+      el("span", "together-len", ` (${formatMinutes(mins)})`),
+      el("div", "hint-small", `Logan's time: ${fromKey(ha.day).toLocaleDateString(undefined, { weekday: "short" })} ${formatTime(ha.time)} – ${formatTime(hb.time)}`));
+    const add = el("button", "move-btn", "💙 Plan time together");
+    add.addEventListener("click", async () => {
+      await persist({ id: newId(), date: a.day, time: a.time, title: "Time with Logan", notes: "", done: false, doneDate: null, kind: "joy",
+        priority: "normal", dueDate: null, minutes: Math.min(120, mins), area: null, effort: "light", brain: "light",
+        workout: null, createdAt: new Date().toISOString(), deleted: false, external: {} }, false);
+      togetherCache = null;
+      showToast(`💙 "Time with Logan" is on ${dayName === "Today" ? "today" : dayName} at ${formatTime(a.time)}.`);
+      render();
+    });
+    row.appendChild(add);
+    box.appendChild(row);
+  }
+}

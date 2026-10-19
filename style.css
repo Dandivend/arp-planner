@@ -1571,3 +1571,25 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .lg-what { font-weight: 700; font-size: 16px; }
 .lg-where, .lg-notes { color: var(--muted); font-size: 14px; white-space: pre-wrap; }
 @media screen { [data-mode="light"] .logan-cell .lg-ev, [data-mode="light"] .lg-time { color: #2b6fb5; } }
+
+/* 🏋️ Workout day: a dumbbell floating around the vial */
+.flask-bell { position: absolute; left: -30px; top: 40%; width: 56px; height: 25px; z-index: 4; pointer-events: none;
+  animation: bell-orbit 7s ease-in-out infinite; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .45)); }
+.flask-bell svg { width: 100%; height: 100%; display: block; }
+@keyframes bell-orbit {
+  0% { transform: translate(0, 0) rotate(-12deg); }
+  20% { transform: translate(-6px, -70px) rotate(10deg); }
+  40% { transform: translate(64px, -110px) rotate(-8deg); }
+  55% { transform: translate(78px, -30px) rotate(14deg); }
+  70% { transform: translate(70px, 60px) rotate(-10deg); }
+  85% { transform: translate(10px, 80px) rotate(8deg); }
+  100% { transform: translate(0, 0) rotate(-12deg); }
+}
+@media (prefers-reduced-motion: reduce) { .flask-bell { animation: none; } }
+
+/* 💙 Free time together */
+.together-row { padding: 8px 0; border-top: 1px solid var(--line); }
+.together-row:first-child { border-top: 0; }
+.together-row .move-btn { margin-top: 4px; }
+.together-len { color: var(--muted); font-size: 14px; }
+.logan-awake { margin: 12px 0 4px; flex-wrap: wrap; gap: 8px; align-items: center; }

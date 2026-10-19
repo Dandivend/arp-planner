@@ -262,6 +262,7 @@ function playFinish(li, opts = {}) {
 
   const name = opts.animal || pickAnimal();
   const a = ANIMALS[name];
+  if (typeof playAnimalSound === "function") playAnimalSound(name);
 
   // Geometry relative to the row.
   const liRect = li.getBoundingClientRect();
