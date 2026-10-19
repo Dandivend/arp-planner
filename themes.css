@@ -10,6 +10,10 @@
   :root[data-season="summer"]  { --accent: #f6bd45; --accent-ink: #2a1d05; --season-2: #3fc1d9; --bg-glow: #262317; }
   :root[data-season="fall"]    { --accent: #ec8a42; --accent-ink: #2a1405; --season-2: #c0533a; --bg-glow: #281f18; }
   :root[data-season="winter"]  { --accent: #86c8ff; --accent-ink: #0c1d2e; --season-2: #d4e4f7; --bg-glow: #1b2331; }
+  /* Animal themes */
+  :root[data-season="goat"]    { --accent: #d9b48a; --accent-ink: #2a1d0e; --season-2: #7d88bf; --bg-glow: #24201b; }
+  :root[data-season="grey"]    { --accent: #c3c8cf; --accent-ink: #1a1c1f; --season-2: #e5484e; --bg-glow: #1e2024; }
+  :root[data-season="ori"]     { --accent: #6cc0ff; --accent-ink: #08233a; --season-2: #e9dccb; --bg-glow: #23201d; }
 
   .brand { color: var(--accent); }
   .topbar { border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, var(--accent), var(--season-2)) 1; }
@@ -31,6 +35,9 @@
   :root[data-mode="light"][data-season="summer"]  { --accent: #d99000; --accent-ink: #fff; --bg-glow: #fff7e2; }
   :root[data-mode="light"][data-season="fall"]    { --accent: #c9621b; --accent-ink: #fff; --bg-glow: #fff1e4; }
   :root[data-mode="light"][data-season="winter"]  { --accent: #2f7fc6; --accent-ink: #fff; --bg-glow: #edf5ff; }
+  :root[data-mode="light"][data-season="goat"]    { --accent: #9c7240; --accent-ink: #fff; --season-2: #2f3550; --bg-glow: #fbf4ea; }
+  :root[data-mode="light"][data-season="grey"]    { --accent: #5f6670; --accent-ink: #fff; --season-2: #d12d33; --bg-glow: #f3f4f6; }
+  :root[data-mode="light"][data-season="ori"]     { --accent: #2b8fe0; --accent-ink: #fff; --season-2: #5b4636; --bg-glow: #fbf6ee; }
 
   [data-mode="light"] .topbar { background: rgba(255, 255, 255, .88); }
   [data-mode="light"] .badge { border-color: #f0c590; }

@@ -1,4 +1,4 @@
-// "Task done" celebrations: a random animal (goat, African grey parrot or husky)
+// "Task done" celebrations: a random animal (goat, African grey parrot, husky or Ori the Siamese cat)
 // crosses the task row and draws the strike-through line as it goes.
 //
 // The goat is an inline SVG facing right (styled after the tan, navy-horned goat
@@ -93,6 +93,51 @@ const HUSKY_SVG = `
   <path d="M117 46 Q123 48 130 44" fill="none" stroke="#3a3d42" stroke-width="1.5"/>
 </svg>`;
 
+// Ori: a Siamese. Cream body; dark seal points (mask, ears, legs, tail) where he's cooler; bright blue eyes.
+const CAT_SVG = `
+<svg viewBox="0 0 160 110">
+  <defs>
+    <linearGradient id="oriBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e9dcc8"/><stop offset="1" stop-color="#fbf6ee"/>
+    </linearGradient>
+    <linearGradient id="oriTail" x1="1" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#cbb393"/><stop offset=".4" stop-color="#4a3a33"/><stop offset="1" stop-color="#2b211e"/>
+    </linearGradient>
+    <radialGradient id="oriMask" cx=".75" cy=".55" r=".7">
+      <stop offset="0" stop-color="#2e2420"/><stop offset=".7" stop-color="#4a3a33"/><stop offset="1" stop-color="#7a6253" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g class="leg alt"><rect x="50" y="58" width="10" height="20" rx="5" fill="#cdbba3"/>
+    <g class="shin alt"><rect x="51" y="74" width="8" height="22" rx="4" fill="#3b2f2a"/></g></g>
+  <g class="leg"><rect x="104" y="58" width="9" height="20" rx="4.5" fill="#cdbba3"/>
+    <g class="shin"><rect x="104.5" y="74" width="8" height="22" rx="4" fill="#3b2f2a"/></g></g>
+  <path class="tail" d="M41 52 Q19 50 15 31 Q13 19 21 12" stroke="url(#oriTail)" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M38 56 Q36 40 58 37 L104 36 Q122 37 124 52 Q125 68 108 72 L58 73 Q40 71 38 56 Z" fill="url(#oriBody)"/>
+  <path d="M54 68 Q82 76 110 67 Q106 73 100 74 L60 75 Q54 73 54 68 Z" fill="#fffaf3"/>
+  <path d="M60 40 Q84 36 106 39" stroke="#d8c7ae" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>
+  <g class="leg"><rect x="44" y="58" width="12" height="22" rx="6" fill="#e3d4bd"/>
+    <g class="shin"><rect x="45.5" y="76" width="9" height="22" rx="4.5" fill="#33282a"/><ellipse cx="51" cy="97" rx="6" ry="3" fill="#2a2022"/></g></g>
+  <g class="leg alt"><rect x="98" y="58" width="11" height="22" rx="5.5" fill="#e3d4bd"/>
+    <g class="shin alt"><rect x="99" y="76" width="9" height="22" rx="4.5" fill="#33282a"/><ellipse cx="105" cy="97" rx="6" ry="3" fill="#2a2022"/></g></g>
+  <path d="M110 44 Q117 31 129 28 L137 40 Q127 51 119 61 Z" fill="#e9dcc8"/>
+  <g class="head">
+    <path d="M123 23 L125 2 L139 17 Z" fill="#3b2f2a"/>
+    <path d="M141 17 L151 0 L155 23 Z" fill="#3b2f2a"/>
+    <path d="M127 18 L127.5 8 L134.5 16 Z" fill="#b98088"/>
+    <ellipse cx="139" cy="28" rx="18" ry="15" fill="#e9dcc8"/>
+    <path d="M128 24 Q140 15 153 22 Q160 31 155 41 Q146 47 136 43 Q127 36 128 24 Z" fill="url(#oriMask)"/>
+    <ellipse cx="152" cy="34" rx="7.5" ry="6.5" fill="#3b2f2a"/>
+    <ellipse cx="141" cy="28" rx="4.2" ry="3.4" fill="#4fb3ff"/>
+    <ellipse cx="141.7" cy="28" rx="0.9" ry="2.7" fill="#0b1a2a"/>
+    <circle cx="142.8" cy="26.7" r="0.9" fill="#fff"/>
+    <ellipse cx="151" cy="26.8" rx="2.7" ry="2.7" fill="#4fb3ff"/>
+    <ellipse cx="151.4" cy="26.8" rx="0.7" ry="2.1" fill="#0b1a2a"/>
+    <path d="M157 32.5 l3 1.6 l-3 1.6 z" fill="#1d1416"/>
+    <path d="M156 38.5 Q153 40.5 150 38.5" stroke="#1d1416" stroke-width="1" fill="none"/>
+    <path d="M150 35 L167 30 M150 37 L168 37 M150 39 L166 43" stroke="#f3ede4" stroke-width=".8" opacity=".85"/>
+  </g>
+</svg>`;
+
 const easeIn = t => t * t;
 const easeInOut = t => (t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
 const linear = t => t;
@@ -124,6 +169,12 @@ const ANIMALS = {
     color: "#7cc4ff", duration: 1150, ease: linear,
     bob: () => 0,
     dust: true,
+  },
+  cat: {
+    svg: CAT_SVG, w: 116, h: 80, contact: [0.66, 0.88],
+    say: { text: "mrrrp!", x: 0.62, y: -0.22 },
+    color: "#5ab8ff", duration: 1050, ease: easeInOut,
+    bob: p => -Math.abs(Math.sin(p * 26)) * 6,          // bounding Siamese zoomies
   },
 };
 
@@ -175,8 +226,14 @@ function buildCritter(name) {
   return { el, geo, destroy: () => { if (anim) anim.destroy(); el.remove(); } };
 }
 
+// Which animal runs (Settings → Appearance → Task-done animal): any of them at random, the one
+// that matches an animal theme, or always the same one.
+const THEME_ANIMAL = { goat: "goat", grey: "parrot", ori: "cat" };
 let lastAnimal = null;
 function pickAnimal() {
+  const want = typeof themePref === "function" ? themePref().critter || "any" : "any";
+  if (ANIMALS[want]) return (lastAnimal = want);
+  if (want === "theme" && THEME_ANIMAL[currentThemeName()]) return (lastAnimal = THEME_ANIMAL[currentThemeName()]);
   const names = Object.keys(ANIMALS).filter(n => n !== lastAnimal);
   lastAnimal = names[Math.floor(Math.random() * names.length)];
   return lastAnimal;

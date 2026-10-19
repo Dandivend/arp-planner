@@ -1,4 +1,4 @@
-// A little mood-booster in the side panel: a buttload of African grey and goat facts.
+// A little mood-booster in the side panel: a buttload of African grey, goat and cat facts.
 
 const BIRD_FACTS = [
   "African greys are famously brainy. In some problem-solving tasks they match a young child. Basically a feathered toddler genius. 🧠",
@@ -266,11 +266,146 @@ GOAT_FACTS.push(
   "G.O.A.T. fact: Ariel is the greatest of all time, and the goats agree. 🐐🏆",
 );
 
+// Cat facts, starring Ori (a Siamese).
+const CAT_FACTS = [
+  "Siamese cats come from Thailand, which used to be called Siam. Royal cats, basically. 👑",
+  "In Thailand the Siamese is called Wichien Maat, which means 'moon diamond'. Fancy name for a fancy cat. 💎",
+  "Old Thai manuscripts called the Tamra Maew (the 'Cat-Book Poems') describe Siamese-looking cats, possibly hundreds of years ago.",
+  "A Siamese's dark 'points' come from a heat-sensitive gene. Cooler parts of the body (ears, face, paws, tail) grow darker fur. Built-in thermometer. 🌡️",
+  "Siamese kittens are born almost completely white. Their points slowly appear as they grow, starting with the ears and nose.",
+  "Siamese coats often get a little darker with age, and some darken more in a cold house. Winter coat, but make it fashion.",
+  "If a Siamese wears a bandage or shaved patch for a while, the fur can grow back darker there because the skin was cooler. Science tattoo.",
+  "The gene that makes Siamese points is a form of albinism that only works where the body is cool. Cool cat, literally. 😎",
+  "That same gene is why Siamese eyes are blue. Every pointed cat has blue eyes. 💙",
+  "Siamese eyes look blue because there's very little pigment in them, the same reason the sky looks blue. Pocket-sized sky.",
+  "The classic dark-brown Siamese color is called 'seal point'. Other colors include chocolate, blue and lilac point.",
+  "Fans of the breed lovingly call Siamese cats 'Meezers'. Ori is a certified Meezer.",
+  "Siamese are famously chatty and have a loud, raspy voice. Some people say they sound like a baby crying. Opinions: many.",
+  "Siamese cats often 'talk back' when you talk to them. Full conversations, zero translation.",
+  "Many old-time Siamese had crossed eyes and kinked tails. Breeders have mostly bred those out, but some still have them.",
+  "A Thai legend says Siamese got kinked tails from guarding a royal goblet, wrapping their tails around it so tightly they bent.",
+  "Another legend says Siamese got crossed eyes from staring so hard at a treasure they were guarding. Dedicated. 👀",
+  "The first known Siamese cat in the United States was a gift to First Lady Lucy Hayes in 1878. Her name was Siam.",
+  "Siamese cats were shown at one of the first big cat shows, at London's Crystal Palace in 1871.",
+  "Siamese are one of the oldest recognized cat breeds in the world.",
+  "The Balinese is basically a long-haired Siamese. Same points, extra floof.",
+  "The Himalayan cat is a Persian with Siamese-style points. Persian floof, Siamese face paint.",
+  "The Tonkinese came from crossing Siamese with Burmese cats. Teamwork makes the dream work.",
+  "Oriental Shorthairs are Siamese relatives that come in hundreds of colors and patterns, not just points.",
+  "Modern show Siamese are long, slim and wedge-headed. Old-style 'Thai' or 'applehead' Siamese are rounder and chunkier.",
+  "Siamese are very people-focused and often follow their humans from room to room. Velcro cat. 🐾",
+  "Siamese are smart and can learn tricks like fetch, high-fives and walking on a harness.",
+  "Many Siamese love to play fetch with toys. Part cat, part retriever.",
+  "Siamese often don't like being left alone for long. They want their people, and they'll say so. Loudly.",
+  "Siamese cats commonly live 15 to 20 years. Long-term snuggle plan.",
+  "In Disney's Lady and the Tramp, the two troublemaker cats Si and Am are Siamese.",
+  "Ori fact: Ori's blue eyes are the bluest thing in the house. That's just science. 💙",
+  "Ori fact: those dark ears, paws and tail are where Ori runs coolest. His face is a built-in mood ring for the weather.",
+  "Ori fact: when Ori talks, the correct answer is always 'Yes, Ori.' 🐱",
+  "Ori fact: Ori would like to remind you that every finished task deserves a celebratory mrrrp.",
+  "A cat's purr usually rumbles somewhere between about 25 and 150 vibrations per second.",
+  "Cats purr when they're happy, but also when they're stressed or hurting. It may help calm them down.",
+  "Some scientists think purring vibrations might help cats heal, but it isn't proven yet. Still very soothing for humans. 😌",
+  "Adult cats rarely meow at each other. Meowing is mostly something cats do to talk to people.",
+  "Cats can make a special 'solicitation purr' with a crying sound mixed in when they want food. It's hard to ignore on purpose.",
+  "A slow blink from a cat means trust. Studies found that slow-blinking back makes cats more likely to approach you. Try it on Ori!",
+  "When a cat rubs its cheeks on you, it's leaving its scent from glands in its face. You've been claimed. 🏷️",
+  "A tail held straight up, sometimes with a little hook at the tip, is a friendly 'hello'.",
+  "A cat showing its belly usually means it trusts you, not that it wants a belly rub. It's a trap. 🪤",
+  "Kneading with front paws is a habit from kittenhood, when kittens knead to get milk flowing. Making biscuits! 🍪",
+  "A puffed-up tail means a cat is scared or startled and is trying to look bigger.",
+  "A tail that thumps or swishes fast usually means 'I'm getting annoyed'. Back away slowly.",
+  "Cats chatter their teeth at birds through the window. Nobody is totally sure why. Probably trash talk.",
+  "Studies suggest many cats recognize their own names, even if they choose to ignore them. Very on brand.",
+  "Cats can tell their owner's voice apart from a stranger's voice.",
+  "Cats sleep around 12 to 16 hours a day. Goals. 😴",
+  "Cats are most active at dawn and dusk. That's why the zoomies hit at 5 AM.",
+  "The zoomies have an official name: Frenetic Random Activity Periods, or FRAPs.",
+  "A cat's 'loaf' pose, with paws tucked under, means it's relaxed but ready to move. Bread mode. 🍞",
+  "Cats often sleep curled in a ball to keep warm and protect their bellies.",
+  "Cats spend a big part of their awake time grooming, often up to half of it. Self-care icons. 🧼",
+  "A cat's tongue is covered in tiny backward-facing hooks made of keratin, the same stuff as fingernails. Built-in hairbrush.",
+  "Cats drink by flicking their tongue so fast it pulls up a column of water, then they snap their mouth shut. Physics, but cute.",
+  "Cats can't taste sweet things. They're missing a working sweet taste receptor.",
+  "A cat's nose has a unique pattern of bumps and ridges, like a fingerprint. 👃",
+  "Cats have a third eyelid, called the nictitating membrane, that helps protect their eyes.",
+  "Cats see well in dim light, needing only about a sixth of the light humans need.",
+  "The eye shine you see in photos comes from a mirror-like layer at the back of a cat's eye called the tapetum lucidum.",
+  "Cats can't see clearly right under their nose. They use their whiskers to feel things up close.",
+  "Whiskers are super sensitive and help cats judge whether they'll fit through a gap.",
+  "Cats have whiskers on the backs of their front legs too. Extra sensors.",
+  "Each ear has about 32 muscles, so cats can swivel their ears separately to track sounds. 📡",
+  "Cats can hear much higher sounds than humans, up to around 64,000 vibrations per second. Mouse squeaks included.",
+  "A cat's sense of smell is many times stronger than a human's.",
+  "Cats have an extra scent organ in the roof of their mouth. The funny open-mouth 'stink face' sends smells to it.",
+  "That open-mouthed sniffing face is called the flehmen response. Very dramatic.",
+  "Cats have about 230 bones, more than the 206 in an adult human.",
+  "Cats' collarbones float freely, which helps them squeeze through tight spaces. Liquid cat confirmed. 💧",
+  "Cats can usually jump around five or six times their own body length.",
+  "Cats almost always land on their feet thanks to the 'righting reflex', which kittens learn by about 7 weeks old.",
+  "Most cats have 18 toes: five on each front paw and four on each back paw.",
+  "Cats with extra toes are called polydactyl. They're famous at Ernest Hemingway's old home in Key West.",
+  "Many of the cats at the Hemingway Home are descendants of a six-toed cat named Snow White.",
+  "Cats walk like camels and giraffes: both right feet move, then both left feet.",
+  "A cat's claws curve backward, which is why climbing down a tree is harder than climbing up.",
+  "Cats sweat mostly through their paw pads. Sweaty toe beans.",
+  "Toe beans is the internet's name for paw pads, and it is correct.",
+  "A cat's heart beats about 140 to 220 times a minute, roughly twice as fast as a human heart.",
+  "A cat's normal body temperature is a little warmer than ours, around 100 to 102.5 °F. Pocket heater. 🔥",
+  "Cats love sunny spots partly because warmth helps them save energy. Solar-powered nap.",
+  "Cats were domesticated from wildcats in the Near East, probably around 10,000 years ago when people started farming.",
+  "A cat buried with a person on Cyprus about 9,500 years ago is some of the oldest evidence of people living with cats.",
+  "Ancient Egyptians honored the cat goddess Bastet, who protected homes. 🐈‍⬛",
+  "The ancient Greek writer Herodotus wrote that Egyptian families shaved their eyebrows to mourn a pet cat.",
+  "Egyptians mummified many cats. Archaeologists have found hundreds of thousands of them.",
+  "A group of cats is called a clowder. A group of kittens is called a kindle. 🔥",
+  "A male cat is a tom, and a female cat is a queen. Ori is clearly royalty either way.",
+  "The oldest cat on record, Creme Puff from Texas, lived to 38 years old.",
+  "Catnip excites many cats because of a chemical called nepetalactone. Not every cat reacts. It's partly genetic.",
+  "Silvervine is another plant that many cats go wild for, even some who ignore catnip.",
+  "Kittens usually don't react to catnip until they're a few months old.",
+  "Cats generally dislike citrus smells. Orange peel = cat repellent.",
+  "Many grown cats can't digest milk well. Water is the better drink.",
+  "Cats need taurine, an amino acid found in meat. They can't make enough on their own.",
+  "Cats are 'obligate carnivores', which means they really need meat to stay healthy.",
+  "Cats often bring 'gifts' because they see you as a family member who needs help hunting. Thanks?",
+  "Cats stalk, pounce and freeze like tiny lions. Wand toys let them practice the whole hunt.",
+  "Short play sessions before a meal can help indoor cats feel like they 'caught' their dinner.",
+  "Cats like tall perches because being up high helps them feel safe and see everything. 🏰",
+  "Cardboard boxes help cats feel hidden and safe, which lowers stress. If it fits, it sits. 📦",
+  "Cats like to scratch to keep their claws healthy and to leave scent from their paws.",
+  "A cat that scratches near your bed or the door is often saying 'this is my home too'.",
+  "Félicette, a French cat, went to space in 1963 and came back safely. Astronaut cat. 🚀",
+  "A cat named Stubbs was the honorary mayor of Talkeetna, Alaska, for about 20 years.",
+  "The UK has a Chief Mouser at 10 Downing Street. A cat named Larry has held the job since 2011.",
+  "Cats' whiskers fall out and regrow naturally. Never trim them!",
+  "A cat's whiskers are usually about as wide as its body. Built-in measuring tape. 📏",
+  "Cats sometimes sleep with their paws over their eyes, like a sleep mask. Too cute.",
+  "Some cats love water. Turkish Vans are famous for swimming.",
+  "A cat's tail helps it balance on narrow ledges and while running.",
+  "Cats can rotate their ears about 180 degrees. Owl-level listening.",
+  "Cats greet each other by touching noses. Nose boops are official cat hellos. 👃",
+  "Cats yawn to show they feel relaxed, and sometimes to tell other cats they mean no harm.",
+  "Purring cats can lower some people's stress. Ori: certified therapy cat.",
+  "The internet loves cats so much that cat videos are some of the most watched videos online.",
+  "Cats can spend hours watching birds. It's called 'cat TV' for a reason. 📺",
+  "A cat's meow can change based on what it wants, and owners often learn their own cat's 'words'.",
+  "Cats in the same home often groom each other. It's called allogrooming, and it's a sign of friendship.",
+  "Siamese cats often get along great with another playful cat to keep them company.",
+  "Siamese often stay playful and kitten-like well into adulthood. Forever kitten energy. ✨",
+  "Siamese are known for being very loyal to their favorite person. Ariel, you've been chosen. 💙",
+];
+
+const FUN = {
+  bird: { facts: BIRD_FACTS, label: "🦜 Burd fact", animal: "parrot" },
+  goat: { facts: GOAT_FACTS, label: "🐐 Goat fact", animal: "goat" },
+  cat: { facts: CAT_FACTS, label: "🐱 Cat fact", animal: "cat" },
+};
 let funTab = "bird";
-let funIndex = { bird: null, goat: null };
+let funIndex = { bird: null, goat: null, cat: null };
 
 function renderFunFact() {
-  const list = funTab === "bird" ? BIRD_FACTS : GOAT_FACTS;
+  const list = FUN[funTab].facts;
   if (funIndex[funTab] === null) funIndex[funTab] = Math.floor(seeded(todayKey(), "fun-" + funTab) * list.length);
   const i = funIndex[funTab] % list.length;
   const box = $("fun-fact");
@@ -278,9 +413,8 @@ function renderFunFact() {
   box.classList.remove("pop");
   void box.offsetWidth;            // restart the little pop animation
   box.classList.add("pop");
-  $("fun-count").textContent = `${funTab === "bird" ? "🦜 Burd fact" : "🐐 Goat fact"} ${i + 1} of ${list.length}`;
-  $("fun-tab-bird").classList.toggle("active", funTab === "bird");
-  $("fun-tab-goat").classList.toggle("active", funTab === "goat");
+  $("fun-count").textContent = `${FUN[funTab].label} ${i + 1} of ${list.length}`;
+  for (const k of Object.keys(FUN)) $("fun-tab-" + k).classList.toggle("active", funTab === k);
 }
 
 // The same critter run as a finished task: the parrot for burd facts, the goat for goat facts,
@@ -290,13 +424,12 @@ async function funCritter() {
   if (funCritterRunning || calmMode() || typeof playFinish !== "function") return;
   funCritterRunning = true;
   try {
-    await playFinish($("fun-card"), { animal: funTab === "bird" ? "parrot" : "goat", line: $("fun-fact"), strike: false });
+    await playFinish($("fun-card"), { animal: FUN[funTab].animal, line: $("fun-fact"), strike: false });
   } finally {
     funCritterRunning = false;
   }
 }
 
-$("fun-tab-bird").addEventListener("click", () => { funTab = "bird"; renderFunFact(); funCritter(); });
-$("fun-tab-goat").addEventListener("click", () => { funTab = "goat"; renderFunFact(); funCritter(); });
+for (const k of Object.keys(FUN)) $("fun-tab-" + k).addEventListener("click", () => { funTab = k; renderFunFact(); funCritter(); });
 $("fun-next").addEventListener("click", () => { funIndex[funTab]++; renderFunFact(); funCritter(); });
 renderFunFact();

@@ -6,8 +6,13 @@ const SEASONS = {
   summer: { label: "Summer", emoji: "☀️", bits: ["✨", "🌼", "✨"], sw: "#f6bd45" },
   fall: { label: "Fall", emoji: "🍂", bits: ["🍂", "🍁", "🍂"], sw: "#ec8a42" },
   winter: { label: "Winter", emoji: "❄️", bits: ["❄️", "❄️", "✨"], sw: "#86c8ff" },
-  classic: { label: "Classic grey", emoji: "🦜", bits: ["🪶"], sw: "#4fc1a6" },
+  classic: { label: "Classic teal", emoji: "🪶", bits: ["🪶"], sw: "#4fc1a6" },
+  // Animal themes: her goats, an African grey, and Ori (a Siamese: cream, dark points, blue eyes).
+  goat: { label: "Goat", emoji: "🐐", bits: ["🐐", "🌿", "🌾"], sw: "#c9a27a", animal: true },
+  grey: { label: "African grey", emoji: "🦜", bits: ["🪶", "🪶", "❤️"], sw: "#e5484e", animal: true },
+  ori: { label: "Ori the cat", emoji: "🐱", bits: ["🐾", "🐾", "💙"], sw: "#5ab8ff", animal: true },
 };
+const ANIMAL_THEMES = ["goat", "grey", "ori"];
 const THEME_CACHE = "arpPlanner.theme";   // per-device copy so the look applies instantly
 
 // Real-life season (northern hemisphere, by month): Mar-May spring, Jun-Aug summer,
@@ -15,6 +20,18 @@ const THEME_CACHE = "arpPlanner.theme";   // per-device copy so the look applies
 function realSeason(d = new Date()) {
   const m = d.getMonth();
   return m >= 2 && m <= 4 ? "spring" : m >= 5 && m <= 7 ? "summer" : m >= 8 && m <= 10 ? "fall" : "winter";
+}
+
+// "Animal of the day": one of the animal themes, picked fresh each day (the same all day).
+function animalOfDay(d = new Date()) {
+  const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  let h = 2166136261;
+  for (const ch of key) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return ANIMAL_THEMES[(h >>> 0) % ANIMAL_THEMES.length];
+}
+function currentThemeName() {
+  const t = themePref();
+  return t.season === "auto" ? realSeason() : t.season === "animals" ? animalOfDay() : SEASONS[t.season] ? t.season : "fall";
 }
 
 function themePref() {
@@ -30,7 +47,7 @@ const calmMode = () => !!themePref().calm;
 let fxKey = null;
 function applyTheme() {
   const t = themePref();
-  const season = t.season === "auto" ? realSeason() : t.season;
+  const season = currentThemeName();
   const root = document.documentElement;
   root.dataset.mode = t.mode;
   root.dataset.season = season;
@@ -105,6 +122,7 @@ function renderAppearance() {
   auto.addEventListener("click", () => saveTheme({ season: "auto" }));
   seasonRow.appendChild(auto);
   for (const [id, s] of Object.entries(SEASONS)) {
+    if (s.animal) continue;
     const b = el("button", "season-swatch" + (t.season === id ? " on" : ""));
     b.style.setProperty("--sw", s.sw);
     b.append(el("span", "dot"), `${s.emoji} ${s.label}`);
@@ -112,6 +130,38 @@ function renderAppearance() {
     seasonRow.appendChild(b);
   }
   box.appendChild(seasonRow);
+
+  // Animal themes, plus one that picks a different animal each day.
+  const animalRow = el("div", "theme-row");
+  animalRow.appendChild(el("span", "fit-label", "Animals"));
+  for (const id of ANIMAL_THEMES) {
+    const s = SEASONS[id];
+    const b = el("button", "season-swatch" + (t.season === id ? " on" : ""));
+    b.style.setProperty("--sw", s.sw);
+    b.append(el("span", "dot"), `${s.emoji} ${s.label}`);
+    b.addEventListener("click", () => saveTheme({ season: id }));
+    animalRow.appendChild(b);
+  }
+  const today = SEASONS[animalOfDay()];
+  const rnd = el("button", "season-swatch" + (t.season === "animals" ? " on" : ""));
+  rnd.style.setProperty("--sw", today.sw);
+  rnd.append(el("span", "dot"), `🎲 Animal of the day (today: ${today.emoji} ${today.label})`);
+  rnd.title = "A different animal theme each day, picked at random";
+  rnd.addEventListener("click", () => saveTheme({ season: "animals" }));
+  animalRow.appendChild(rnd);
+  box.appendChild(animalRow);
+
+  // Who runs across a finished task.
+  const critRow = el("div", "theme-row");
+  critRow.appendChild(el("span", "fit-label", "Task-done animal"));
+  for (const [id, label] of [["any", "🎲 Any, at random"], ["theme", "🎨 Match my animal theme"], ["goat", "🐐 Goat"],
+    ["parrot", "🦜 Grey"], ["husky", "🐺 Husky"], ["cat", "🐱 Ori"]]) {
+    const b = el("button", "season-swatch" + ((t.critter || "any") === id ? " on" : ""), label);
+    if (id === "theme") b.title = "Goat theme → goat, African grey → parrot, Ori → Ori. Other themes: any animal.";
+    b.addEventListener("click", () => saveTheme({ critter: id }));
+    critRow.appendChild(b);
+  }
+  box.appendChild(critRow);
 
   const fx = el("label", "check");
   const cb = el("input");

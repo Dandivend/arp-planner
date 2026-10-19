@@ -2028,9 +2028,16 @@ async function reloadFromStore() {
   renderQuietly();
 }
 
+// The first draw waits until every script on the page has run (a slow file, like the animation
+// player, could otherwise leave the screen half-drawn until the next refresh).
+const pageReady = document.readyState === "loading"
+  ? new Promise(r => document.addEventListener("DOMContentLoaded", r, { once: true })) : Promise.resolve();
+
 (async function init() {
   try {
-    const data = await Store.load();
+    const loading = Store.load();
+    await pageReady;
+    const data = await loading;
     ({ tasks, moods } = data);
     if (data.cycle) cycle = data.cycle;
     profile = data.profile || {};
