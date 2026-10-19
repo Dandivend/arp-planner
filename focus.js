@@ -79,9 +79,9 @@ function minutesUntil(hhmm) {
   return h * 60 + m - (n.getHours() * 60 + n.getMinutes());
 }
 
-function openFocus() {
+function openFocus(startWith = null) {
   focusSkipped = [];
-  focusCurrent = null;
+  focusCurrent = typeof startWith === "string" ? startWith : null;     // (a click event isn't a task id)
   focusBreak = null;
   renderFocus();
   $("focus-dialog").showModal();

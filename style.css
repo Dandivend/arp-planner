@@ -1438,3 +1438,10 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .ai-form input { flex: 1; min-width: 0; }
 .ai-toggle { display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 8px 0 2px; }
 .ai-key-actions { display: flex; gap: 8px; margin: 8px 0; }
+
+/* 🪶 Brain-light / quick & easy */
+.chip.brain-light { color: #b9f0d6; border-color: #2f6b52; background: #1a2c25; }
+.easy-picks { border-left: 4px solid #4cc38a; background: color-mix(in srgb, #4cc38a 8%, transparent); border-radius: 8px; padding: 8px 12px; font-size: 15px; }
+.easy-picks ul { margin: 6px 0 0; padding-left: 18px; }
+.easy-picks .link-btn { text-align: left; }
+@media screen { [data-mode="light"] .chip.brain-light { color: #1f7a52; border-color: #bfe5cf; background: #eefaf3; } }

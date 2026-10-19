@@ -640,6 +640,44 @@ function renderBatteries(p) {
 }
 
 // Brain battery over: offer to make the brain-heavy jobs that can wait Next day's problem.
+// 🪶 Easy on the brain: light, quick jobs, offered when her brain battery is low, her feelings
+// say thinking is hard today, or it's wind-down time. Tapping one opens Focus on it.
+const QUICK_MIN = 20;
+const isQuickEasy = t => !t.done && !isWorkShift(t) && kindOf(t) !== "event" && brainOf(t) === "light"
+  && (minutesLeft(t) ?? t.minutes ?? 15) <= QUICK_MIN;
+
+function easyPicksCard(p) {
+  const day = currentDay, tk = todayKey();
+  if (day < tk) return null;
+  const f = feelingOf(moods[day] || {});
+  const n = nowLocal(), nowMin = n.getHours() * 60 + n.getMinutes();
+  const why = p.bats.brain.pctLeft <= 35 ? "Your brain battery is getting low"
+    : f && f.mix.br <= -0.75 ? `Feeling ${f.label}`
+    : day === tk && nowMin >= brainWindow(day).end ? "It's wind-down time"
+    : null;
+  if (!why) return null;
+  const picks = p.active.filter(t => isQuickEasy(t) && !t.time)
+    .sort((a, b) => (minutesLeft(a) ?? a.minutes ?? 15) - (minutesLeft(b) ?? b.minutes ?? 15)).slice(0, 4);
+  if (!picks.length) return null;
+  const card = document.createElement("div");
+  card.className = "easy-picks";
+  card.appendChild(Object.assign(document.createElement("div"), { className: "easy-head",
+    textContent: `🪶 ${why}. These are quick and easy on the brain:` }));
+  const ul = document.createElement("ul");
+  for (const t of picks) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.className = "link-btn";
+    b.textContent = `${t.title} · ${formatMinutes(minutesLeft(t) ?? t.minutes ?? 15)}`;
+    b.title = "Open it in Focus mode";
+    b.addEventListener("click", () => { if (typeof openFocus === "function") openFocus(t.id); else openDialog(t); });
+    li.appendChild(b);
+    ul.appendChild(li);
+  }
+  card.appendChild(ul);
+  return card;
+}
+
 function brainOverCard(p) {
   const card = document.createElement("div");
   card.className = "brain-over";
@@ -700,6 +738,8 @@ function renderSuggestions(p, recovery) {
   }
   if (recovery) box.appendChild(recoveryCard(recovery));
   if (p.brainOver && p.brainOver.length) box.appendChild(brainOverCard(p));
+  const easy = easyPicksCard(p);
+  if (easy) box.appendChild(easy);
 
   // Too physical on top of a shift? (Running out of time altogether is the red banner up top.)
   if (p.shift && p.load >= Math.max(60, p.free * 0.35)) {
@@ -867,6 +907,8 @@ function taskRow(t, isNext) {
   if (!t.done && !isWorkShift(t)) {
     if (isSocial(t)) chips.push(["chip brain", `🫂 People time · ${SOCIAL_QUIET} min quiet after`]);
     else if (brainOf(t) === "heavy" && hold !== BRAIN_HOLD) chips.push(["chip brain", "🧠 Brain-heavy"]);
+    else if (isQuickEasy(t)) chips.push(["chip brain-light", "⚡ Quick & easy"]);
+    else if (brainOf(t) === "light" && kindOf(t) !== "event") chips.push(["chip brain-light", "🪶 Brain-light"]);
     const bt = brainTiming(t, day);
     if (bt && !isSocial(t)) chips.push(["chip brain-time", bt.when === "early"
       ? (t.time ? "🌅 Soon after waking: brains need time to boot" : `🌅 Best after ${formatTime(bt.until)}`)
