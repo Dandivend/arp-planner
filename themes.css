@@ -14,6 +14,23 @@
   :root[data-season="goat"]    { --accent: #d9b48a; --accent-ink: #2a1d0e; --season-2: #7d88bf; --bg-glow: #24201b; }
   :root[data-season="grey"]    { --accent: #c3c8cf; --accent-ink: #1a1c1f; --season-2: #e5484e; --bg-glow: #1e2024; }
   :root[data-season="ori"]     { --accent: #6cc0ff; --accent-ink: #08233a; --season-2: #e9dccb; --bg-glow: #23201d; }
+  /* Holidays */
+  :root[data-season="halloween"]    { --accent: #ff8a1f; --accent-ink: #1e0f02; --season-2: #9b5cff; --bg-glow: #1f1724; }
+  :root[data-season="thanksgiving"] { --accent: #e08a3c; --accent-ink: #2a1405; --season-2: #b5512a; --bg-glow: #261c15; }
+  :root[data-season="christmas"]    { --accent: #3fc46c; --accent-ink: #062611; --season-2: #e5484e; --bg-glow: #15221b; }
+  :root[data-season="newyear"]      { --accent: #e7c14a; --accent-ink: #261e05; --season-2: #b9c3d6; --bg-glow: #1c1d26; }
+  :root[data-season="valentines"]   { --accent: #ff6b98; --accent-ink: #2a0712; --season-2: #e5484e; --bg-glow: #26161d; }
+  :root[data-season="stpatricks"]   { --accent: #4fcf6f; --accent-ink: #062611; --season-2: #e7c14a; --bg-glow: #15221a; }
+  :root[data-season="easter"]       { --accent: #c99cf2; --accent-ink: #1e0f2a; --season-2: #9fe3b8; --bg-glow: #1f1b26; }
+  :root[data-season="july4"]        { --accent: #5a8cff; --accent-ink: #061433; --season-2: #e5484e; --bg-glow: #171c2a; }
+  :root[data-mode="light"][data-season="halloween"]    { --accent: #d96a00; --accent-ink: #fff; --season-2: #7a3fd6; --bg-glow: #fff3e6; }
+  :root[data-mode="light"][data-season="thanksgiving"] { --accent: #b9661f; --accent-ink: #fff; --bg-glow: #fdf1e4; }
+  :root[data-mode="light"][data-season="christmas"]    { --accent: #1f8f4a; --accent-ink: #fff; --season-2: #c9302c; --bg-glow: #eef8f1; }
+  :root[data-mode="light"][data-season="newyear"]      { --accent: #b58d10; --accent-ink: #fff; --bg-glow: #fbf7e6; }
+  :root[data-mode="light"][data-season="valentines"]   { --accent: #d63a6c; --accent-ink: #fff; --bg-glow: #fff0f4; }
+  :root[data-mode="light"][data-season="stpatricks"]   { --accent: #23964a; --accent-ink: #fff; --bg-glow: #eefaf1; }
+  :root[data-mode="light"][data-season="easter"]       { --accent: #8a55c9; --accent-ink: #fff; --season-2: #3fae6a; --bg-glow: #f8f2ff; }
+  :root[data-mode="light"][data-season="july4"]        { --accent: #2b5fd6; --accent-ink: #fff; --season-2: #c9302c; --bg-glow: #eef3ff; }
   :root[data-season="pets"]    { --accent: #8fc4ff; --accent-ink: #0b2033; --season-2: #e5484e; --bg-glow: #212024; }
 
   .brand { color: var(--accent); }
@@ -168,3 +185,8 @@ main, .topbar { position: relative; z-index: 1; }
   [data-mode="light"] .cell.workday .work-tag { color: #2f6db0; }
   [data-mode="light"] .cell.offday .work-tag { color: #1f8a57; }
 }
+
+/* Holiday bits drift a little bigger and brighter, so the pumpkins and witches can be seen */
+:root[data-season="halloween"] .fx-bit, :root[data-season="christmas"] .fx-bit, :root[data-season="easter"] .fx-bit,
+:root[data-season="valentines"] .fx-bit, :root[data-season="stpatricks"] .fx-bit, :root[data-season="july4"] .fx-bit,
+:root[data-season="thanksgiving"] .fx-bit, :root[data-season="newyear"] .fx-bit { opacity: .6; scale: 1.5; }

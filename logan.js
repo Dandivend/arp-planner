@@ -190,22 +190,41 @@ $("logan-prev").addEventListener("click", () => { loganCursor.setMonth(loganCurs
 $("logan-next").addEventListener("click", () => { loganCursor.setMonth(loganCursor.getMonth() + 1); renderLogan(); });
 $("logan-today").addEventListener("click", () => { loganCursor = null; loganSelected = null; renderLogan(); });
 
-// Logan's usual waking hours (his own clock), for "free time together".
+// Logan's sleep, in his own (Tokyo) time, shown translated to her Seattle clock. Free time
+// together uses it: he's "awake" from his wake-up time to his bedtime. (Settings → 💙 Logan's sleep.)
 function loganAwakeRow() {
   const la = loganAwake();
-  const row = el("div", "fit-row logan-awake");
-  row.appendChild(el("span", "fit-label", "Logan is usually awake"));
+  const box = el("div", "logan-awake");
+  const row = el("div", "fit-row");
   const mk = val => { const i = el("input"); i.type = "time"; i.value = val; return i; };
-  const a = mk(la.start), b = mk(la.end);
-  const save = async () => {
-    try { profile = await Store.putProfile({ loganAwake: { ...la, start: a.value || la.start, end: b.value || la.end } }); } catch {}
-    togetherCache = null;
-    showToast("💙 Saved. Free time together is worked out with these hours.");
+  const bed = mk(la.end), wake = mk(la.start);
+  row.append(el("span", "fit-label", "🌙 Logan goes to bed"), bed, el("span", "fit-label", "☀️ and wakes up"), wake,
+    el("span", "hint-small", "(Tokyo time)"));
+  box.appendChild(row);
+  const tr = el("p", "hint-small logan-sleep-seattle");
+  const showSeattle = () => {
+    const today = zLocal(Date.now(), la.zone).day;
+    const b = zLocal(msAt(today, toMin(bed.value || la.end), la.zone)), w = zLocal(msAt(today, toMin(wake.value || la.start), la.zone));
+    tr.textContent = `In Seattle time that's asleep from ${formatTime(b.time)} to ${formatTime(w.time)} (it shifts by an hour when the clocks change).`;
   };
-  a.addEventListener("change", save);
-  b.addEventListener("change", save);
-  row.append(a, el("span", "", "to"), b, el("span", "hint-small", "his time (Tokyo)"));
-  return row;
+  showSeattle();
+  box.appendChild(tr);
+  const save = async () => {
+    try { profile = await Store.putProfile({ loganAwake: { ...la, start: wake.value || la.start, end: bed.value || la.end } }); } catch {}
+    togetherCache = null;
+    showSeattle();
+    showToast("💙 Saved. Free time together now uses Logan's sleep hours.");
+  };
+  bed.addEventListener("change", save);
+  wake.addEventListener("change", save);
+  return box;
+}
+function renderLoganSettings() {
+  const box = $("logan-settings");
+  if (!box) return;
+  box.innerHTML = "";
+  box.appendChild(el("p", "hint-small", "Logan: put in your usual sleep hours on your own clock. Ariel's app translates them to her time, so \"Free time together\" only shows times you're both awake."));
+  box.appendChild(loganAwakeRow());
 }
 
 // ---------- 💙 Free time together (Home) ----------

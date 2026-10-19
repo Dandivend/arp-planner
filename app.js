@@ -733,7 +733,7 @@ function setFireFloor(level, text) {
 }
 
 // A little whimsical demon who bounces along the flames, cackling, when the day is fully on fire.
-const IMP_LINES = ["hehehe 😈", "WHEEE!", "chaos wins! 🎉", "boing boing", "lol same", "it's fine 🔥", "*cackles*", "toasty!"];
+const IMP_LINES = ["I win!!! I win!!!", "hehehe 😈", "I win!!! I win!!!", "WHEEE!", "I win!!! I win!!!", "*cackles*", "I win!!! I win!!!", "toasty! 🔥"];
 function makeImp() {
   const box = document.createElement("div");
   box.className = "ff-imp";
@@ -754,7 +754,7 @@ function makeImp() {
     <path d="M22 56 l-2 6 M42 56 l2 6" stroke="#c2304a" stroke-width="4" stroke-linecap="round"/>
   </svg><span class="imp-say"></span></div>`;
   const say = box.querySelector(".imp-say");
-  let i = Math.floor(Math.random() * IMP_LINES.length);
+  let i = 0;                                                  // starts with "I win!!! I win!!!"
   const talk = () => { say.textContent = IMP_LINES[i++ % IMP_LINES.length]; say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop"); };
   talk();
   setInterval(() => { if (!box.closest("[hidden]")) talk(); }, 3200);
@@ -1680,6 +1680,7 @@ function render() {
     renderCycleSettings();
     renderBrainSettings();
     renderAiSettings();
+    if (typeof renderLoganSettings === "function") renderLoganSettings();
     renderFitness();
   }
   else renderRecap();

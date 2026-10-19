@@ -12,7 +12,42 @@ const SEASONS = {
   grey: { label: "African grey", emoji: "🦜", bits: ["🪶", "🪶", "❤️"], sw: "#e5484e", animal: true },
   ori: { label: "Ori the cat", emoji: "🐱", bits: ["🐾", "🐾", "💙"], sw: "#5ab8ff", animal: true },
   pets: { label: "Ori & Molly", emoji: "🐾", bits: ["🐾", "🪶", "💙", "❤️"], sw: "#8a7cf0", animal: true },
+  // Holidays (they also switch on by themselves around the date, with the Automatic theme).
+  halloween: { label: "Halloween", emoji: "🎃", bits: ["🎃", "😈", "🧙‍♀️", "🦇", "👻", "🎃", "🧙", "🕷️"], sw: "#ff8a1f", holiday: true },
+  thanksgiving: { label: "Thanksgiving", emoji: "🦃", bits: ["🦃", "🍂", "🥧", "🌽", "🍁"], sw: "#c9772e", holiday: true },
+  christmas: { label: "Christmas", emoji: "🎄", bits: ["🎄", "🎅", "🎁", "⛄", "❄️", "🦌", "🔔", "⭐"], sw: "#2fae5c", holiday: true },
+  newyear: { label: "New Year's", emoji: "🎉", bits: ["🎉", "🥂", "✨", "🎆", "🎊"], sw: "#e7c14a", holiday: true },
+  valentines: { label: "Valentine's", emoji: "💘", bits: ["💘", "💖", "💌", "🌹", "💕", "🍫"], sw: "#ff5d8f", holiday: true },
+  stpatricks: { label: "St. Patrick's", emoji: "☘️", bits: ["☘️", "🍀", "🌈", "🪙"], sw: "#3fbf5f", holiday: true },
+  easter: { label: "Easter", emoji: "🐣", bits: ["🥚", "🐣", "🐰", "🌷", "🐥", "🥕"], sw: "#c99cf2", holiday: true },
+  july4: { label: "4th of July", emoji: "🎆", bits: ["🎆", "🇺🇸", "⭐", "🎇", "🌭"], sw: "#4a7dff", holiday: true },
 };
+const HOLIDAY_THEMES = Object.keys(SEASONS).filter(k => SEASONS[k].holiday);
+
+// Easter Sunday (Gregorian, "anonymous" algorithm).
+function easterOf(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  return new Date(y, Math.floor((h + l - 7 * m + 114) / 31) - 1, ((h + l - 7 * m + 114) % 31) + 1);
+}
+// Which holiday (if any) is close: its theme runs for a stretch before the day itself.
+function holidayNear(d = new Date()) {
+  const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+  const inRange = (m1, d1, m2, d2) => (m > m1 || (m === m1 && day >= d1)) && (m < m2 || (m === m2 && day <= d2));
+  const daysTo = t => Math.round((new Date(y, t.getMonth(), t.getDate()) - new Date(y, m - 1, day)) / 864e5);
+  if (inRange(10, 10, 10, 31)) return "halloween";
+  const nov1 = new Date(y, 10, 1), thanks = new Date(y, 10, 1 + ((4 - nov1.getDay() + 7) % 7) + 21);
+  if (m === 11 && daysTo(thanks) >= 0 && daysTo(thanks) <= 6) return "thanksgiving";
+  if (inRange(12, 1, 12, 26)) return "christmas";
+  if (inRange(12, 30, 12, 31) || inRange(1, 1, 1, 1)) return "newyear";
+  if (inRange(2, 7, 2, 14)) return "valentines";
+  if (inRange(3, 12, 3, 17)) return "stpatricks";
+  const e = daysTo(easterOf(y));
+  if (e >= 0 && e <= 7) return "easter";
+  if (inRange(7, 1, 7, 4)) return "july4";
+  return null;
+}
 const ANIMAL_THEMES = ["goat", "grey", "ori", "pets"];
 const THEME_CACHE = "arpPlanner.theme";   // per-device copy so the look applies instantly
 
@@ -32,7 +67,8 @@ function animalOfDay(d = new Date()) {
 }
 function currentThemeName() {
   const t = themePref();
-  return t.season === "auto" ? realSeason() : t.season === "animals" ? animalOfDay() : SEASONS[t.season] ? t.season : "fall";
+  if (t.season === "auto") return (t.holidays !== false && holidayNear()) || realSeason();
+  return t.season === "animals" ? animalOfDay() : SEASONS[t.season] ? t.season : "fall";
 }
 
 function themePref() {
@@ -155,7 +191,7 @@ function renderAppearance() {
 
   const seasonRow = el("div", "theme-row");
   seasonRow.appendChild(el("span", "fit-label", "Theme"));
-  const now = realSeason();
+  const now = (t.holidays !== false && holidayNear()) || realSeason();
   const auto = el("button", "season-swatch" + (t.season === "auto" ? " on" : ""));
   auto.style.setProperty("--sw", SEASONS[now].sw);
   auto.append(el("span", "dot"), `🔄 Automatic (now ${SEASONS[now].label} ${SEASONS[now].emoji})`);
@@ -163,7 +199,7 @@ function renderAppearance() {
   auto.addEventListener("click", () => saveTheme({ season: "auto" }));
   seasonRow.appendChild(auto);
   for (const [id, s] of Object.entries(SEASONS)) {
-    if (s.animal) continue;
+    if (s.animal || s.holiday) continue;
     const b = el("button", "season-swatch" + (t.season === id ? " on" : ""));
     b.style.setProperty("--sw", s.sw);
     b.append(el("span", "dot"), `${s.emoji} ${s.label}`);
@@ -171,6 +207,26 @@ function renderAppearance() {
     seasonRow.appendChild(b);
   }
   box.appendChild(seasonRow);
+
+  // Holidays.
+  const holRow = el("div", "theme-row");
+  holRow.appendChild(el("span", "fit-label", "Holidays"));
+  for (const id of HOLIDAY_THEMES) {
+    const s = SEASONS[id];
+    const b = el("button", "season-swatch" + (t.season === id ? " on" : ""));
+    b.style.setProperty("--sw", s.sw);
+    b.append(el("span", "dot"), `${s.emoji} ${s.label}`);
+    b.addEventListener("click", () => saveTheme({ season: id }));
+    holRow.appendChild(b);
+  }
+  box.appendChild(holRow);
+  const holAuto = el("label", "check");
+  const hcb = el("input");
+  hcb.type = "checkbox";
+  hcb.checked = t.holidays !== false;
+  hcb.addEventListener("change", () => saveTheme({ holidays: hcb.checked }));
+  holAuto.append(hcb, " 🎉 With Automatic, holiday themes switch on by themselves (Halloween from Oct 10, Christmas from Dec 1, and so on)");
+  box.appendChild(holAuto);
 
   // Animal themes, plus one that picks a different animal each day.
   const animalRow = el("div", "theme-row");
