@@ -51,7 +51,7 @@ async function syncGoogle(manual) {
   if (view === "settings") renderGoogleSettings();
   try {
     const res = await gPost("sync");
-    if (res.tasks) { tasks = res.tasks; if (!celebrating && !$("task-dialog").open && !userIsEditing()) render(); }
+    if (res.tasks) { tasks = res.tasks; renderQuietly(); }
     if (manual && res.stats) showToast(`📆 Synced with Google: ${syncSummary(res.stats)}.`);
   } catch (e) {
     if (manual) showError("Google sync didn't work: " + e.message);

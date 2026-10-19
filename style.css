@@ -1394,3 +1394,27 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .focus-cheer .g-btn { margin: 4px; }
 .focus-break .focus-title { color: #a593ff; }
 .home-batteries { margin-top: 6px; font-size: 15px; }
+
+/* Feelings check-in (Foxtale style) */
+.mood-boxes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0 10px; }
+.mood-box { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 104px;
+  padding: 12px; border-radius: 22px; border: 2px solid var(--box); color: var(--ink); font-weight: 700;
+  background: color-mix(in srgb, var(--box) 22%, var(--card)); }
+.mood-box:hover, .mood-box:focus-visible { background: color-mix(in srgb, var(--box) 34%, var(--card)); }
+.mood-box-emoji { font-size: 26px; }
+.mood-box-label { text-align: center; font-size: 15px; }
+.mood-box-count { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.mood-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 8px; }
+.mood-tab { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border-radius: 12px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--box) 12%, var(--card)); color: var(--muted); font-size: 12.5px; }
+.mood-tab.active { border: 2px solid var(--box); color: var(--ink); background: color-mix(in srgb, var(--box) 28%, var(--card)); font-weight: 700; }
+.mood-group-hint { color: var(--muted); font-size: 14px; margin: 4px 0 10px; }
+.feel-chips, .feel-picked { display: flex; flex-wrap: wrap; gap: 7px; }
+.feel-picked { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.feel-chip { padding: 7px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--box) 55%, var(--line));
+  background: var(--card); color: color-mix(in srgb, var(--box) 70%, var(--ink)); font-weight: 600; font-size: 15px; }
+.feel-chip.chosen { background: var(--box); border-color: var(--box); color: #1b1712; }
+.feel-chip.small { font-size: 13px; padding: 4px 10px; }
+.feel-nav { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.feel-nav .g-btn { margin-left: auto; }
+.feel-top { color: var(--muted); font-size: 14px; margin: 10px 0 0; }

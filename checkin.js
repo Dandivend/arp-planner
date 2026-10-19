@@ -2,6 +2,7 @@
 // Period setup lives in Settings (renderCycleSettings), since it's set once, not daily.
 
 let checkinTab = "feel";
+let ckGroup = null;        // the colour box she has open (null = pick a colour)
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -47,6 +48,7 @@ function openCheckin(day) {
   // Start on whichever part isn't filled in yet.
   const entry = moods[currentDay] || {};
   checkinTab = feelingOf(entry) && !bodyOf(entry) ? "body" : "feel";
+  ckGroup = null;
   renderCheckin();
   $("checkin-dialog").showModal();
 }
@@ -65,13 +67,11 @@ function renderCheckin() {
   pane.innerHTML = "";
   if (checkinTab === "feel") {
     pane.appendChild(el("div", "mood-question",
-      f ? `${isToday ? "Today you're feeling" : "You felt"} ${f.label.toLowerCase()}.` :
-      isToday ? "How are you feeling today?" : "How were you feeling this day?"));
+      f ? `${isToday ? "Today you're feeling" : "You felt"} ${f.label}.` :
+      ckGroup ? "Which feelings fit? Pick as many as you like." :
+      isToday ? "What color best describes how you feel?" : "What color best describes how you felt?"));
     if (f) pane.appendChild(el("div", "checkin-reply", pickFor(f.lines, currentDay, f.id)));
-    pane.appendChild(optionButtons(FEELINGS, f && f.id, id => {
-      setCheckin({ mood: id });
-      if (!bodyOf(moods[currentDay])) setTimeout(() => { checkinTab = "body"; renderCheckin(); }, 700);
-    }));
+    feelingsPicker(pane, entry);
   } else {
     pane.appendChild(el("div", "mood-question",
       b ? `Body check: ${b.label.toLowerCase()}.` :
@@ -79,6 +79,78 @@ function renderCheckin() {
     if (b) pane.appendChild(el("div", "checkin-reply", pickFor(b.lines, currentDay, b.id)));
     pane.appendChild(optionButtons(BODY, b && b.id, id => setCheckin({ body: id })));
   }
+}
+
+// Foxtale style: four colour boxes, then the feelings in the one she opens. Any number, from any box.
+function feelingsPicker(pane, entry) {
+  const picked = feelingIds(entry);
+  const save = ids => { setCheckin({ feelings: ids, mood: null }); renderCheckin(); };
+  const count = g => picked.filter(id => EMOTION_BY_ID[id].group === g.id).length;
+
+  if (!ckGroup) {
+    const grid = el("div", "mood-boxes");
+    for (const g of MOOD_GROUPS) {
+      const b = el("button", "mood-box");
+      b.style.setProperty("--box", g.color);
+      b.append(el("span", "mood-box-emoji", g.emoji), el("span", "mood-box-label", g.label));
+      if (count(g)) b.appendChild(el("span", "mood-box-count", `${count(g)} picked`));
+      b.addEventListener("click", () => { ckGroup = g.id; renderCheckin(); });
+      grid.appendChild(b);
+    }
+    pane.appendChild(grid);
+  } else {
+    const tabs = el("div", "mood-tabs");
+    for (const g of MOOD_GROUPS) {
+      const t = el("button", "mood-tab" + (g.id === ckGroup ? " active" : ""));
+      t.style.setProperty("--box", g.color);
+      t.title = g.label;
+      t.append(el("span", "", g.emoji), el("span", "mood-tab-label", g.short + (count(g) ? ` · ${count(g)}` : "")));
+      t.addEventListener("click", () => { ckGroup = g.id; renderCheckin(); });
+      tabs.appendChild(t);
+    }
+    pane.appendChild(tabs);
+    const g = GROUP_BY_ID[ckGroup];
+    pane.appendChild(el("div", "mood-group-hint", `${g.emoji} ${g.label}. Tap the squares above to add feelings from other colors.`));
+    const chips = el("div", "feel-chips");
+    chips.style.setProperty("--box", g.color);
+    for (const e of EMOTIONS.filter(x => x.group === ckGroup)) {
+      const on = picked.includes(e.id);
+      const c = el("button", "feel-chip" + (on ? " chosen" : ""), e.label);
+      c.addEventListener("click", () => save(on ? picked.filter(id => id !== e.id) : [...picked, e.id]));
+      chips.appendChild(c);
+    }
+    pane.appendChild(chips);
+  }
+
+  if (picked.length) {
+    const row = el("div", "feel-picked");
+    for (const id of picked) {
+      const e = EMOTION_BY_ID[id];
+      const c = el("button", "feel-chip chosen small", e.label + " ✕");
+      c.style.setProperty("--box", GROUP_BY_ID[e.group].color);
+      c.title = "Remove " + e.label;
+      c.addEventListener("click", () => save(picked.filter(x => x !== id)));
+      row.appendChild(c);
+    }
+    pane.appendChild(row);
+  }
+  const nav = el("div", "feel-nav");
+  if (ckGroup) {
+    const back = el("button", "link-btn", "‹ All colors");
+    back.addEventListener("click", () => { ckGroup = null; renderCheckin(); });
+    nav.appendChild(back);
+  }
+  if (picked.length) {
+    const clear = el("button", "link-btn", "Clear feelings");
+    clear.addEventListener("click", () => save([]));
+    nav.appendChild(clear);
+    if (!bodyOf(moods[currentDay])) {
+      const next = el("button", "g-btn primary", "Next: body check ›");
+      next.addEventListener("click", () => { checkinTab = "body"; renderCheckin(); });
+      nav.appendChild(next);
+    }
+  }
+  pane.appendChild(nav);
 }
 
 for (const t of ["feel", "body"]) {

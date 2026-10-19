@@ -43,7 +43,7 @@ async function syncMicrosoft(manual) {
   msRefreshViews();
   try {
     const res = await msPost("sync");
-    if (res.tasks) { tasks = res.tasks; if (!celebrating && !$("task-dialog").open && !userIsEditing()) render(); }
+    if (res.tasks) { tasks = res.tasks; renderQuietly(); }
     if (manual && res.stats) showToast(`✔️ Synced with To Do: ${msSummary(res.stats)}.`);
   } catch (e) {
     if (manual) showError("To Do sync didn't work: " + e.message);

@@ -250,10 +250,11 @@ function planDay(day) {
   const heavyFirst = (a, b) => energy.level === "high" ? (effortOf(b) === "heavy") - (effortOf(a) === "heavy") : 0;
   // Body fine but heart low: movement and quick wins first, long sit-down tasks later.
   const mindLow = mindLowBodyOk(day);
-  // Annoyed: physical jobs first, brain-heavy ones later.
-  const annoyed = !mindLow && annoyedDay(day);
+  // Her feelings: body first (Annoyed, Anxious…), quick wins (Overwhelmed…), or brain work first (Inspired…).
+  const moodOrder = mindLow ? null : moodOrderOf(day);
+  const annoyed = !!(moodOrder && moodOrder.move);
   const moodFirst = (a, b) => mindLow ? moodBoostScore(b) - moodBoostScore(a)
-    : annoyed ? burnOffScore(b, day) - burnOffScore(a, day) : 0;
+    : moodOrder ? moodOrderScore(b, day, moodOrder) - moodOrderScore(a, day, moodOrder) : 0;
   const timed = active.filter(t => t.time);
   const untimed = active.filter(t => !t.time);
   const chores = doneLast(spreadBrain(sortChores(untimed.filter(t => kindOf(t) === "chore")).sort((a, b) => moodFirst(a, b) || heavyFirst(a, b))));
@@ -264,7 +265,7 @@ function planDay(day) {
   const choreMinutes = chores.filter(t => !t.done).reduce((s, t) => s + (minutesLeft(t) ?? 15), 0);
   const summary = summaryText(day, timed.filter(t => !isWorkShift(t)), ofLevel("important"), ofLevel("normal").concat(workouts), chores, ofLevel("optional"), choreMinutes)
     + (held.length ? ` ${plural(held.length, "job")} can wait for a better day.` : "");
-  return { list, energy, held, active, timed, untimed, chores, workouts, ofLevel, choreMinutes, summary, mindLow, annoyed, bats, brainOver,
+  return { list, energy, held, active, timed, untimed, chores, workouts, ofLevel, choreMinutes, summary, mindLow, annoyed, moodOrder, bats, brainOver,
     load: physicalMinutes(active), shift: workHoursFor(day), free: freeMinutes(day), planned: plannedMinutes(active, day) };
 }
 
@@ -334,7 +335,7 @@ function renderDay() {
   }
 
   const moveFirst = p.mindLow || p.annoyed;
-  const movement = ["🏃", p.mindLow ? "Movement · good for your mood 💛" : p.annoyed ? "Movement · burns off the annoyed 🔥" : "Movement", workouts, "s-workout"];
+  const movement = ["🏃", p.mindLow ? "Movement · good for your mood 💛" : p.annoyed ? "Movement · helps it settle 🔥" : "Movement", workouts, "s-workout"];
   const sections = [
     ["📅", currentDay === tk ? "Today's schedule" : "Schedule", timed, "s-schedule"],
     ...(moveFirst ? [movement] : []),          // low mood or annoyed: move first
@@ -687,11 +688,14 @@ function renderSuggestions(p, recovery) {
       "movement and quick wins come first (both lift your mood), and long sit-down tasks wait until later. A walk outside counts!";
     box.appendChild(m);
   }
-  if (p.annoyed) {
+  if (p.moodOrder) {
+    const o = p.moodOrder, ways = [];
+    if (o.move) ways.push("hands-on jobs and movement come first (they help it settle), and brain-heavy tasks wait until later");
+    if (o.quick) ways.push((o.move ? "quick" : "Quick") + " easy wins come early, to get you going");
+    if (o.brainy) ways.push("brain-heavy work moves up while your head is clear");
     const m = document.createElement("div");
     m.className = "mood-mode";
-    m.textContent = "😤 Annoyed today, so your list is reordered: hands-on jobs and movement come first " +
-      "(they burn it off), and brain-heavy tasks wait until later. Your brain battery is a bit smaller today too.";
+    m.textContent = `${o.brainy && !o.move && !o.quick ? "✨" : "💛"} Feeling ${o.words} today, so your list is reordered: ${ways.join("; ")}.`;
     box.appendChild(m);
   }
   if (recovery) box.appendChild(recoveryCard(recovery));
@@ -839,7 +843,12 @@ function taskRow(t, isNext) {
   if (!t.dueDate && level === "important" && !t.done) chips.push(["chip imp", "Important"]);
   if (!t.dueDate && level === "optional" && !t.done) chips.push(["chip opt", "Optional"]);
   if (mindLowBodyOk(day) && moodBoostScore(t) >= 2) chips.push(["chip mood", "💛 Mood boost"]);
-  else if (annoyedDay(day) && burnOffScore(t, day) >= 2) chips.push(["chip mood", "🔥 Burns it off"]);
+  else {
+    const o = moodOrderOf(day);
+    if (o && o.move && burnOffScore(t, day) >= 2) chips.push(["chip mood", "🔥 Burns it off"]);
+    else if (o && o.quick && quickWinScore(t) >= 2) chips.push(["chip mood", "⚡ Quick win"]);
+    else if (o && o.brainy && brainOf(t) === "heavy" && !t.done) chips.push(["chip mood", "✨ Clear-head job"]);
+  }
   if (t.done && t.skipped) chips.push(["chip opt", "⏭️ Skipped (caught up)"]);
   const g = t.external && t.external.google;
   if (g && g.imported) chips.push(["chip gcal", "📆 Google"]);
@@ -1923,7 +1932,7 @@ setInterval(() => {
   if (tk !== lastToday && currentDay === lastToday) currentDay = tk;
   lastToday = tk;
   applyTheme();   // "Automatic" theme follows the real season
-  if (!$("task-dialog").open && !celebrating && !userIsEditing()) render();
+  renderQuietly();
 }, 60 * 1000);
 
 // Tell the local server we're alive so it shuts down after the window closes.
@@ -1964,12 +1973,20 @@ if (Store === ApiStore) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (reloading || !hadVersion) return;
     reloading = true;
+    try { sessionStorage.setItem("arpUpdated", "1"); } catch {}
     location.reload();
   });
+  try {
+    if (sessionStorage.getItem("arpUpdated")) {
+      sessionStorage.removeItem("arpUpdated");
+      setTimeout(() => showToast("✨ The planner just updated to its newest version."), 800);
+    }
+  } catch {}
   navigator.serviceWorker.register("sw.js").then(r => {
     reg = r;
     r.addEventListener("updatefound", () => {
       const w = r.installing;
+      if (w && navigator.serviceWorker.controller) showToast("✨ Downloading a planner update… it swaps in by itself in a moment.");
       w && w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) swapWhenSafe(); });
     });
     swapWhenSafe();
@@ -1979,6 +1996,19 @@ if (Store === ApiStore) {
   document.addEventListener("visibilitychange", () => { if (!document.hidden && reg) reg.update().catch(() => {}); });
 }
 
+// Background redraws (a sync finished, her Drive copy came in) wait until she hasn't touched the
+// screen for a moment: a redraw in the middle of a tap swallows the tap, and it feels frozen.
+let lastTouch = 0;
+addEventListener("pointerdown", () => { lastTouch = Date.now(); }, true);
+addEventListener("keydown", () => { lastTouch = Date.now(); }, true);
+function renderQuietly() {
+  clearTimeout(renderQuietly.t);
+  const wait = 1200 - (Date.now() - lastTouch);
+  if (wait > 0) { renderQuietly.t = setTimeout(renderQuietly, wait + 50); return; }
+  if (celebrating || $("task-dialog").open || userIsEditing()) { renderQuietly.t = setTimeout(renderQuietly, 2000); return; }
+  render();
+}
+
 // Data changed underneath the page (her Drive copy merged in, or a sync ran): show it.
 async function reloadFromStore() {
   const data = await Store.load();
@@ -1986,7 +2016,7 @@ async function reloadFromStore() {
   if (data.cycle) cycle = data.cycle;
   profile = data.profile || {};
   applyTheme();
-  if (!$("task-dialog").open && !celebrating) render();
+  renderQuietly();
 }
 
 (async function init() {

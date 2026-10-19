@@ -284,7 +284,7 @@ function ideasFor(day) {
   if (e.earlyPeriod) note += " Period day: gentle movement only.";
   if (left !== 0 && left !== 1) note += bodyNote;
   if (mindLowBodyOk(day)) note += " Moving is one of the best mood-lifters there is. Even 10 minutes helps 💛";
-  else if (annoyedDay(day)) note += " Annoyed? A workout is a great way to burn it off 🔥";
+  else if (annoyedDay(day)) note += " Feeling wound up? A workout is a great way to burn it off 🔥";
 
   const favs = prof("favorites"), goals = prof("goals");
   const addonIntensity = intensity === "hard" ? "moderate" : "light";

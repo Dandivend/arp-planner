@@ -2,52 +2,15 @@
 // menstrual cycle. No DOM code here (see checkin.js), so it ports to a phone app as-is.
 
 // ---------- feelings ----------
-const FEELINGS = [
-  { id: "great", emoji: "😄", label: "Great", score: 5, lines: [
-    "Love that! Go get 'em.",
-    "Look at you shining. Ride the wave, but pace yourself.",
-    "Great days are for the big stuff, and for a treat afterwards.",
-    "That energy is contagious. Save a little for tomorrow-you too.",
-  ] },
-  { id: "good", emoji: "🙂", label: "Good", score: 4, lines: [
-    "Glad to hear it.",
-    "A good day is a great foundation. Steady wins.",
-    "Nice! Tackle the important stuff while you're feeling it.",
-    "Good vibes logged. Keep it chill and keep it moving.",
-  ] },
-  { id: "okay", emoji: "😐", label: "Okay", score: 3, lines: [
-    "Steady days count too.",
-    "Okay is perfectly okay. Pick a couple of things and call it a win.",
-    "No pressure today. Just the essentials.",
-    "Middle-of-the-road days are where habits are built.",
-  ] },
-  { id: "tired", emoji: "😴", label: "Tired", score: 2.5, lines: [
-    "Running low? Rest is productive too.",
-    "Tired is your body asking for a break. Listen to it.",
-    "Do the must-dos, skip the could-dos, and get to bed early.",
-    "Coffee is a band-aid, sleep is the cure. Plan an early night.",
-  ] },
-  { id: "annoyed", emoji: "😤", label: "Annoyed", score: 2.5, lines: [
-    "Annoyed is allowed. Let's put that energy somewhere useful.",
-    "Hands busy, brain resting: the physical jobs go first today.",
-    "Burn it off: a brisk walk, loud music, a good scrub.",
-    "The fiddly thinking can wait until the fizz settles.",
-  ] },
-  { id: "meh", emoji: "😕", label: "Meh", score: 2, lines: [
-    "Go easy on yourself today. Optional stuff can wait.",
-    "Meh days happen. One small win is plenty.",
-    "Be your own best friend today. What would you tell her?",
-    "Fresh air and a glass of water can shift a meh day more than you'd think.",
-  ] },
-  { id: "rough", emoji: "😢", label: "Rough", score: 1, lines: [
-    "Sending a big hug. Just do what you can 💛",
-    "Rough days don't last. Today is a rest-and-recover day.",
-    "You don't have to earn rest. Take it.",
-    "It's okay to cancel plans and be gentle with yourself.",
-  ] },
-];
-const LEGACY_MOOD = { 5: "great", 4: "good", 3: "okay", 2: "meh", 1: "rough" };
-const feelingOf = entry => entry && FEELINGS.find(f => f.id === (LEGACY_MOOD[entry.mood] || entry.mood));
+// Her feelings (any number of them a day) live in emotions.js; moodMix averages them.
+// feelingOf gives the screens one summary: the box the average lands in, the words, a kind line.
+function feelingOf(entry) {
+  const mix = moodMix(entry);
+  if (!mix) return null;
+  const g = GROUP_BY_ID[mix.group];
+  return { id: mix.group, emoji: g ? g.emoji : "🌀", label: feelingWords(mix.list), lines: MIX_LINES[mix.group], mix };
+}
+const clampTo = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
 // ---------- body ----------
 const BODY = [
@@ -333,7 +296,11 @@ function energyFor(day) {
     else if (c.cycleDay > len - 5) add(-0.5, "late luteal (PMS) days");
   }
   if (b) add({ energized: 1, good: 0.5, little_sore: -0.5, very_sore: -1.5, drained: -1.5, sick: -3 }[b.id], b.label.toLowerCase());
-  if (f) add({ great: 0.5, good: 0.25, okay: 0, tired: -1, annoyed: -0.25, meh: -0.5, rough: -1.5 }[f.id], f.id === "okay" ? null : "feeling " + f.label.toLowerCase());
+  // Feelings: more energy and nicer feelings lift the day; drained or awful ones lower it.
+  if (f) {
+    const d = clampTo(0.45 * f.mix.en + 0.35 * f.mix.pl, -1.5, 0.6);
+    add(d, Math.abs(d) >= 0.1 ? "feeling " + f.label : null);
+  }
   // A short night (under 7 hours planned) costs energy.
   const slept = sleepHoursBefore(day);
   if (slept < 7) add(slept < 6 ? -0.75 : -0.4, `${Math.round(slept * 2) / 2} hr of sleep`);
@@ -460,8 +427,11 @@ function batteriesFor(day, list = tasksFor(day)) {
   const f = feelingOf(entry), b = bodyOf(entry), c = cycleInfo(day);
   const brain = { cap: BATTERY_FULL, why: [] }, body = { cap: BATTERY_FULL, why: [] };
   const scale = (bat, x, why) => { if (x && x !== 1) { bat.cap *= x; if (why && x < 1) bat.why.push(why); } };
-  if (f) scale(brain, { great: 1.1, good: 1.05, meh: 0.85, tired: 0.75, annoyed: 0.8, rough: 0.6 }[f.id], "feeling " + f.label.toLowerCase());
-  if (f && f.id === "tired") scale(body, 0.9, "feeling tired");
+  // Feelings: thinking room (Inspired, Focused up; Foggy, Burned Out down) and get-up-and-go.
+  if (f) {
+    scale(brain, clampTo(1 + 0.15 * f.mix.br + 0.04 * f.mix.pl, 0.55, 1.25), "feeling " + f.label);
+    scale(body, clampTo(1 + 0.08 * f.mix.en, 0.8, 1.15), "feeling " + f.label);
+  }
   if (b) scale(body, { energized: 1.15, good: 1.05, little_sore: 0.85, very_sore: 0.6, drained: 0.7, sick: 0.3 }[b.id], b.label.toLowerCase());
   if (b && (b.id === "drained" || b.id === "sick")) scale(brain, b.id === "sick" ? 0.6 : 0.8, b.label.toLowerCase());
   const slept = sleepHoursBefore(day);
@@ -588,7 +558,7 @@ function brainTiming(t, day) {
 // same load feels heavier, so the meter fills faster.
 const CHAOS_BOOST = {
   sick: [1.5, "you're sick"], drained: [1.4, "you're drained"], very_sore: [1.35, "you're very sore"],
-  tired: [1.3, "you're tired"], annoyed: [1.15, "you're annoyed"], little_sore: [1.1, "you're a little sore"],
+  little_sore: [1.1, "you're a little sore"],
 };
 const CHAOS_LEVELS = [
   [25, "😌", "Calm"], [50, "🙂", "Busy"], [75, "😬", "Hectic"], [90, "🥵", "Frantic"], [101, "🤯", "Total chaos"],
@@ -597,11 +567,14 @@ const CHAOS_LEVELS = [
 function chaosFor(day, ft) {
   const entry = moods[day] || {};
   const f = feelingOf(entry), b = bodyOf(entry);
-  // Strongest of her body / tiredness boosts.
+  // Strongest of her body / feelings boosts. Unpleasant or drained feelings make the same
+  // day feel busier (Miserable about 1.3, Tired about 1.2, Anxious about 1.15).
   let boost = 1, reason = null;
-  for (const key of [b && b.id, f && f.id]) {
-    const hit = key && CHAOS_BOOST[key];
-    if (hit && hit[0] > boost) [boost, reason] = hit;
+  const hit = b && CHAOS_BOOST[b.id];
+  if (hit) [boost, reason] = hit;
+  if (f) {
+    const fb = 1 + 0.09 * Math.max(0, -f.mix.pl) + 0.1 * Math.max(0, -f.mix.en);
+    if (fb > boost + 0.01) [boost, reason] = [fb, "you're feeling " + f.label];
   }
   if (energyFor(day).earlyPeriod && boost < 1.25) { boost = 1.25; reason = "it's an early period day"; }
   let used;
@@ -620,7 +593,7 @@ function chaosFor(day, ft) {
 function mindLowBodyOk(day) {
   const entry = moods[day] || {};
   const f = feelingOf(entry), b = bodyOf(entry);
-  return !!(f && b && (f.id === "meh" || f.id === "rough") && ["energized", "good", "little_sore"].includes(b.id));
+  return !!(f && b && f.mix.pl <= -0.75 && f.mix.en < 0.5 && ["energized", "good", "little_sore"].includes(b.id));
 }
 
 function moodBoostScore(t) {
@@ -633,13 +606,34 @@ function moodBoostScore(t) {
   return 0;
 }
 
-// ---------- annoyed ----------
-// Annoyed: hard thinking is hard to settle into, but moving burns it off. Physical jobs
-// first, brain-heavy ones later. (A hurting body still gets no extra physical push.)
-function annoyedDay(day) {
-  const entry = moods[day] || {};
-  const f = feelingOf(entry);
-  return !!(f && f.id === "annoyed");
+// ---------- feelings reorder the day ----------
+// From her feelings (averaged): which ways of ordering the list help today.
+//   move   Annoyed, Anxious, Restless…: physical jobs and movement first, thinking jobs later
+//   quick  Anxious, Overwhelmed, Foggy…: quick easy wins first, to get going
+//   brainy Inspired, Focused, Curious…: brain-heavy work first, while her head is clear
+function moodOrderOf(day) {
+  const f = feelingOf(moods[day] || {});
+  if (!f) return null;
+  const o = { move: f.mix.mv >= 1, quick: f.mix.qw >= 1, brainy: f.mix.br >= 1 && !(f.mix.mv >= 1), words: f.label };
+  return o.move || o.quick || o.brainy ? o : null;
+}
+const annoyedDay = day => { const o = moodOrderOf(day); return !!(o && o.move); };
+
+function quickWinScore(t) {
+  if (t.done || t.time) return 0;
+  const mins = minutesLeft(t) ?? t.minutes ?? 15;
+  if (mins <= 15) return 2;
+  if (mins <= 30) return 1;
+  return mins >= 60 ? -1 : 0;
+}
+
+function moodOrderScore(t, day, o = moodOrderOf(day)) {
+  if (!o || t.done || t.time) return 0;
+  let s = 0;
+  if (o.move) s += burnOffScore(t, day);
+  if (o.quick) s += quickWinScore(t);
+  if (o.brainy) s += { light: 0, medium: 1, heavy: 2 }[brainOf(t)];
+  return s;
 }
 
 function burnOffScore(t, day) {
@@ -691,11 +685,11 @@ function recoveryFor(day) {
   const groups = [];
   if (b && ["very_sore"].includes(b.id)) { reasons.push("your body is very sore"); groups.push("sore"); }
   if (b && b.id === "sick") { reasons.push("you're not feeling well"); groups.push("sick"); }
-  if ((b && b.id === "drained") || (f && f.id === "tired")) { reasons.push("you're running low on energy"); groups.push("tired"); }
-  if (f && (f.id === "meh" || f.id === "rough")) { reasons.push("it's a hard day"); groups.push("mood"); }
+  if ((b && b.id === "drained") || (f && f.mix.en <= -1.25)) { reasons.push("you're running low on energy"); groups.push("tired"); }
+  if (f && f.mix.pl <= -1) { reasons.push("it's a hard day"); groups.push("mood"); }
   const onPeriod = entry.period === true || (c && c.phase === "menstrual" && !c.projected);
   // Early period days count too, unless she's told us she feels good anyway.
-  const feelsGood = (f && (f.id === "great" || f.id === "good")) || (b && (b.id === "energized" || b.id === "good"));
+  const feelsGood = (f && f.mix.pl >= 1 && f.mix.en >= 0) || (b && (b.id === "energized" || b.id === "good"));
   if (onPeriod && c && c.cycleDay <= 2 && !feelsGood) { reasons.push("it's an early period day"); groups.push("period"); }
   if (!reasons.length) return null;
   const ideas = [];

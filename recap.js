@@ -121,7 +121,16 @@ function renderRecap() {
   }
   drawStackedBars($("done-chart"), buckets);
 
-  drawHBars($("feel-chart"), FEELINGS, days.map(d => feelingOf(moods[d])).filter(Boolean), "#a593ff", "No feelings logged yet.");
+  drawHBars($("feel-chart"), MOOD_GROUPS.map(g => ({ id: g.id, emoji: g.emoji, label: g.short })),
+    days.map(d => feelingOf(moods[d])).filter(Boolean), "#a593ff", "No feelings logged yet.");
+  // Her most-picked feelings in this stretch.
+  const counts = {};
+  for (const d of days) for (const id of feelingIds(moods[d])) counts[id] = (counts[id] || 0) + 1;
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (top.length) {
+    const line = el("p", "feel-top", "Most felt: " + top.map(([id, n]) => `${EMOTION_BY_ID[id].label} (${n})`).join(" · "));
+    $("feel-chart").appendChild(line);
+  }
   drawHBars($("body-chart"), BODY, days.map(d => bodyOf(moods[d])).filter(Boolean), "#4cc38a", "No body check-ins yet.");
 }
 
