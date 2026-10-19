@@ -477,9 +477,12 @@ function renderFreeTimer() {
 // it shakes hard. At 100% it bursts (💥) every few seconds.
 // joy (0-1): rejuvenation on this day. It blends a pink "love" layer into the goop, slows the
 // bubbles, floats hearts up out of the flask, and grows a flowering vine up its side.
-function renderChaosFlask(pct, joy = 0) {
+function renderChaosFlask(realPct, joy = 0) {
   const flask = $("chaos-flask");
   const liquid = $("chaos-liquid");
+  lastFlask = { pct: realPct, joy };
+  // While she's poking it, it shows a jumpier level for a few seconds (see pokeFlask).
+  const pct = Date.now() < flaskPoke.until ? flaskPoke.pct : realPct;
   liquid.style.height = `${Math.max(pct, 3)}%`;
   const colour = `hsl(${Math.round(135 * (1 - pct / 100))}, 78%, 50%)`;
   liquid.style.setProperty("--liq", colour);
@@ -487,7 +490,7 @@ function renderChaosFlask(pct, joy = 0) {
   flask.style.setProperty("--liq", colour);   // the explosion splashes the same colour
   flask.dataset.stage = pct < 25 ? "0" : pct < 50 ? "1" : pct < 75 ? "2" : pct < 90 ? "3" : "4";
   if (joy >= 0.25 && flask.dataset.stage > "1") flask.dataset.stage = String(Number(flask.dataset.stage) - 1);   // calmer
-  flask.classList.toggle("boom", pct >= 100);
+  flask.classList.toggle("boom", realPct >= 100 && !flaskPoke.erupting);
   flask.classList.toggle("joyful", joy > 0);
   renderJoyBits(joy);
 
@@ -512,6 +515,80 @@ function renderChaosFlask(pct, joy = 0) {
     box.appendChild(b);
   }
 }
+
+// ---------- poking the vial ----------
+// Tap it and it shakes; tap faster and it goes wilder, and the goop flashes up to the next chaos
+// colour for a few seconds. On a chaotic day (75%+), enough fast taps make it erupt like a volcano.
+const flaskPoke = { taps: [], until: 0, pct: 0, erupting: false, t: null };
+let lastFlask = { pct: 0, joy: 0 };
+const buzz = ms => { try { if (fidgetPrefs().buzz && navigator.vibrate) navigator.vibrate(ms); } catch {} };
+
+function pokeFlask() {
+  const flask = $("chaos-flask");
+  if (flaskPoke.erupting) return;
+  const now = Date.now();
+  flaskPoke.taps = flaskPoke.taps.filter(t => now - t < 2000);
+  flaskPoke.taps.push(now);
+  const n = flaskPoke.taps.length, power = calmMode() ? 0.15 : Math.min(1, n / 10);
+  flask.style.setProperty("--poke", (0.35 + power * 1.4).toFixed(2));
+  flask.classList.remove("poked");
+  void flask.offsetWidth;
+  flask.classList.add("poked");
+  buzz(Math.round(8 + power * 35));
+  if (calmMode()) return;                                   // calm mode: just a gentle wobble
+  const real = lastFlask.pct;
+  if (real >= 75 && n >= 8) return eruptFlask();
+  const next = [25, 50, 75, 90, 100].find(x => x > real) ?? 100;
+  flaskPoke.pct = Math.min(99, Math.max(next + 2, real + 12 + power * 45));
+  flaskPoke.until = now + 3000;
+  renderChaosFlask(real, lastFlask.joy);
+  clearTimeout(flaskPoke.t);
+  flaskPoke.t = setTimeout(() => renderChaosFlask(lastFlask.pct, lastFlask.joy), 3050);
+}
+
+function eruptFlask() {
+  const flask = $("chaos-flask");
+  flaskPoke.erupting = true;
+  flaskPoke.taps = [];
+  flask.classList.remove("poked");
+  flask.classList.add("erupting");
+  buzz([40, 30, 40, 30, 60, 30, 90, 40, 250]);
+  const colour = getComputedStyle($("chaos-liquid")).getPropertyValue("--liq") || "hsl(10, 78%, 50%)";
+  setTimeout(() => {
+    flask.classList.remove("erupting");
+    const r = flask.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + 6;
+    const cap = flask.querySelector(".flask-cap");
+    cap.animate([{ transform: "translateY(0) rotate(0)" }, { transform: "translateY(-140px) rotate(200deg)", offset: .45 },
+      { transform: "translateY(0) rotate(360deg)" }], { duration: 1500, easing: "cubic-bezier(.3,.7,.5,1)" });
+    for (let i = 0; i < 46; i++) {                         // lava!
+      const b = document.createElement("span");
+      b.className = "lava-blob";
+      const size = 7 + Math.random() * 14;
+      Object.assign(b.style, { left: `${x - size / 2}px`, top: `${y - size / 2}px`, width: `${size}px`, height: `${size}px` });
+      b.style.setProperty("--c", colour);
+      document.body.appendChild(b);
+      const dx = (Math.random() - .5) * 340, up = 160 + Math.random() * 260, dur = 1300 + Math.random() * 900;
+      b.animate([{ transform: "translate(0,0) scale(.6)", opacity: 1 },
+        { transform: `translate(${dx * .55}px, ${-up}px) scale(1.15)`, opacity: 1, offset: .38 },
+        { transform: `translate(${dx}px, ${innerHeight - y + 40}px) scale(.8)`, opacity: .2 }],
+        { duration: dur, easing: "cubic-bezier(.2,.6,.6,1)" }).onfinish = () => b.remove();
+    }
+    const word = document.createElement("div");
+    word.className = "erupt-word";
+    word.textContent = "🌋 KABOOM!";
+    Object.assign(word.style, { left: `${x}px`, top: `${y - 40}px` });
+    document.body.appendChild(word);
+    setTimeout(() => word.remove(), 1800);
+    // The vial empties… then fills back up to where the day really is.
+    flaskPoke.pct = 4;
+    flaskPoke.until = Date.now() + 2200;
+    renderChaosFlask(lastFlask.pct, lastFlask.joy);
+    setTimeout(() => { flaskPoke.erupting = false; renderChaosFlask(lastFlask.pct, lastFlask.joy); }, 2300);
+    showToast("🌋 You made it erupt! Chaos released. Feel a little better? 😆");
+  }, 900);
+}
+$("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
 
 // Hearts drifting up out of the flask, and a vine that climbs higher (and flowers) with more joy.
 let joyKey = "";
@@ -1554,9 +1631,9 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "joy", "recap", "settings"]) {
+  for (const name of ["home", "day", "month", "todo", "joy", "recap", "settings", "fidget"]) {
     $(name + "-view").hidden = v !== name;
-    $("tab-" + name).classList.toggle("active", v === name);
+    if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && v === "fidget"));
   }
   if (v === "month") {
     monthCursor = fromKey(currentDay);
@@ -1573,6 +1650,7 @@ function render() {
   else if (view === "month") renderMonth();
   else if (view === "todo") renderTodo();
   else if (view === "joy") renderJoy();
+  else if (view === "fidget") renderFidgets();
   else if (view === "settings") {
     renderAppearance();
     renderTimeZone();
