@@ -603,6 +603,11 @@ const PhoneMS = {
         // Taking the sync over from the PC: bring in the PC's latest links first (Drive), then mark
         // this phone as the one that syncs To Do, and share that right away.
         await DeviceStore.load();
+        // Another device (her phone, or her desktop) runs this sync: this one just shares through Drive.
+        if (!(await mayRunSyncs())) {
+          return { ok: true, skipped: true, stats: null, tasks: DeviceStore.data.tasks.map(t => ({ ...t })),
+            status: await this.status() };
+        }
         if (syncOwnerOf(DeviceStore.data.profile, "microsoft") !== "phone") {
           await PhoneDrive.readyToTakeOver();
           await PhoneDrive.sync(false);

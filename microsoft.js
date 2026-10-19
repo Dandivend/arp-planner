@@ -45,6 +45,7 @@ async function syncMicrosoft(manual) {
     const res = await msPost("sync");
     if (res.tasks) { tasks = res.tasks; renderQuietly(); }
     if (manual && res.stats) showToast(`✔️ Synced with To Do: ${msSummary(res.stats)}.`);
+    if (manual && res.skipped) showToast(`✔️ To Do syncs from ${profile.syncDeviceName || "your other device"}. Changes reach this one through Drive.`);
   } catch (e) {
     if (manual) showError("To Do sync didn't work: " + e.message);
   } finally {

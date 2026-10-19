@@ -53,6 +53,7 @@ async function syncGoogle(manual) {
     const res = await gPost("sync");
     if (res.tasks) { tasks = res.tasks; renderQuietly(); }
     if (manual && res.stats) showToast(`📆 Synced with Google: ${syncSummary(res.stats)}.`);
+    if (manual && res.skipped) showToast(`📆 Google Calendar syncs from ${profile.syncDeviceName || "your other device"}. Changes reach this one through Drive.`);
   } catch (e) {
     if (manual) showError("Google sync didn't work: " + e.message);
   } finally {

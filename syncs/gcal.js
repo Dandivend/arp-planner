@@ -324,6 +324,11 @@ const PhoneCalendar = {
         // Taking the sync over from the PC: first bring in the PC's latest links (Drive),
         // then mark this phone as the one that syncs Google, and share that right away.
         await DeviceStore.load();
+        // Another device (her phone, or her desktop) runs this sync: this one just shares through Drive.
+        if (!(await mayRunSyncs())) {
+          return { ok: true, skipped: true, stats: null, tasks: DeviceStore.data.tasks.map(t => ({ ...t })),
+            status: await PhoneGoogle.status() };
+        }
         if (syncOwnerOf(DeviceStore.data.profile, "google") !== "phone") {
           await PhoneDrive.readyToTakeOver();
           await PhoneDrive.sync(false);

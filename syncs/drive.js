@@ -104,6 +104,33 @@ const PhoneDrive = {
   },
 };
 
+// The app can be on more than one device (her phone, her desktop). All of them share the planner
+// through Drive, but only one runs the Google Calendar / To Do syncs (profile.syncDevice): two
+// devices syncing To Do at once is how duplicate chores happen. A phone or tablet takes the job
+// by itself if nobody has it yet; a computer only when she taps "Sync them from here instead".
+const ThisDevice = {
+  async id() {
+    let id = await DeviceKV.get("device.id", null);
+    if (!id) { id = "d-" + randomB64(9); await DeviceKV.set("device.id", id); }
+    return id;
+  },
+  touch: () => matchMedia("(pointer: coarse)").matches,
+  name() { return this.touch() ? "her phone" : "a computer"; },
+};
+async function mayRunSyncs() {
+  await DeviceStore.load();
+  const p = DeviceStore.data.profile, me = await ThisDevice.id();
+  if (p.syncDevice) return p.syncDevice === me;
+  if (!ThisDevice.touch()) return false;
+  await takeSyncsHere();
+  return true;
+}
+async function takeSyncsHere() {
+  await PhoneDrive.sync(true).catch(() => {});      // the latest Calendar / To Do links first
+  await DeviceStore.putProfile({ syncDevice: await ThisDevice.id(), syncDeviceName: ThisDevice.name() });
+  PhoneDrive.soon(500);
+}
+
 if (STANDALONE) {
   DeviceStore.onChange = () => { PhoneDrive.saveState({ dirty: true }); PhoneDrive.soon(); };
   setTimeout(() => PhoneDrive.sync(false), 1200);

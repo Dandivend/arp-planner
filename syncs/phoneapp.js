@@ -77,7 +77,25 @@ async function renderPhoneApp() {
   box.appendChild(el("p", "hint-small", `Last synced ${ago(d.lastSync)}. Your planner lives on this phone and works offline; ` +
     "changes go to your Drive whenever you're online, and Logan's PC picks them up from there."));
   if (d.lastError) box.appendChild(el("p", "g-error", "⚠️ Last problem: " + d.lastError));
-  box.appendChild(el("p", "hint-small", "📆 Google Calendar and ✔️ To Do sync from this phone. Their cards are above."));
+  // Which device runs the Calendar / To Do syncs (see mayRunSyncs in drive.js).
+  const me = await ThisDevice.id(), p = DeviceStore.data.profile;
+  if (p.syncDevice === me) {
+    box.appendChild(el("p", "hint-small", "📆 Google Calendar and ✔️ To Do sync from this device. Their cards are above."));
+  } else {
+    box.appendChild(el("p", "hint-small", p.syncDevice
+      ? `📆 Google Calendar and ✔️ To Do sync from ${p.syncDeviceName || "your other device"}. This one gets everything through your Drive.`
+      : "📆 Google Calendar and ✔️ To Do aren't syncing from any device yet."));
+    const take = el("button", "link-btn", "Sync them from this device instead");
+    take.title = "Only one device runs those syncs, so they never double up.";
+    take.addEventListener("click", async () => {
+      await takeSyncsHere();
+      showToast("📆✔️ Calendar and To Do sync from this device now.");
+      if (typeof syncGoogle === "function") syncGoogle(false);
+      if (typeof syncMicrosoft === "function") syncMicrosoft(false);
+      renderPhoneApp();
+    });
+    box.appendChild(take);
+  }
   // A fresh sign-in without disconnecting (Disconnect would cancel the PC's Drive sign-in too).
   const again = el("button", "link-btn", "🔁 Sign in to Google again");
   again.title = "Get a fresh Google sign-in. Nothing is disconnected.";

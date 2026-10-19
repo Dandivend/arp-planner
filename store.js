@@ -195,7 +195,10 @@ const DeviceStore = {
   // between, so an edit she makes at that moment can't be lost. Returns true if anything changed.
   async mergeIn(other) {
     await this.load();
-    const merged = mergePlanner(this.data, other, "phone");
+    // Only the device that runs the Calendar / To Do syncs keeps its own links; any other copy of
+    // the app (her desktop) takes them from the shared copy, like the PC does.
+    const runsSyncs = !this.data.profile.syncDevice || this.data.profile.syncDevice === (await DeviceKV.get("device.id", null));
+    const merged = mergePlanner(this.data, other, runsSyncs ? "phone" : "viewer");
     if (samePlanner(merged, this.data)) return false;
     this.data = merged;
     for (const k of ["tasks", "moods", "cycle", "profile"]) await DeviceKV.set(k, this.data[k]);
