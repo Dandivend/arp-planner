@@ -1586,6 +1586,24 @@ function render() {
   else renderRecap();
   if ($("checkin-dialog").open) renderCheckin();
   if ($("focus-dialog") && $("focus-dialog").open) renderFocus();
+  updateAppIcon();
+}
+
+// The app's icon is today's chaos flask: the browser-tab icon everywhere, and on this PC the
+// desktop shortcut too (planner.pyw swaps it). Levels match the meter: calm green → boiling red.
+let iconLevel = null;
+function updateAppIcon() {
+  let level = 1;
+  try {
+    const tk = todayKey(), p = planDay(tk), ft = freeTimeLeft(tk, p.active);
+    const pct = ft.past ? 0 : chaosFor(tk, ft).pct;
+    level = pct < 25 ? 0 : pct < 50 ? 1 : pct < 75 ? 2 : pct < 90 ? 3 : 4;
+  } catch { return; }
+  if (level === iconLevel) return;
+  iconLevel = level;
+  const link = document.querySelector('link[rel="icon"]');
+  if (link) link.href = `chaos-icons/chaos-${level}.png`;
+  if (ON_PC) fetch(`/api/chaosicon?level=${level}`, { method: "POST" }).catch(() => {});
 }
 
 // ---------- Settings: each section opens and closes (instead of one long page) ----------
