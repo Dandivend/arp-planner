@@ -1162,7 +1162,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #day-view .nav-row { gap: 6px; }
   .topbar .tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-    display: grid; grid-template-columns: repeat(7, 1fr);
+    display: grid; grid-template-columns: repeat(8, 1fr);
     border-radius: 0; border: 0; border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(8px);
   }
@@ -1176,6 +1176,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #tab-month::before { content: "📅"; }
   #tab-todo::before { content: "✔️"; }
   #tab-joy::before { content: "🌈"; }
+  #tab-logan::before { content: "💙"; }
   #tab-recap::before { content: "📊"; }
   .topbar .tabs .tab-icon { font-size: 20px; justify-content: center; }
   .topbar .tabs .tab-icon::after { content: "Settings"; font-size: 11.5px; }
@@ -1555,3 +1556,18 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .toy-pop { width: 30px; height: 30px; border-radius: 50%; border: 0; background: radial-gradient(circle at 35% 30%, #c9b5ff, #8a6fe0);
   box-shadow: 0 4px 0 #5b45a8; transition: transform .06s; touch-action: manipulation; }
 .toy-pop.popped { transform: translateY(3px) scale(.92); background: radial-gradient(circle at 60% 70%, #c9b5ff, #6f56c8); box-shadow: inset 0 3px 5px rgba(0,0,0,.35); }
+
+/* 💙 Logan's calendar */
+.logan-cell { cursor: pointer; text-align: left; }
+.logan-cell .lg-ev { display: block; font-size: 11.5px; line-height: 1.25; color: #9cc8ff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.logan-cell .lg-more { font-size: 11px; color: var(--muted); }
+.logan-cell.sel { outline: 2px solid #5ab0ff; outline-offset: -2px; }
+.logan-day { margin-top: 14px; border: 1px solid color-mix(in srgb, #5ab0ff 40%, var(--line)); border-radius: var(--radius);
+  background: color-mix(in srgb, #5ab0ff 6%, var(--card)); padding: 12px 14px; }
+.logan-day h3 { margin: 0 0 8px; }
+.lg-item { padding: 8px 0; border-top: 1px solid var(--line); }
+.lg-item:first-of-type { border-top: 0; }
+.lg-time { color: #9cc8ff; font-weight: 700; font-size: 14px; }
+.lg-what { font-weight: 700; font-size: 16px; }
+.lg-where, .lg-notes { color: var(--muted); font-size: 14px; white-space: pre-wrap; }
+@media screen { [data-mode="light"] .logan-cell .lg-ev, [data-mode="light"] .lg-time { color: #2b6fb5; } }

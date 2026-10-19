@@ -1631,7 +1631,7 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "joy", "recap", "settings", "fidget"]) {
+  for (const name of ["home", "day", "month", "todo", "joy", "logan", "recap", "settings", "fidget"]) {
     $(name + "-view").hidden = v !== name;
     if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && v === "fidget"));
   }
@@ -1651,6 +1651,7 @@ function render() {
   else if (view === "todo") renderTodo();
   else if (view === "joy") renderJoy();
   else if (view === "fidget") renderFidgets();
+  else if (view === "logan") renderLogan();
   else if (view === "settings") {
     renderAppearance();
     renderTimeZone();

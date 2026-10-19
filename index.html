@@ -21,6 +21,7 @@
       <button id="tab-month" class="tab" role="tab">Calendar</button>
       <button id="tab-todo" class="tab" role="tab">To Do</button>
       <button id="tab-joy" class="tab" role="tab" title="Rejuvenation: hobbies and fun">Joy</button>
+      <button id="tab-logan" class="tab" role="tab" title="What Logan's up to">Logan</button>
       <button id="tab-recap" class="tab" role="tab">Recap</button>
       <button id="tab-settings" class="tab tab-icon" role="tab" title="Settings: cycle and fitness setup">⚙️</button>
     </nav>
@@ -327,6 +328,17 @@
       </div>
     </section>
 
+    <!-- LOGAN: his Google Calendar (shared with her), read-only -->
+    <section id="logan-view" hidden>
+      <div class="nav-row">
+        <button id="logan-prev" class="nav-btn">&#8249;</button>
+        <h2 id="logan-title" class="month-title"></h2>
+        <button id="logan-next" class="nav-btn">&#8250;</button>
+        <button id="logan-today" class="nav-btn today">This month</button>
+      </div>
+      <div id="logan-body"></div>
+    </section>
+
     <!-- FIDGETS (opened from the bottom of Settings) -->
     <section id="fidget-view" hidden>
       <button id="fidget-back" class="link-btn">‹ Back to Settings</button>
@@ -544,6 +556,7 @@
   <script src="assistant.js"></script>
   <script src="joy.js"></script>
   <script src="fidgets.js"></script>
+  <script src="logan.js"></script>
   <script src="funfacts.js"></script>
 </body>
 </html>

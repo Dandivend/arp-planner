@@ -315,8 +315,19 @@ const PhoneCalendar = {
   },
 
   // The /api/google/… routes that need the calendar (the rest are in google-auth.js).
-  async route(route) {
+  async route(route, body = {}) {
     if (route === "calendars") return { calendars: await this.calendars() };
+    if (route === "theirs") {
+      // Read-only: the events on a calendar someone shared with her (the Logan tab).
+      if (!body.calendarId) return { events: [] };
+      const res = await this.api("GET", `/calendars/${encodeURIComponent(body.calendarId)}/events`, null, {
+        timeMin: body.timeMin, timeMax: body.timeMax, singleEvents: "true", orderBy: "startTime", maxResults: 2500 });
+      return { events: (res.items || []).filter(e => e.status !== "cancelled").map(e => {
+        const s = e.start || {}, en = e.end || {};
+        return { id: e.id, title: e.summary || "Busy", allDay: !!s.date, start: s.dateTime || s.date, end: en.dateTime || en.date,
+          location: e.location || "", notes: (e.description || "").slice(0, 500) };
+      }) };
+    }
     if (route === "sync") {
       if (this.busy) return { busy: true };
       this.busy = true;
