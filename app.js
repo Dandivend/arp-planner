@@ -1527,7 +1527,37 @@ function showToast(text, actionLabel, onAction) {
 let showWorkDays = false;   // calendar "💼 Work days" toggle (remembered on this device)
 try { showWorkDays = localStorage.getItem("arpPlanner.showWork") === "1"; } catch {}
 
+// Calendar filters: which kinds of things show in the day boxes (each one toggles on/off).
+const MONTH_KINDS = [["task", "✏️ Tasks"], ["chore", "🧹 Chores"], ["event", "📅 Appointments"], ["work", "💼 Work"],
+  ["workout", "🏃 Workouts"], ["joy", "🌈 Joy"]];
+let monthHidden = new Set();
+try { monthHidden = new Set(JSON.parse(localStorage.getItem("arpPlanner.monthHidden") || "[]")); } catch {}
+const monthKind = t => (isWorkShift(t) ? "work" : isJoy(t) ? "joy" : kindOf(t));
+function renderMonthFilters() {
+  const box = $("month-filters");
+  box.innerHTML = "";
+  const save = () => { try { localStorage.setItem("arpPlanner.monthHidden", JSON.stringify([...monthHidden])); } catch {} render(); };
+  const all = document.createElement("button");
+  all.className = "sort-btn" + (monthHidden.size ? "" : " active");
+  all.textContent = "All";
+  all.addEventListener("click", () => { monthHidden.clear(); save(); });
+  box.appendChild(all);
+  for (const [k, label] of MONTH_KINDS) {
+    const b = document.createElement("button");
+    const on = !monthHidden.has(k);
+    b.className = "sort-btn" + (on && monthHidden.size ? " active" : "") + (on ? "" : " off");
+    b.textContent = label;
+    b.setAttribute("aria-pressed", String(on));
+    b.title = on ? "Tap to hide these" : "Tap to show these";
+    b.addEventListener("click", () => { if (on) monthHidden.add(k); else monthHidden.delete(k); save(); });
+    // A long press (or double-click) shows only this kind.
+    b.addEventListener("dblclick", () => { monthHidden = new Set(MONTH_KINDS.map(x => x[0]).filter(x => x !== k)); save(); });
+    box.appendChild(b);
+  }
+}
+
 function renderMonth() {
+  renderMonthFilters();
   planCache = {};   // plans depend on check-ins and settings, so rebuild each draw
   const monthHeat = { none: 0, tight: 0 };
   $("work-toggle").classList.toggle("on", showWorkDays);
@@ -1636,23 +1666,29 @@ function renderMonth() {
     }
 
     // In the calendar, deadline tasks show on their due date (not every day they carry over).
-    const list = tasks.filter(t => !t.deleted && (t.dueDate ? t.dueDate === key : t.date === key))
+    const list = tasks.filter(t => !t.deleted && (t.dueDate ? t.dueDate === key : t.date === key) && !monthHidden.has(monthKind(t)))
       .sort((a, b) => (!a.time !== !b.time ? (a.time ? -1 : 1) : byTime(a, b)));
-    for (const t of list.slice(0, 3)) {
+    const shown = matchMedia("(max-width: 600px)").matches ? 3 : 4;      // phones: fewer, roomier
+    for (const t of list.slice(0, shown)) {
       const p = document.createElement("span");
       p.className = "peek" + (t.done ? " done" : "");
-      p.textContent = (burnoutRisk(t, key) ? "⚠️ " : "") + (t.dueDate ? "⏰ " : t.time ? formatTime(t.time) + " " : "") +
-        (isTodo(t) ? "✔️ " : "") + t.title;
+      p.title = t.title;
+      p.append(Object.assign(document.createElement("span"), { className: "peek-emoji", textContent: emojiOf(t) }),
+        Object.assign(document.createElement("span"), { className: "peek-text" }));
+      const txt = p.lastChild;
+      if (burnoutRisk(t, key) || t.dueDate || t.time) txt.appendChild(Object.assign(document.createElement("span"), { className: "peek-time",
+        textContent: (burnoutRisk(t, key) ? "⚠️ " : "") + (t.dueDate ? "⏰ " : t.time ? formatTime(t.time) + " " : "") }));
+      txt.append(t.title);
       if (isTodo(t)) p.classList.add("todo");
       const c = t.dueDate ? null : LEVEL_COLOR[levelOf(t, key)];
       if (t.dueDate) p.classList.add("due");
       if (c) p.style.setProperty("--dot", c);
       cell.appendChild(p);
     }
-    if (list.length > 3) {
+    if (list.length > shown) {
       const more = document.createElement("span");
       more.className = "more";
-      more.textContent = `+${list.length - 3} more`;
+      more.textContent = `+${list.length - shown}`;
       cell.appendChild(more);
     }
     cell.title = (hol ? `${hol.emoji} ${hol.name} · ` : "") + (dueHere.length ? `❗ ${dueHere.length} due · ` : "") +
