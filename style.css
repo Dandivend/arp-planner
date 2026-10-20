@@ -1712,3 +1712,79 @@ main:has(#adventure-view:not([hidden])) { max-width: 760px; }
 .adv-choice:hover { border-color: var(--accent); background: var(--card-hover); }
 .adv-check { flex: none; font-size: 12.5px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; }
 .adv-foot { display: flex; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* ================= ✨ The Done vial (beside the chaos vial) ================= */
+.day-layout.with-chaos { grid-template-columns: 158px minmax(0, 1fr) 300px; }
+.chaos-side { flex-direction: row; align-items: flex-start; justify-content: center; gap: 14px; }
+.meter { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; }
+.meter .chaos-title { white-space: nowrap; }
+.done-flask { --zen: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; }
+.done-cap { background: linear-gradient(#fff4cf, #d9b45a); border-color: #f2d68a; }
+.done-glass { border-color: color-mix(in srgb, #ffe7a3 calc(30% + var(--zen) * 50%), rgba(215, 225, 255, .38));
+  box-shadow: inset 0 0 calc(10px + var(--zen) * 18px) rgba(255, 236, 170, calc(.05 + var(--zen) * .35)); }
+.done-liquid { background: linear-gradient(to top, #b994ff, #f3c6ff 45%, #ffe59a 80%, #fff8e0);
+  box-shadow: 0 0 calc(8px + var(--zen) * 26px) rgba(255, 224, 140, calc(.3 + var(--zen) * .5)); }
+.done-liquid::before { background: radial-gradient(ellipse at 50% 100%, #fffaf0 60%, transparent 62%) 0 0 / 20px 10px repeat-x; animation-duration: 3.6s; }
+.done-sparkles { position: absolute; inset: 0; overflow: hidden; }
+.done-sparkles span { position: absolute; bottom: -8px; color: #fffbe8; text-shadow: 0 0 6px #ffe9a8; animation: sparkle-rise linear infinite; }
+@keyframes sparkle-rise { 0% { bottom: -8px; opacity: 0; transform: rotate(0); } 20% { opacity: 1; } 100% { bottom: 100%; opacity: 0; transform: rotate(180deg); } }
+.done-halo { position: absolute; inset: -18px -26px; border-radius: 50%; pointer-events: none; z-index: 0;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 230, 150, calc(var(--zen) * .4)), transparent 65%);
+  animation: halo-breathe 5s ease-in-out infinite; }
+@keyframes halo-breathe { 0%, 100% { opacity: .7; transform: scale(.96); } 50% { opacity: 1; transform: scale(1.04); } }
+.done-rays { position: absolute; left: 50%; top: 45%; width: 260px; height: 260px; margin: -130px 0 0 -130px; pointer-events: none; z-index: 0; opacity: 0;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 235, 170, .32) 0 8deg, transparent 8deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 68%); mask: radial-gradient(circle, #000 18%, transparent 68%);
+  transition: opacity 1.4s; }
+.done-flask[data-zen="2"], .done-flask[data-zen="3"] { animation: zen-float 6s ease-in-out infinite; }
+@keyframes zen-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.done-flask.blessed { animation: zen-float 5s ease-in-out infinite; filter: drop-shadow(0 0 14px rgba(255, 220, 120, .85)) drop-shadow(0 0 32px rgba(200, 160, 255, .5)); }
+.done-flask.blessed .done-rays { opacity: 1; animation: rays-turn 22s linear infinite; }
+@keyframes rays-turn { to { transform: rotate(360deg); } }
+.done-feathers { position: absolute; inset: -10px 0 0; pointer-events: none; z-index: 4; }
+.done-feathers span { position: absolute; top: -20px; font-size: 14px; opacity: 0; animation: feather-fall ease-in-out infinite; }
+@keyframes feather-fall { 0% { transform: translate(0, 0) rotate(-20deg); opacity: 0; } 15% { opacity: .95; }
+  50% { transform: translate(14px, 140px) rotate(20deg); } 100% { transform: translate(-10px, 300px) rotate(-15deg); opacity: 0; } }
+#done-flask.poked { animation: poke-shake .5s ease-in-out !important; }
+#done-flask.glimmer .done-glass { animation: glimmer .7s ease-out; }
+@keyframes glimmer { 0% { box-shadow: inset 0 0 40px rgba(255, 245, 200, .9); } 100% { box-shadow: inset 0 0 calc(10px + var(--zen) * 18px) rgba(255, 236, 170, calc(.05 + var(--zen) * .35)); } }
+#done-flask.blessing { animation: bless-glow 2.6s ease-out !important; }
+@keyframes bless-glow { 0% { filter: drop-shadow(0 0 4px #fff); } 20% { filter: drop-shadow(0 0 40px #fff6cc) drop-shadow(0 0 80px #e3c8ff); transform: scale(1.08); } 100% { filter: drop-shadow(0 0 14px rgba(255, 220, 120, .85)); transform: none; } }
+.bless-bit { position: fixed; z-index: 65; pointer-events: none; }
+.bless-word { position: fixed; transform: translateX(-30%); z-index: 66; pointer-events: none; font-weight: 900; font-size: 24px; color: #fff6d6; white-space: nowrap;
+  text-shadow: 0 0 12px rgba(255, 215, 110, .95), 0 0 24px rgba(200, 160, 255, .8); animation: erupt-word 2.4s ease-out forwards; }
+
+/* 😇 Heaven at the bottom: clouds and an angel saying kind things */
+#heaven-floor { position: fixed; left: 0; right: 0; bottom: 0; height: 96px; z-index: 4; pointer-events: none;
+  background: linear-gradient(to top, rgba(255, 238, 190, .32), rgba(230, 210, 255, .14) 55%, transparent); }
+#heaven-floor[hidden] { display: none; }
+.hv-cloud { position: absolute; bottom: -14px; opacity: .85; animation: cloud-drift 9s ease-in-out infinite alternate; }
+@keyframes cloud-drift { from { transform: translateX(-10px); } to { transform: translateX(12px); } }
+.hv-angel { position: fixed; bottom: 36px; left: 0; width: 76px; height: 76px; z-index: 5; animation: angel-glide 16s ease-in-out infinite alternate; }
+.hv-float { width: 100%; height: 100%; animation: angel-bob 3.2s ease-in-out infinite; filter: drop-shadow(0 0 12px rgba(255, 225, 140, .8)); }
+.hv-float svg { width: 100%; height: 100%; overflow: visible; }
+.hv-wing { transform-origin: 90% 50%; animation: angel-flap 1.6s ease-in-out infinite alternate; }
+.hv-wing.r { transform-origin: 10% 50%; }
+.hv-say { position: absolute; bottom: 74px; left: 46px; white-space: nowrap; background: #fffaf0; color: #6b4a14; border: 1px solid #f2d68a;
+  border-radius: 12px; padding: 3px 10px; font-size: 14px; font-weight: 800; box-shadow: 0 0 14px rgba(255, 220, 130, .7); }
+.hv-say.pop { animation: imp-say .4s ease-out; }
+@keyframes angel-glide { from { left: 3%; } to { left: calc(94% - 76px); } }
+@keyframes angel-bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
+@keyframes angel-flap { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
+body.in-heaven main { padding-bottom: 110px; }
+[data-calm="on"] .hv-angel, [data-calm="on"] .hv-float, [data-calm="on"] .hv-wing, [data-calm="on"] .hv-cloud { animation: none; }
+@media (prefers-reduced-motion: reduce) { .done-flask, .done-flask *, .hv-angel, .hv-float, .hv-wing, .hv-cloud { animation: none !important; } }
+@media print { #heaven-floor { display: none !important; } }
+@media (max-width: 960px) {
+  .day-layout.with-chaos { grid-template-columns: 1fr; }
+  .chaos-side { gap: 18px; flex-wrap: wrap; }
+  .meter { display: grid; grid-template-columns: auto auto minmax(0, 76px); grid-template-rows: auto auto; column-gap: 6px; row-gap: 2px;
+    width: auto; align-items: center; justify-items: center; }
+  .meter .chaos-title { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 11px; grid-row: 1 / span 2; grid-column: 1; }
+  .meter .flask { grid-row: 1 / span 2; grid-column: 2; }
+  .meter .chaos-emoji { grid-column: 3; grid-row: 1; align-self: end; }
+  .meter .chaos-value { grid-column: 3; grid-row: 2; align-self: start; font-size: 11.5px; line-height: 1.2; white-space: normal; }
+  .meter .chaos-note, .meter .chaos-joy-note, .meter .chaos-shadow-note { grid-column: 1 / -1; max-width: 160px; }
+  .done-rays { width: 160px; height: 160px; margin: -80px 0 0 -80px; }
+}
+@media screen and (max-width: 600px) { .hv-angel { bottom: 76px; } #heaven-floor { bottom: 60px; height: 70px; } }

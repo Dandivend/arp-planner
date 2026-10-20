@@ -98,6 +98,27 @@ function playVialTink(power = 0) {
   if (power > .5) voice(ctx, { type: "triangle", at: .03, pitch: [[0, 180], [.1, 120]], vol: [[0, 0], [.01, .12 * power], [.14, 0]] });   // the goop sloshing
 }
 
+// The Done vial: soft bell chimes up a pentatonic scale (the n-th quick tap rings higher).
+const CHIME = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.5, 1568];
+function playChime(n = 1) {
+  if (!soundsOn()) return;
+  const ctx = sfx();
+  if (!ctx) return;
+  const f = CHIME[Math.min(CHIME.length - 1, n - 1)];
+  voice(ctx, { type: "sine", pitch: [[0, f]], vol: [[0, 0], [.006, .16], [1.4, 0]] });
+  voice(ctx, { type: "sine", pitch: [[0, f * 2.01]], vol: [[0, 0], [.005, .05], [.8, 0]] });
+  voice(ctx, { type: "sine", pitch: [[0, f * 3.02]], vol: [[0, 0], [.004, .025], [.5, 0]] });
+}
+// A blessing: a shimmering rising arpeggio with a warm pad underneath.
+function playBlessing() {
+  if (!soundsOn()) return;
+  const ctx = sfx();
+  if (!ctx) return;
+  [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568, 2093].forEach((f, i) =>
+    voice(ctx, { type: "sine", at: i * .09, pitch: [[0, f]], vol: [[0, 0], [.01, .13], [1.6, 0]] }));
+  for (const f of [261.63, 329.63, 392]) voice(ctx, { type: "triangle", pitch: [[0, f]], vol: [[0, 0], [.4, .08], [2.4, 0]] });
+}
+
 // The eruption: a rising rumble, then a boom and a fizzy hiss.
 function playEruption() {
   if (!soundsOn()) return;

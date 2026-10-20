@@ -435,6 +435,7 @@ function renderFreeTimer() {
   const chaos = chaosFor(day, ft);
   const shown = ft.past ? 0 : chaos.pct;
   renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
+  renderDoneFlask(day, p);
   renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
   renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
   renderNowEmoji(isToday && !ft.past ? nowTaskEmoji(day, p) : null);
@@ -524,6 +525,152 @@ function renderChaosFlask(realPct, joy = 0) {
     b.style.animationDelay = `${-Math.random() * dur}s, ${-Math.random()}s`;
     box.appendChild(b);
   }
+}
+
+// ---------- ✨ the Done vial ----------
+// Fills with soft gold-and-lavender light as the day's things get ticked off. The fuller it is, the
+// calmer and more magical it gets; at 100% it glows with a heavenly aura and an angel appears.
+const doneState = { pct: -1, key: "", taps: [], until: 0, blessing: false };
+function renderDoneFlask(day, p) {
+  const items = p.list.filter(t => !t.deleted && !isWorkShift(t));
+  const done = items.filter(t => t.done).length;
+  const pct = items.length ? Math.round((done / items.length) * 100) : 0;
+  const flask = $("done-flask"), liquid = $("done-liquid");
+  liquid.style.height = `${Math.max(pct, items.length ? 3 : 0)}%`;
+  const zen = pct / 100;
+  flask.style.setProperty("--zen", zen.toFixed(2));
+  flask.dataset.zen = pct >= 100 ? "4" : pct >= 75 ? "3" : pct >= 50 ? "2" : pct >= 25 ? "1" : "0";
+  flask.classList.toggle("blessed", pct >= 100 && items.length > 0);
+  $("done-emoji").textContent = !items.length ? "🕊️" : pct >= 100 ? "😇" : pct >= 75 ? "🥰" : pct >= 50 ? "😊" : pct >= 25 ? "🙂" : "🌱";
+  $("done-value").textContent = items.length ? `${done} of ${items.length} · ${pct}%` : "Nothing yet";
+  const key = `${Math.round(pct / 10)}`;
+  if (doneState.key !== key) {                       // sparkles drifting up through the light
+    doneState.key = key;
+    const box = $("done-sparkles");
+    box.innerHTML = "";
+    const n = Math.round(2 + zen * 12);
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement("span");
+      s.textContent = ["✦", "✧", "·", "✦", "⋆"][i % 5];
+      s.style.left = `${8 + Math.random() * 78}%`;
+      s.style.fontSize = `${7 + Math.random() * 7}px`;
+      const dur = 4 + Math.random() * 3 + zen * 2;        // calmer (slower) the fuller it gets
+      s.style.animationDuration = `${dur}s`;
+      s.style.animationDelay = `${-Math.random() * dur}s`;
+      box.appendChild(s);
+    }
+  }
+  const feathers = flask.querySelector(".done-feathers");
+  if (pct >= 100 && !feathers.childElementCount) {
+    for (let i = 0; i < 6; i++) {
+      const f = document.createElement("span");
+      f.textContent = i % 2 ? "🪶" : "✨";
+      f.style.left = `${-40 + Math.random() * 130}%`;
+      f.style.animationDelay = `${-Math.random() * 6}s`;
+      f.style.animationDuration = `${5 + Math.random() * 3}s`;
+      feathers.appendChild(f);
+    }
+  } else if (pct < 100) feathers.innerHTML = "";
+  setHeaven(day === todayKey() && pct >= 100 && items.length > 0);
+  doneState.pct = pct;
+}
+
+// Tapping it: a gentle wobble and a bell chime (higher the faster she taps). Full and tapped
+// quickly: a blessing bursts out (sparkles, feathers and hearts drifting up and down).
+function pokeDone() {
+  const flask = $("done-flask");
+  if (doneState.blessing) return;
+  const now = Date.now();
+  doneState.taps = doneState.taps.filter(t => now - t < 2000);
+  doneState.taps.push(now);
+  const n = doneState.taps.length, power = calmMode() ? .1 : Math.min(1, n / 8);
+  flask.style.setProperty("--poke", (.25 + power * .9).toFixed(2));
+  flask.classList.remove("poked");
+  void flask.offsetWidth;
+  flask.classList.add("poked");
+  buzz(Math.round(6 + power * 16));
+  if (typeof playChime === "function") playChime(n);
+  flask.classList.remove("glimmer");
+  void flask.offsetWidth;
+  flask.classList.add("glimmer");
+  if (!calmMode() && doneState.pct >= 100 && n >= 6) blessFlask();
+}
+function blessFlask() {
+  const flask = $("done-flask");
+  doneState.blessing = true;
+  doneState.taps = [];
+  if (typeof playBlessing === "function") playBlessing();
+  buzz([20, 60, 20, 60, 40, 120, 80]);
+  const r = flask.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 10;
+  for (let i = 0; i < 40; i++) {
+    const b = document.createElement("span");
+    b.className = "bless-bit";
+    b.textContent = ["✨", "🪶", "💛", "⭐", "🤍", "✦"][i % 6];
+    b.style.left = `${x}px`;
+    b.style.top = `${y}px`;
+    b.style.fontSize = `${12 + Math.random() * 14}px`;
+    document.body.appendChild(b);
+    const dx = (Math.random() - .5) * 380, up = 140 + Math.random() * 240, dur = 2600 + Math.random() * 1600;
+    b.animate([{ transform: "translate(-50%, 0) scale(.4)", opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx * .5}px), ${-up}px) scale(1.1)`, opacity: 1, offset: .35 },
+      { transform: `translate(calc(-50% + ${dx}px), ${innerHeight * .5 - y + Math.random() * 200}px) rotate(${Math.random() * 120 - 60}deg) scale(.9)`, opacity: 0 }],
+      { duration: dur, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => b.remove();
+  }
+  const word = document.createElement("div");
+  word.className = "bless-word";
+  word.textContent = "✨ Blessed! ✨";
+  Object.assign(word.style, { left: `${x}px`, top: `${y - 40}px` });
+  document.body.appendChild(word);
+  setTimeout(() => word.remove(), 2400);
+  flask.classList.add("blessing");
+  setTimeout(() => { flask.classList.remove("blessing"); doneState.blessing = false; }, 2600);
+  showToast("😇 Every single thing done. You're glowing. ✨");
+}
+$("done-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeDone(); });
+
+// ---------- 😇 the angel (everything done today) ----------
+const ANGEL_LINES = ["Good job! 💛", "You did ALL of it! ✨", "So proud of you, Ariel 🥹", "Look at you go! 🌟", "Every. Single. Task. 👑",
+  "Rest now. You earned it 🕊️", "Gold star day ⭐", "Your future self says thank you 💌", "That was amazing 💖", "Take a bow! 🎀",
+  "You're doing wonderfully 🌷", "Peace achieved ☁️"];
+function setHeaven(on) {
+  let floor = $("heaven-floor");
+  if (!on) { if (floor) floor.hidden = true; document.body.classList.remove("in-heaven"); return; }
+  if (!floor) {
+    floor = document.createElement("div");
+    floor.id = "heaven-floor";
+    floor.setAttribute("aria-live", "polite");
+    for (let i = 0; i < 9; i++) {
+      const c = document.createElement("span");
+      c.className = "hv-cloud";
+      c.textContent = "☁️";
+      c.style.left = `${i * 12 - 4 + Math.random() * 4}%`;
+      c.style.fontSize = `${34 + Math.random() * 26}px`;
+      c.style.animationDelay = `${-Math.random() * 8}s`;
+      floor.appendChild(c);
+    }
+    const angel = document.createElement("div");
+    angel.className = "hv-angel";
+    angel.innerHTML = `<div class="hv-float"><svg viewBox="0 0 80 80" aria-hidden="true">
+      <ellipse cx="40" cy="9" rx="15" ry="4.5" fill="none" stroke="#ffd76b" stroke-width="3.2"/>
+      <path class="hv-wing" d="M26 42 Q2 26 6 52 Q14 48 24 54 Z" fill="#fffdf6" stroke="#e6dcc5" stroke-width="1"/>
+      <path class="hv-wing r" d="M54 42 Q78 26 74 52 Q66 48 56 54 Z" fill="#fffdf6" stroke="#e6dcc5" stroke-width="1"/>
+      <path d="M26 46 Q40 38 54 46 L60 76 Q40 82 20 76 Z" fill="#f4eefc" stroke="#d8cdee" stroke-width="1"/>
+      <circle cx="40" cy="30" r="15" fill="#ffe2cc"/>
+      <path d="M26 26 Q30 13 40 15 Q52 13 54 27 Q48 20 40 21 Q32 20 26 26 Z" fill="#c98b4c"/>
+      <path d="M33 30 q2 -2.5 4 0 M43 30 q2 -2.5 4 0" stroke="#3a2a22" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M35 36 Q40 41 45 36" stroke="#c0505f" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="31" cy="35" rx="3" ry="2" fill="#ffb3c1"/><ellipse cx="49" cy="35" rx="3" ry="2" fill="#ffb3c1"/>
+    </svg><span class="hv-say"></span></div>`;
+    floor.appendChild(angel);
+    const say = angel.querySelector(".hv-say");
+    let i = 0;
+    const talk = () => { say.textContent = ANGEL_LINES[i++ % ANGEL_LINES.length]; say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop"); };
+    talk();
+    setInterval(() => { if (!floor.hidden) talk(); }, 3600);
+    document.body.appendChild(floor);
+  }
+  floor.hidden = false;
+  document.body.classList.add("in-heaven");
 }
 
 // ---------- poking the vial ----------
@@ -1761,6 +1908,7 @@ function showView(v) {
 function render() {
   brainByName = null;              // brainpower she rated by name: re-read from the latest tasks
   if (view !== "day" && view !== "month") setFireFloor(0);
+  if (view !== "day") setHeaven(false);
   if (view === "home") { renderHome(); if (typeof renderTogether === "function") renderTogether(); }
   else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); renderAssistant(); }
   else if (view === "month") renderMonth();

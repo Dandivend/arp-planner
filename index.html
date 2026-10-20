@@ -94,7 +94,8 @@
     <section id="day-view" hidden>
      <div class="day-layout with-chaos">
       <!-- Chaos meter: a flask that bubbles harder (and finally explodes) as free time runs out -->
-      <aside class="chaos-side" title="How much of your free time the day uses up">
+      <aside class="chaos-side">
+       <div class="meter chaos-meter" title="How much of your free time the day uses up">
         <div class="chaos-title">🌪️ Chaos</div>
         <div id="chaos-flask" class="flask" data-stage="0">
           <div class="flask-steam"><span>💨</span><span>💨</span></div>
@@ -120,6 +121,23 @@
         <div id="chaos-note" class="chaos-note" hidden></div>
         <div id="chaos-joy-note" class="chaos-joy-note" hidden></div>
         <button id="chaos-shadow-note" class="chaos-shadow-note" hidden></button>
+       </div>
+       <!-- ✨ Done: fills with light as the day's tasks get ticked off -->
+       <div class="meter done-meter" title="How much of the day you've done">
+        <div class="chaos-title">✨ Done</div>
+        <div id="done-flask" class="flask done-flask" data-zen="0">
+          <div class="done-rays"></div>
+          <div class="done-halo"></div>
+          <div class="flask-cap done-cap"></div>
+          <div class="flask-glass done-glass">
+            <div id="done-liquid" class="flask-liquid done-liquid"><div id="done-sparkles" class="done-sparkles"></div></div>
+            <div class="flask-ticks"></div>
+          </div>
+          <div class="done-feathers"></div>
+        </div>
+        <div id="done-emoji" class="chaos-emoji"></div>
+        <div id="done-value" class="chaos-value"></div>
+       </div>
       </aside>
 
       <div class="day-main">
