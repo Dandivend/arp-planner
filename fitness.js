@@ -444,6 +444,7 @@ function renderFitness() {
 
   renderWorkHours();
   renderSleep();
+  if (typeof renderCare === "function") renderCare();
   const ses = $("sessions");
   if (!ses.options.length) {
     for (let n = 1; n <= 7; n++) ses.add(new Option(n + (n === 1 ? " day" : " days"), n));

@@ -253,8 +253,10 @@ function workMinutesBetween(day, from, to) {
 // Time she's awake and not at work: the most she could ever spend on tasks.
 function freeMinutes(day) {
   const w = awakeWindow(day);
-  return w.end - w.start - workMinutesBetween(day, w.start, w.end);
+  return w.end - w.start - workMinutesBetween(day, w.start, w.end) - careFor(day);
 }
+// 🧼 Care Time (Settings → Care Time): dinner, showers, getting ready... it comes out of free time.
+const careFor = day => (typeof careMinutesFor === "function" ? careMinutesFor(day) : 0);
 
 // Minutes of things she still plans to do. Scheduled events count 30 min (or their own
 // length) unless they're during work; work shifts and finished things don't count.
@@ -272,7 +274,7 @@ function freeTimeLeft(day, list) {
   const planned = plannedMinutes(list, day) * 60;
   if (day !== todayKey()) {
     const total = (freeMinutes(day)) * 60;
-    return { seconds: total - planned, total, planned, past: false, beforeWake: false };
+    return { seconds: total - planned, total, planned, care: careFor(day) * 60, past: false, beforeWake: false };
   }
   const now = nowLocal();          // her clock (Settings → Time zone)
   let nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
@@ -281,8 +283,12 @@ function freeTimeLeft(day, list) {
   const from = Math.max(nowMin, w.start);
   const awake = Math.max(0, w.end - from) * 60;
   const work = workMinutesBetween(day, from, w.end) * 60;
+  // Care time still ahead today: her care minutes, shrinking as the day goes by (we don't know
+  // exactly when she showers or eats, so it's spread over the free part of her day).
+  const wholeFree = (w.end - w.start - workMinutesBetween(day, w.start, w.end)) * 60;
+  const care = wholeFree > 0 ? Math.round(careFor(day) * 60 * Math.min(1, Math.max(0, (awake - work) / wholeFree))) : 0;
   return {
-    seconds: awake - work - planned, total: awake - work, planned,
+    seconds: awake - work - care - planned, total: awake - work - care, planned, care,
     past: nowMin >= w.end, beforeWake: nowMin < w.start,
   };
 }

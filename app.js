@@ -501,6 +501,33 @@ function setIdeasFolded(folded) {
   span.addEventListener("click", toggle);
   span.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
   setIdeasFolded(dayFolds.has("ideas"));
+
+  // "Collapse all / Expand all" at the top of the Day page: every task section, the ideas and the
+  // cards under them (the Completed dropdown too).
+  const bar = $("day-collapse");
+  const cards = ["fitin-card", "suggest-card", "activity-card"];
+  const setAll = folded => {
+    const secs = [...document.querySelectorAll("#task-list .section-label.foldable")].map(l => l.dataset.sec);
+    const rows = [...document.querySelectorAll("#task-list > [data-sec]:not(.section-label)"), ...below(), ...cards.map(id => $(id)).filter(c => c && !c.hidden)];
+    const apply = () => {
+      if (folded) { for (const k of [...secs, "ideas", ...cards]) dayFolds.add(k); completedOpen = false; }
+      else { dayFolds.clear(); }
+      try { localStorage.setItem("arpPlanner.completedOpen", completedOpen ? "1" : "0"); } catch {}
+      saveDayFolds();
+      setIdeasFolded(dayFolds.has("ideas"));
+      for (const id of cards) { const c = $(id); if (c) { c.classList.toggle("card-folded", dayFolds.has(id)); c.querySelector(".fold-head")?.setAttribute("aria-expanded", String(!dayFolds.has(id))); } }
+      render();
+      if (!folded) popIn([...document.querySelectorAll("#task-list > li"), ...below()]);
+    };
+    if (folded) popOut(rows, apply); else apply();
+  };
+  const a = document.createElement("button"), b = document.createElement("button");
+  a.className = b.className = "link-btn";
+  a.textContent = "▸ Collapse all";
+  b.textContent = "▾ Expand all";
+  a.addEventListener("click", () => setAll(true));
+  b.addEventListener("click", () => setAll(false));
+  bar.append(a, b);
   for (const [id, headSel] of [["fitin-card", ".fitin-head"], ["suggest-card", ":scope > h3"], ["activity-card", ":scope > h3"]]) {
     const card = $(id), head = card && card.querySelector(headSel);
     if (!head) continue;
@@ -577,6 +604,7 @@ function renderFreeTimer() {
     $("ft-fill").style.width = `${ft.total > 0 ? Math.max(0, Math.min(100, (ft.seconds / ft.total) * 100)) : 0}%`;
     $("ft-sub").textContent = `☀️ Up ${formatTime(sleep.wake)} · 🌙 Bed ${formatTime(sleep.bed)}` +
       (p.shift ? ` · 💼 Work ${shiftLabel(p.shift)}` : "") +
+      (ft.care >= 60 ? ` · 🧼 ${formatHrsMin(ft.care)} care${isToday ? " ahead" : ""}` : "") +
       ` · ${formatHrsMin(ft.planned)} of tasks ${isToday ? "still to do" : "planned"}`;
   }
 
@@ -2439,6 +2467,7 @@ function makeFoldable(card, setOpen, startOpen) {
 // "Collapse all / Expand all" for a page with folding cards.
 (function setupCollapseAll() {
   for (const bar of document.querySelectorAll(".collapse-all")) {
+    if (bar.dataset.for === "day-view") continue;              // (the Day page has its own, below)
     const view = $(bar.dataset.for);
     const cards = () => [...view.querySelectorAll(".section")];
     const setter = bar.dataset.for === "settings-view" ? (c, o) => setSectionOpen(c, o) : (c, o) => setHomeOpen(c, o);

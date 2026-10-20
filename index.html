@@ -151,6 +151,7 @@
         <button class="nav-btn print-btn" data-print title="Print this day, or save it as a PDF">🖨️ Print / PDF</button>
       </div>
       <div id="day-banner" class="day-banner" data-when="today"></div>
+      <div id="day-collapse" class="collapse-all" data-for="day-view"></div>
 
       <div class="day-heading">
         <div>
@@ -310,6 +311,12 @@
         <h3>😴 Sleep schedule</h3>
         <p class="hint-small">When you plan to go to bed and get up each day. Your free time is counted between these, and short nights lower your energy forecast.</p>
         <div id="sleep-hours" class="work-hours"></div>
+      </div>
+
+      <div class="fit-card">
+        <h3>🧼 Care Time</h3>
+        <p class="hint-small">The everyday things that take time: making and eating dinner, showering, getting ready for work... Add them once with how long they take, and they come out of your free time each day.</p>
+        <div id="care-settings"></div>
       </div>
 
       <div class="fit-card">
@@ -607,6 +614,7 @@
   <script src="checkin.js"></script>
   <script src="recap.js"></script>
   <script src="fitness.js"></script>
+  <script src="care.js"></script>
   <script src="home.js"></script>
   <script src="signin.js"></script>
   <script src="google.js"></script>

@@ -1999,3 +1999,19 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .fitin-head.fold-head .fitin-free { margin-left: auto; }
 .fitin-head.fold-head .fitin-free + .section-chevron { margin-left: 0; }
 @keyframes fold-pop { from { opacity: 0; transform: translateY(-6px) scale(.95); } to { opacity: 1; transform: none; } }
+
+/* ⚡ the chaos-meter emoji notes: all the same good size (⚡ draws small) */
+.chaos-side .tap-note:not(.open), .meter .tap-note:not(.open) { font-size: 22px; }
+.chaos-side .chaos-note.tap-note:not(.open) { font-size: 28px; line-height: 1.1; }
+
+/* 🧼 Care Time */
+.care-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.care-row input, .care-row select { min-width: 0; }
+.care-del { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
+.care-del:hover { color: #ff7b7b; border-color: #ff7b7b; }
+.care-total { font-weight: 700; margin: 6px 0 10px; }
+.care-ideas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+@media screen and (max-width: 600px) {
+  .care-row { grid-template-columns: 1fr 1fr auto; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .care-row .care-name { grid-column: 1 / -1; }
+}
