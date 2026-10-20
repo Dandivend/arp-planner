@@ -338,6 +338,12 @@
         <p class="hint-small">A zen sand garden and some satisfying click toys, for when your hands (or brain) need something to do.</p>
         <button id="open-fidgets" class="g-btn primary">🫧 Open Fidgets ›</button>
       </div>
+
+      <div class="fit-card">
+        <h3>⚔️ Adventure mode</h3>
+        <p class="hint-small">A choose-your-path text adventure with dice rolls, comedy, and Molly, Ori and a goat along for the ride. Three worlds to explore.</p>
+        <button id="open-adventure" class="g-btn primary">⚔️ Start an adventure ›</button>
+      </div>
     </section>
 
     <!-- LOGAN: his Google Calendar (shared with her), read-only -->
@@ -349,6 +355,13 @@
         <button id="logan-today" class="nav-btn today">This month</button>
       </div>
       <div id="logan-body"></div>
+    </section>
+
+    <!-- ADVENTURE MODE (opened from the bottom of Settings) -->
+    <section id="adventure-view" hidden>
+      <button id="adventure-back" class="link-btn">‹ Back to Settings</button>
+      <h2 class="view-title">⚔️ Adventure mode</h2>
+      <div id="adventure-body"></div>
     </section>
 
     <!-- FIDGETS (opened from the bottom of Settings) -->
@@ -577,6 +590,8 @@
   <script src="assistant.js"></script>
   <script src="joy.js"></script>
   <script src="fidgets.js"></script>
+  <script src="adventure-worlds.js"></script>
+  <script src="adventure.js"></script>
   <script src="logan.js"></script>
   <script src="funfacts.js"></script>
 </body>

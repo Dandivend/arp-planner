@@ -1747,9 +1747,9 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "joy", "logan", "recap", "settings", "fidget"]) {
+  for (const name of ["home", "day", "month", "todo", "joy", "logan", "recap", "settings", "fidget", "adventure"]) {
     $(name + "-view").hidden = v !== name;
-    if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && v === "fidget"));
+    if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && (v === "fidget" || v === "adventure")));
   }
   if (v === "month") {
     monthCursor = fromKey(currentDay);
@@ -1768,6 +1768,7 @@ function render() {
   else if (view === "joy") renderJoy();
   else if (view === "fidget") renderFidgets();
   else if (view === "logan") renderLogan();
+  else if (view === "adventure") { if (!$("adventure-body").childElementCount) renderAdventure(); }
   else if (view === "settings") {
     renderAppearance();
     renderTimeZone();
