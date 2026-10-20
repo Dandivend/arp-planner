@@ -1788,3 +1788,7 @@ body.in-heaven main { padding-bottom: 110px; }
   .done-rays { width: 160px; height: 160px; margin: -80px 0 0 -80px; }
 }
 @media screen and (max-width: 600px) { .hv-angel { bottom: 76px; } #heaven-floor { bottom: 60px; height: 70px; } }
+
+/* Each vial's label wraps under it instead of spilling into the other vial's */
+.meter .chaos-value { white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
+@media (min-width: 961px) { .meter { width: 70px; } .meter .chaos-value { width: 100%; font-size: 12px; } }
