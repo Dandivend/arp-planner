@@ -83,6 +83,15 @@ function advChoose(c) {
     adv.hp = adv.maxHp;
     notes.push(`😵 You fainted! You wake at the inn, fully healed${lost ? `, ${lost} gold lighter` : ""}.`);
     adv.node = ADV_WORLDS[adv.world].inn || to;
+    if (typeof setVialFx === "function") {
+      setVialFx("faint", 60);
+      notes.push("😵‍💫 Your chaos vial is a little dizzy for the next hour (stars and all).");
+    }
+  }
+  const landed = ADV_WORLDS[adv.world].nodes[adv.node];
+  if (landed && landed.end && typeof setVialFx === "function") {
+    setVialFx("win", 60);
+    notes.push("🏆 Victory! Ori takes over your chaos vial, and it glows gold for the next hour.");
   }
   advLog = { roll, notes };
   advSave();

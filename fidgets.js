@@ -142,11 +142,20 @@ const sandSound = {
   },
   speed(px) {                                    // px moved this frame
     if (!this.gain) return;
-    const ctx = fctx(), v = Math.min(.55, px / 28);
-    this.gain.gain.setTargetAtTime(v, ctx.currentTime, .05);
-    this.bp.frequency.setTargetAtTime(800 + px * 25, ctx.currentTime, .08);
+    const ctx = fctx(), t = ctx.currentTime;
+    this.avg = (this.avg || 0) * .6 + px * .4;    // smoothed, so it swells and settles like real sand
+    this.gain.gain.setTargetAtTime(Math.min(.55, this.avg / 28), t, .09);
+    this.bp.frequency.setTargetAtTime(800 + this.avg * 25, t, .08);
+    // Holding her finger still: the sand goes quiet (a soft fade), and fades back in when she moves.
+    clearTimeout(this.hush);
+    this.hush = setTimeout(() => {
+      if (!this.gain) return;
+      this.avg = 0;
+      this.gain.gain.setTargetAtTime(.0001, fctx().currentTime, .2);
+    }, 80);
   },
   stop() {
+    clearTimeout(this.hush);
     if (!this.src) return;
     const ctx = fctx(), src = this.src;
     this.gain.gain.setTargetAtTime(.0001, ctx.currentTime, .12);
@@ -156,6 +165,43 @@ const sandSound = {
 };
 
 const fidgetFeel = (ms, sound, arg) => { buzz(ms); fidgetSound(sound, arg); };
+
+// 🧘 Fidget time: the seconds she's really playing here (touched in the last 15 seconds) or
+// breathing with the calm timer. Every 3 minutes of it makes the chaos vial glow a mindful teal
+// for an hour (just a look: the real chaos numbers don't change).
+const MINDFUL_AFTER = 180;
+const FIDGET_TIME_KEY = "arpPlanner.fidgetTime";
+let fidgetTouch = 0;
+function fidgetTime() {
+  const fresh = { day: todayKey(), sec: 0, toward: 0 };
+  try { const f = JSON.parse(localStorage.getItem(FIDGET_TIME_KEY) || "null"); return f && f.day === fresh.day ? f : fresh; } catch { return fresh; }
+}
+function showFidgetMinutes() {
+  const line = $("fidget-minutes");
+  if (!line) return;
+  const f = fidgetTime(), m = Math.floor(f.sec / 60);
+  const mindful = typeof vialFx === "function" && vialFx().mindful;
+  line.textContent = `🧘 ${m ? `${m} min` : "Under a minute"} of fidget time today` +
+    (mindful ? " · your chaos vial is glowing teal 💙" : ` · ${Math.max(1, Math.ceil((MINDFUL_AFTER - (f.toward || 0)) / 60))} more min for a mindful glow`);
+}
+for (const ev of ["pointerdown", "pointermove", "keydown"]) addEventListener(ev, e => {
+  if (e.target && e.target.closest && e.target.closest("#fidget-body")) fidgetTouch = Date.now();
+}, { capture: true, passive: true });
+setInterval(() => {
+  const breathing = typeof breath !== "undefined" && breath && !breath.paused && !breath.done;
+  const playing = typeof view !== "undefined" && view === "fidget" && !document.hidden && Date.now() - fidgetTouch < 15000;
+  if (!breathing && !playing) return;
+  const f = fidgetTime();
+  f.sec++;
+  if (!(typeof vialFx === "function" && vialFx().mindful)) f.toward = (f.toward || 0) + 1;
+  if (f.toward >= MINDFUL_AFTER && typeof setVialFx === "function") {
+    f.toward = 0;
+    setVialFx("mindful", 60);
+    showToast("🧘 Mindful moment! Your chaos vial glows teal for the next hour 💙");
+  }
+  try { localStorage.setItem(FIDGET_TIME_KEY, JSON.stringify(f)); } catch {}
+  if (f.sec % 5 === 0 || f.toward === 0) showFidgetMinutes();
+}, 1000);
 
 function renderFidgets() {
   const box = $("fidget-body");
@@ -174,6 +220,10 @@ function renderFidgets() {
     prefs.appendChild(l);
   }
   box.appendChild(prefs);
+  const minutes = el("p", "fidget-minutes", "");
+  minutes.id = "fidget-minutes";
+  box.appendChild(minutes);
+  showFidgetMinutes();
 
   // ---------- calm timer ----------
   const calm = el("div", "fidget-card");

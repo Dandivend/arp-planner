@@ -1866,3 +1866,44 @@ body.demon-takeover #season-fx, body.demon-takeover #molly-peek { opacity: 0; tr
 @media screen and (max-width: 600px) { .breath-offer { bottom: calc(80px + env(safe-area-inset-bottom)); } }
 .calm-times { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (prefers-reduced-motion: reduce) { .breath-orb { animation: none; } }
+
+/* ✅ Completed: finished things fold away at the bottom of the day */
+.completed-fold { list-style: none; margin-top: 10px; }
+.completed-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--card) 80%, transparent); border: 1px dashed var(--line); color: var(--muted); font-weight: 700; font-size: 15px; cursor: pointer; }
+.completed-toggle:hover { color: var(--accent); }
+.completed-toggle .section-chevron { margin-left: auto; transition: transform .2s; }
+.completed-toggle.open .section-chevron { transform: rotate(180deg); color: var(--accent); }
+
+/* ⏰ Recap: finish times this week */
+.recap-times { margin-bottom: 14px; }
+.times-day { font-weight: 800; margin: 10px 0 4px; color: var(--accent); }
+.times-list { list-style: none; margin: 0; padding: 0; }
+.times-row { display: flex; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.times-at { min-width: 74px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Short vial effects: 🧘 mindful teal, 🏆 gold, 😵‍💫 dizzy */
+.chaos-fx-note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 2px; }
+.flask.mindful { filter: drop-shadow(0 0 10px rgba(25, 194, 176, .75)); }
+.flask.mindful[data-stage="4"] { filter: drop-shadow(0 0 12px rgba(255, 60, 40, .55)) drop-shadow(0 0 8px rgba(25, 194, 176, .7)); }
+.flask[data-fx="gold"] { filter: drop-shadow(0 0 14px rgba(255, 200, 58, .9)) drop-shadow(0 0 4px rgba(255, 240, 180, .8)); }
+.flask[data-fx="gold"] .flask-liquid { box-shadow: inset 0 0 18px rgba(255, 245, 200, .8); }
+.dizzy-stars { display: none; position: absolute; left: 50%; top: -14px; width: 0; height: 0; pointer-events: none; }
+.flask[data-fx="dizzy"] .dizzy-stars { display: block; }
+.dizzy-stars span { position: absolute; font-size: 13px; animation: dizzy-orbit 2.4s linear infinite; }
+.dizzy-stars span:nth-child(2) { animation-delay: -.8s; }
+.dizzy-stars span:nth-child(3) { animation-delay: -1.6s; }
+@keyframes dizzy-orbit { from { transform: rotate(0deg) translateX(22px) rotate(0deg) scaleY(.9); } to { transform: rotate(360deg) translateX(22px) rotate(-360deg) scaleY(.9); } }
+.flask[data-fx="dizzy"] .flask-liquid { animation: dizzy-slosh 3s ease-in-out infinite; }
+@keyframes dizzy-slosh { 0%, 100% { filter: hue-rotate(0deg); } 50% { filter: hue-rotate(40deg); } }
+.chaos-emoji .ori-face { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid #ffc83a;
+  box-shadow: 0 0 10px rgba(255, 200, 58, .8); vertical-align: middle; }
+@media (prefers-reduced-motion: reduce) { .dizzy-stars span, .flask[data-fx="dizzy"] .flask-liquid { animation: none; } }
+
+/* 📖 Day page turn */
+#day-view.turn-next { animation: page-next .45s cubic-bezier(.2, .7, .3, 1); transform-origin: left center; }
+#day-view.turn-prev { animation: page-prev .45s cubic-bezier(.2, .7, .3, 1); transform-origin: right center; }
+@keyframes page-next { from { transform: perspective(1600px) rotateY(-32deg) translateX(14%); opacity: .15; } to { transform: none; opacity: 1; } }
+@keyframes page-prev { from { transform: perspective(1600px) rotateY(32deg) translateX(-14%); opacity: .15; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #day-view.turn-next, #day-view.turn-prev { animation: none; } }
+.fidget-minutes { color: var(--muted); margin: 4px 0 10px; font-weight: 600; }

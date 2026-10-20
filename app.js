@@ -216,6 +216,46 @@ function sortChores(list) {
 }
 
 const doneLast = list => [...list.filter(t => !t.done), ...list.filter(t => t.done)];
+const localStamp = () => { const n = nowLocal(); return `${toKey(n)}T${pad(n.getHours())}:${pad(n.getMinutes())}`; };
+const weekStartOf = day => addDays(day, -fromKey(day).getDay());     // weeks start on Sunday (like the Recap)
+
+// Little marks on days, for the Recap (🔥 total chaos, unfinished tasks). Kept about a year.
+function markDays(kind, days) {
+  const m = profile.dayMarks || {}, have = new Set(m[kind] || []);
+  const add = days.filter(d => !have.has(d));
+  if (!add.length) return;
+  const cutoff = addDays(todayKey(), -400);
+  profile = { ...profile, dayMarks: { ...m, [kind]: [...have, ...add].filter(d => d >= cutoff).sort() } };
+  pushProfile();
+}
+
+// 🔁 Unfinished tasks and chores roll on to today by themselves. Appointments (anything with a
+// time), workouts, deadline items (they already stay until done), repeating to-dos (they have
+// ⏭️ Catch up) and Google events stay where they are.
+const canRoll = t => !t.deleted && !t.done && !!t.date && !t.dueDate && !t.time && ["task", "chore"].includes(kindOf(t))
+  && !isWorkShift(t) && !(typeof repeatsOf === "function" && repeatsOf(t)) && !(t.external && t.external.google && t.external.google.imported);
+let rolling = false;
+async function rollOverUnfinished() {
+  if (rolling || !tasks.length) return;
+  rolling = true;
+  try {
+    const tk = todayKey();
+    const late = tasks.filter(t => canRoll(t) && t.date < tk && t.date >= addDays(tk, -14));   // (very old leftovers stay put)
+    const days = new Set();
+    for (const t of late) {
+      for (let d = t.date; d < tk; d = addDays(d, 1)) days.add(d);
+      await persist({ ...t, date: tk, rolledFrom: t.rolledFrom || t.date }, false, { by: "planner" });
+    }
+    if (days.size) markDays("unfinished", [...days]);
+    // New week: last week's finish times are let go (so the phone never fills up with them).
+    const week = weekStartOf(tk);
+    for (const t of tasks.filter(t => t.doneAt && t.doneAt.slice(0, 10) < week)) await persist({ ...t, doneAt: null }, false, { by: "planner" });
+    if (late.length) {
+      render();
+      showToast(`🔁 ${plural(late.length, "unfinished thing")} rolled over to today. No stress, ${late.length === 1 ? "it" : "they"} just came along 💛`);
+    }
+  } catch {} finally { rolling = false; }
+}
 
 function showError(msg) {
   const bar = $("error-bar");
@@ -334,7 +374,9 @@ function renderDay() {
 
   const ul = $("task-list");
   ul.innerHTML = "";
-  const addRows = rows => rows.forEach(t => ul.appendChild(taskRow(t, t.id === nextId)));
+  const doneRows = [];                     // finished ones fold away under "✅ Completed" (still counted)
+  const keep = rows => rows.filter(t => (t.done && !isWorkShift(t)) ? (doneRows.includes(t) || doneRows.push(t), false) : true);
+  const addRows = rows => keep(rows).forEach(t => ul.appendChild(taskRow(t, t.id === nextId)));
   $("empty-day").hidden = list.length > 0;
   const recovery = currentDay <= tk ? recoveryFor(currentDay) : null;
   renderSuggestions(p, recovery);
@@ -344,6 +386,7 @@ function renderDay() {
     addRows(timed);
     if (rest.length) { if (timed.length) sectionLabel(ul, "Anytime", ""); addRows(doneLast(rest)); }
     if (held.length) { sectionLabel(ul, "💤 Can wait for a better day", "s-held"); addRows(held); }
+    addCompleted(ul, doneRows);
     return;
   }
 
@@ -360,7 +403,8 @@ function renderDay() {
     ["🌿", "Optional", ofLevel("optional"), "s-optional"],
     ["💤", "Can wait for a better day", held, "s-held"],
   ];
-  for (const [icon, label, rows, cls] of sections) {
+  for (const [icon, label, all, cls] of sections) {
+    const rows = keep(all);
     if (!rows.length) continue;
     if (cls === "s-optional" && recovery && !showOptional) {
       const li = document.createElement("li");
@@ -390,6 +434,26 @@ function renderDay() {
       addRows(rows);
     }
   }
+  addCompleted(ul, doneRows);
+}
+
+let completedOpen = false;
+try { completedOpen = localStorage.getItem("arpPlanner.completedOpen") === "1"; } catch {}
+function addCompleted(ul, rows) {
+  if (!rows.length) return;
+  const li = document.createElement("li");
+  li.className = "completed-fold";
+  const b = el("button", "completed-toggle" + (completedOpen ? " open" : ""), `✅ Completed · ${rows.length}`);
+  b.appendChild(el("span", "section-chevron", "▾"));
+  b.setAttribute("aria-expanded", String(completedOpen));
+  b.addEventListener("click", () => {
+    completedOpen = !completedOpen;
+    try { localStorage.setItem("arpPlanner.completedOpen", completedOpen ? "1" : "0"); } catch {}
+    render();
+  });
+  li.appendChild(b);
+  ul.appendChild(li);
+  if (completedOpen) rows.forEach(t => ul.appendChild(taskRow(t, false)));
 }
 
 let dayEnergy = null;
@@ -446,8 +510,15 @@ function renderFreeTimer() {
     }
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
-  $("chaos-emoji").textContent = Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : chaos.emoji;
+  if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
+  const fx = vialFx();
+  setChaosFace(Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
+  const fxNote = $("chaos-fx-note"), mins = u => Math.max(1, Math.ceil((u - Date.now()) / 60000));
+  const fxText = fx.win ? `🏆 Victory glow · ${mins(fx.win)} min` : fx.faint ? `😵‍💫 Still a little dizzy · ${mins(fx.faint)} min` : "";
+  const mindText = fx.mindful ? `🧘 Mindful · ${mins(fx.mindful)} min` : "";
+  fxNote.textContent = [fxText, mindText].filter(Boolean).join("  ");
+  fxNote.hidden = ft.past || !fxNote.textContent;
   const note = $("chaos-note");
   note.hidden = !(chaos.boost > 1 && !ft.past);
   if (!note.hidden) note.textContent = `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`;
@@ -496,7 +567,14 @@ function renderChaosFlask(realPct, joy = 0) {
   // While she's poking it, it shows a jumpier level for a few seconds (see pokeFlask).
   const pct = Date.now() < flaskPoke.until ? flaskPoke.pct : realPct;
   liquid.style.height = `${Math.max(pct, 3)}%`;
-  const colour = `hsl(${Math.round(135 * (1 - pct / 100))}, 78%, 50%)`;
+  // Short visual treats (an hour each; they never change the real numbers): 🏆 gold after winning an
+  // adventure, 😵‍💫 dizzy after fainting in one, 🧘 teal after some time with the Fidgets.
+  const fx = vialFx();
+  const base = `hsl(${Math.round(135 * (1 - pct / 100))}, 78%, 50%)`;
+  const colour = fx.win ? `color-mix(in srgb, ${base} 22%, #ffc83a)` : fx.faint ? `color-mix(in srgb, ${base} 40%, #a07cff)`
+    : fx.mindful ? `color-mix(in srgb, ${base} 30%, #19c2b0)` : base;
+  flask.dataset.fx = fx.win ? "gold" : fx.faint ? "dizzy" : "";
+  flask.classList.toggle("mindful", !!fx.mindful);
   liquid.style.setProperty("--liq", colour);
   liquid.style.setProperty("--joy", `${Math.round(joy * 70)}%`);
   flask.style.setProperty("--liq", colour);   // the explosion splashes the same colour
@@ -526,6 +604,38 @@ function renderChaosFlask(realPct, joy = 0) {
     b.style.animationDelay = `${-Math.random() * dur}s, ${-Math.random()}s`;
     box.appendChild(b);
   }
+}
+
+// The face under the chaos vial: an emoji, or Ori himself after an adventure win.
+function setChaosFace(face) {
+  const box = $("chaos-emoji");
+  if (box.dataset.face === face) return;
+  box.dataset.face = face;
+  if (face === "ori") {
+    const img = el("img", "ori-face");
+    img.src = `ori/ori-${vialFx().ori || 1}.webp`;
+    img.alt = "Ori";
+    img.onerror = () => { box.textContent = "🐈"; };
+    box.replaceChildren(img);
+  } else box.textContent = face;
+}
+
+// Short vial effects, kept on this device: { mindful, win, faint } = when each one ends.
+const VIAL_FX_KEY = "arpPlanner.vialFx";
+function vialFx() {
+  let fx = {};
+  try { fx = JSON.parse(localStorage.getItem(VIAL_FX_KEY) || "{}") || {}; } catch {}
+  const now = Date.now(), out = { ori: fx.ori };
+  for (const k of ["mindful", "win", "faint"]) if (fx[k] > now) out[k] = fx[k];
+  return out;
+}
+function setVialFx(kind, minutes = 60) {
+  const fx = vialFx();
+  fx[kind] = Date.now() + minutes * 60000;
+  if (kind === "win") { delete fx.faint; fx.ori = 1 + Math.floor(Math.random() * (typeof PET_PICS === "object" && PET_PICS.ori || 40)); }
+  if (kind === "faint") delete fx.win;
+  try { localStorage.setItem(VIAL_FX_KEY, JSON.stringify(fx)); } catch {}
+  if (lastFlask) { try { renderChaosFlask(lastFlask.pct, lastFlask.joy); } catch {} }
 }
 
 // ---------- ✨ the Done vial ----------
@@ -731,7 +841,7 @@ function pokeFlask() {
   if (typeof playVialTink === "function") playVialTink(power);
   if (calmMode()) return;                                   // calm mode: just a gentle wobble
   const real = lastFlask.pct;
-  if (real >= 75 && n >= 8) return eruptFlask();
+  if (real >= 90 || (real >= 75 && n >= 8)) return eruptFlask();      // on fire: it's full, one tap does it
   const next = [25, 50, 75, 90, 100].find(x => x > real) ?? 100;
   flaskPoke.pct = Math.min(99, Math.max(next + 2, real + 12 + power * 45));
   flaskPoke.until = now + 3000;
@@ -745,7 +855,7 @@ function pokeFlask() {
 function demonTakeover() {
   const flask = $("chaos-flask");
   flaskPoke.demonUntil = Date.now() + 2000;
-  $("chaos-emoji").textContent = "😈";
+  setChaosFace("😈");
   setTimeout(() => { if (Date.now() >= flaskPoke.demonUntil) render(); }, 2050);
   const pop = document.createElement("div");
   pop.className = "vial-demon";
@@ -1363,6 +1473,9 @@ function taskRow(t, isNext) {
     else if (o && o.brainy && brainOf(t) === "heavy" && !t.done) chips.push(["chip mood", "✨ Clear-head job"]);
   }
   if (t.done && t.skipped) chips.push(["chip opt", "⏭️ Skipped (caught up)"]);
+  if (t.rolledFrom && !t.done && t.date && t.rolledFrom < t.date)
+    chips.push(["chip opt", `🔁 Rolled over from ${fromKey(t.rolledFrom).toLocaleDateString(undefined, { weekday: "short" })}`]);
+  if (t.done && t.doneAt) chips.push(["chip opt", `⏰ Done ${formatTime(t.doneAt.slice(11, 16))}`]);
   const g = t.external && t.external.google;
   if (g && g.imported) chips.push(["chip gcal", "📆 Google"]);
   if (isTodo(t)) chips.push(["chip mstodo", "✔️ " + todoListName(t)]);
@@ -2456,7 +2569,11 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
   if (by === "her" && old) {
     if ((old.date || null) !== (task.date || null) || (old.time || null) !== (task.time || null)) task = { ...task, herMove: new Date().toISOString() };
     if (old.minutesGuess && old.minutes !== task.minutes) task = { ...task, minutesGuess: false };
+    if (task.rolledFrom && (old.date || null) !== (task.date || null)) task = { ...task, rolledFrom: null };
   }
+  // ⏰ When she ticked it off, on her clock ("YYYY-MM-DDTHH:MM"). Kept for the current week only.
+  if (task.done && !(old && old.done) && !task.doneAt) task = { ...task, doneAt: localStamp() };
+  if (!task.done && task.doneAt) task = { ...task, doneAt: null };
   try {
     const saved = await Store.put(task);
     const i = tasks.findIndex(t => t.id === saved.id);
@@ -2530,8 +2647,42 @@ $("tab-todo").addEventListener("click", () => showView("todo"));
 $("tab-joy").addEventListener("click", () => showView("joy"));
 $("tab-recap").addEventListener("click", () => { recapAnchor = todayKey(); showView("recap"); });
 const goDay = day => { currentDay = day; showOptional = false; render(); };
-$("prev-day").addEventListener("click", () => goDay(addDays(currentDay, -1)));
-$("next-day").addEventListener("click", () => goDay(addDays(currentDay, 1)));
+$("prev-day").addEventListener("click", () => turnPage(-1));
+$("next-day").addEventListener("click", () => turnPage(1));
+
+// 📖 Turning the page: next day (swipe left / ›) or the day before (swipe right / ‹).
+function turnPage(dir) {
+  goDay(addDays(currentDay, dir));
+  const v = $("day-view");
+  v.classList.remove("turn-next", "turn-prev");
+  void v.offsetWidth;
+  v.classList.add(dir > 0 ? "turn-next" : "turn-prev");
+  clearTimeout(turnPage.t);
+  turnPage.t = setTimeout(() => v.classList.remove("turn-next", "turn-prev"), 550);
+}
+// Swipe anywhere on the Day page (not on text boxes, sideways-scrolling rows, or the screen's
+// very edges, where the phone's own back gesture lives).
+(function setupDaySwipe() {
+  let sx = 0, sy = 0, st = 0, ok = false;
+  addEventListener("touchstart", e => {
+    ok = false;
+    if (view !== "day" || e.touches.length !== 1 || document.querySelector("dialog[open]")) return;
+    const p = e.touches[0], tgt = e.target;
+    if (p.clientX < 24 || p.clientX > innerWidth - 24) return;
+    if (tgt.closest && tgt.closest("input, textarea, select, canvas, .no-swipe")) return;
+    for (let n = tgt; n && n !== document.body; n = n.parentElement) {
+      if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return;
+    }
+    sx = p.clientX; sy = p.clientY; st = Date.now(); ok = true;
+  }, { passive: true });
+  addEventListener("touchend", e => {
+    if (!ok) return;
+    ok = false;
+    const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
+    if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    turnPage(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
 $("today-btn").addEventListener("click", () => goDay(todayKey()));
 $("prev-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() - 1); render(); });
 $("next-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() + 1); render(); });
@@ -2593,6 +2744,7 @@ let lastToday = todayKey();
 setInterval(() => {
   const tk = todayKey();
   if (tk !== lastToday && currentDay === lastToday) currentDay = tk;
+  if (tk !== lastToday) rollOverUnfinished();
   lastToday = tk;
   applyTheme();   // "Automatic" theme follows the real season
   renderQuietly();
@@ -2704,4 +2856,5 @@ const pageReady = document.readyState === "loading"
     showError("Couldn't load your tasks. Try closing and reopening the planner.");
   }
   render();
+  setTimeout(rollOverUnfinished, 1500);
 })();

@@ -101,6 +101,12 @@ function renderRecap() {
   const inPeriod = live.filter(t => inRange(t.doneDate && t.done ? t.doneDate : t.date) && (t.date || "") <= tk && happened(t));
   const withLogan = inPeriod.filter(isLogan), joyDone = inPeriod.filter(isJoy);
   const loganMin = withLogan.reduce((s, t) => s + lengthOf(t), 0), joyMin = joyDone.reduce((s, t) => s + lengthOf(t), 0);
+  // The funny ones: 🔥 days the chaos vial hit 100%, 🎻 days with something joyful, 🔁 days with leftovers.
+  const marks = profile.dayMarks || {};
+  const fireDays = (marks.fire || []).filter(d => inRange(d) && d <= tk).length;
+  const joyDays = new Set(joyDone.map(t => (t.done && t.doneDate) || t.date).filter(d => d && inRange(d)));
+  const unfinished = new Set((marks.unfinished || []).filter(d => inRange(d) && d < tk));
+  for (const t of live) if (!t.done && t.date && t.date < tk && inRange(t.date) && ["task", "chore"].includes(kindOf(t))) unfinished.add(t.date);
   const tiles = [
     ["❤️", loganMin ? formatHrsMin(loganMin * 60) : "0", `with Logan${withLogan.length ? ` · ${plural(withLogan.length, "time")}` : ""} 🥰`],
     ["🌈", joyMin ? formatHrsMin(joyMin * 60) : "0", "of rejuvenation"],
@@ -110,6 +116,9 @@ function renderRecap() {
     ["📈", due.length ? Math.round((dueDone / due.length) * 100) + "%" : "–", "of planned items finished"],
     ["💗", recoveryDays, "recovery days"],
     ["📝", checkins, "days checked in"],
+    ["🌪️", fireDays, `${fireDays === 1 ? "Day" : "Days"} in Total Chaos 🔥 · ${chaosQuip(fireDays)}`],
+    ["🎻", joyDays.size, `${joyDays.size === 1 ? "Day" : "Days"} dedicated to Joy 🎻🌺`],
+    ["🔁", unfinished.size, `${unfinished.size === 1 ? "Day" : "Days"} tasks were unfinished · they rolled on to the next day`],
   ];
   const tileBox = $("recap-tiles");
   tileBox.innerHTML = "";
@@ -118,6 +127,8 @@ function renderRecap() {
     t.append(el("div", "tile-value", `${icon} ${value}`), el("div", "tile-label", label));
     tileBox.appendChild(t);
   }
+
+  renderRecapTimes(range, tk);
 
   const legend = $("done-legend");
   legend.innerHTML = "";
@@ -141,6 +152,41 @@ function renderRecap() {
     $("feel-chart").appendChild(line);
   }
   drawHBars($("body-chart"), BODY, days.map(d => bodyOf(moods[d])).filter(Boolean), "#4cc38a", "No body check-ins yet.");
+}
+
+function chaosQuip(n) {
+  if (!n) return "zero! The vial is suspiciously calm 😎";
+  if (n === 1) return "the vial survived (barely) 😅";
+  if (n <= 3) return "someone get the vial a fire extinguisher 🧯";
+  if (n <= 6) return "the vial has filed a formal complaint 📝";
+  return "at this point the vial pays rent here 🏠🔥";
+}
+
+// ⏰ When she finished things, this week only (last week's times are let go each Sunday).
+function renderRecapTimes(range, tk) {
+  const box = $("recap-times");
+  box.innerHTML = "";
+  const week = weekStartOf(tk);
+  box.hidden = !(recapPeriod === "week" && range.start === week);
+  if (box.hidden) return;
+  box.appendChild(el("h3", "", "⏰ When you finished things this week"));
+  const done = tasks.filter(t => !t.deleted && t.done && !t.skipped && t.doneAt && t.doneAt.slice(0, 10) >= week)
+    .sort((a, b) => a.doneAt.localeCompare(b.doneAt));
+  if (!done.length) { box.appendChild(el("p", "empty-chart", "Tick something off and its time shows up here 💛")); return; }
+  let day = null, list = null;
+  for (const t of done) {
+    const d = t.doneAt.slice(0, 10);
+    if (d !== day) {
+      day = d;
+      box.appendChild(el("div", "times-day", d === tk ? "Today" : fromKey(d).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })));
+      list = el("ul", "times-list");
+      box.appendChild(list);
+    }
+    const li = el("li", "times-row");
+    li.append(el("span", "times-at", formatTime(t.doneAt.slice(11, 16))), el("span", "", `${emojiOf(t) || "✅"} ${t.title}`));
+    list.appendChild(li);
+  }
+  box.appendChild(el("p", "hint-small", "Times are kept for this week only, then let go so your phone stays light."));
 }
 
 // ---------- charts (plain SVG) ----------
