@@ -1669,3 +1669,9 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .cell .peek[style*="--dot"]::before { flex: none; margin: 4px 1px 0 0; width: 6px; height: 6px; }
 .cell .hol-name { white-space: normal !important; overflow-wrap: anywhere; text-overflow: clip !important; }
 @media (max-width: 600px) { .cell .hol-name { font-size: 9.5px; line-height: 1.15; } }
+
+/* ▶️ Home: what she's in the middle of right now */
+.home-now { display: inline-block; margin: 4px 0 6px; padding: 6px 12px; border-radius: 12px; font-weight: 800; color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid var(--accent); animation: now-glow 2.6s ease-in-out infinite; }
+.home-card.has-now { border-color: var(--accent); animation: now-glow 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .home-now, .home-card.has-now { animation: none; } }

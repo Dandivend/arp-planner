@@ -36,8 +36,17 @@ function renderHome() {
   const next = $("home-next");
   next.innerHTML = "";
   const nowStr = `${pad(h)}:${pad(now.getMinutes())}`;
-  const up = p.list.find(t => !t.done && t.time && t.time >= nowStr);
-  if (up) next.appendChild(el("div", "home-up", `⏭ Up next: ${formatTime(up.time)} · ${up.title}`));
+  // ▶️ Right now: whatever she's in the middle of (it glows, and so does the card).
+  const cur = p.list.filter(t => isHappeningNow(t, tk)).sort((a, b) => (isWorkShift(a) - isWorkShift(b)) || b.time.localeCompare(a.time));
+  const card = next.closest(".home-card");
+  if (card) card.classList.toggle("has-now", !!cur.length);
+  if (cur.length) {
+    const t = cur[0], end = addMinutesTo(t.time, isWorkShift(t) ? shiftMinutes(workHoursFor(tk)) || t.minutes || 480 : (minutesLeft(t) ?? t.minutes ?? 30));
+    next.appendChild(el("div", "home-now", `▶️ Right now: ${emojiOf(t)} ${t.title} · until ${formatTime(end)}` +
+      (cur.length > 1 ? ` (+ ${cur.slice(1).map(x => x.title).join(", ")})` : "")));
+  }
+  const up = p.list.find(t => !t.done && t.time && t.time >= nowStr && !cur.includes(t));
+  if (up) next.appendChild(el("div", "home-up", `⏭ Up next: ${formatTime(up.time)} · ${emojiOf(up)} ${up.title}`));
   const ft = freeTimeLeft(tk, p.active);
   const over = ft.seconds < 0 && p.planned > 0 && !ft.past;
   next.appendChild(el("div", "home-work" + (over ? " over" : ""),
