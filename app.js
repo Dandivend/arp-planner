@@ -385,7 +385,9 @@ function renderDay() {
     const rest = untimed.sort((a, b) => LEVEL_RANK[levelOf(a, currentDay)] - LEVEL_RANK[levelOf(b, currentDay)]);
     addRows(timed);
     if (rest.length) { if (timed.length) sectionLabel(ul, "Anytime", ""); addRows(doneLast(rest)); }
-    if (held.length) { sectionLabel(ul, "💤 Can wait for a better day", "s-held"); addRows(held); }
+    const heldOpen = keep(held);
+    if (heldOpen.length && !sectionLabel(ul, "💤 Can wait for a better day", "s-held", heldOpen.length)) addRows(heldOpen);
+    tagSections(ul);
     addCompleted(ul, doneRows);
     return;
   }
@@ -416,7 +418,7 @@ function renderDay() {
       ul.appendChild(li);
       continue;
     }
-    sectionLabel(ul, `${icon} ${label}`, cls);
+    if (sectionLabel(ul, `${icon} ${label}`, cls, rows.length)) continue;     // folded: just the heading
     if (cls === "s-chores") {
       let area = null;
       for (const t of rows) {
@@ -434,8 +436,87 @@ function renderDay() {
       addRows(rows);
     }
   }
+  tagSections(ul);
   addCompleted(ul, doneRows);
 }
+
+// ---------- folding the Day page ----------
+// Each heading on the Day page folds its part away (remembered on this device): the task
+// sections, "Ideas & suggestions" and the cards under it. Folds pop in and out (see foldAnim).
+const DAY_FOLDS_KEY = "arpPlanner.dayFolds";
+let dayFolds = new Set();
+try { dayFolds = new Set(JSON.parse(localStorage.getItem(DAY_FOLDS_KEY) || "[]")); } catch {}
+const saveDayFolds = () => { try { localStorage.setItem(DAY_FOLDS_KEY, JSON.stringify([...dayFolds])); } catch {} };
+const motionOk = () => !calmMode() && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+const POP_IN = [{ opacity: 0, transform: "translateY(-8px) scale(.96)" }, { opacity: 1, transform: "none" }];
+function popIn(elms) {
+  if (!motionOk()) return;
+  const anims = elms.map((e, i) => e.animate(POP_IN, { duration: 280, delay: Math.min(i * 25, 200), easing: "cubic-bezier(.2,.8,.3,1.25)", fill: "backwards" }));
+  setTimeout(() => anims.forEach(a => { try { a.finish(); } catch {} }), 700);   // never leave anything see-through
+}
+function popOut(elms, then) {
+  if (!motionOk() || !elms.length) return then();
+  let done = false;
+  const once = () => { if (!done) { done = true; then(); anims.forEach(a => a.cancel()); } };   // (cancel: nothing stays faded)
+  const anims = elms.map(e => e.animate([...POP_IN].reverse(), { duration: 170, easing: "ease-in", fill: "forwards" }));
+  Promise.all(anims.map(a => a.finished)).then(once, once);
+  setTimeout(once, 260);                         // (a hidden or busy screen can stall animations)
+}
+// Folding cards (Settings, Home, the Day page's cards): open pops the insides in; closing pops them out first.
+function foldAnim(card, open, apply) {
+  const insides = () => [...card.children].filter(c => !(c.tagName === "H3" || c.matches(".section-head, .fold-head")) && !c.hidden);
+  if (open) { apply(); popIn(insides()); } else popOut(insides(), apply);
+}
+// Rows belong to the foldable heading above them (so a fold can animate just those).
+function tagSections(ul) {
+  let sec = "";
+  for (const li of ul.children) {
+    if (li.classList.contains("section-label")) sec = li.classList.contains("foldable") ? li.dataset.sec : "";
+    else if (sec) li.dataset.sec = sec;
+  }
+}
+const secRows = sec => [...document.querySelectorAll(`#task-list > [data-sec="${sec}"]`)];
+function foldDaySection(sec) {
+  const closing = !dayFolds.has(sec);
+  const apply = () => { if (closing) dayFolds.add(sec); else dayFolds.delete(sec); saveDayFolds(); render(); if (!closing) popIn(secRows(sec)); };
+  if (closing) popOut(secRows(sec), apply); else apply();
+}
+
+// "💡 Ideas & suggestions" and the cards under it.
+function setIdeasFolded(folded) {
+  $("day-view").classList.toggle("ideas-folded", folded);
+  $("tips-divider").setAttribute("aria-expanded", String(!folded));
+}
+(function setupDayFolds() {
+  const div = $("tips-divider"), span = div.querySelector("span");
+  span.setAttribute("role", "button");
+  span.tabIndex = 0;
+  span.appendChild(Object.assign(document.createElement("span"), { className: "section-chevron", textContent: "▾" }));
+  const below = () => [$("fitin-card"), $("suggest-card"), ...(matchMedia("(max-width: 960px)").matches ? [document.querySelector(".day-side")] : [])].filter(e => e && !e.hidden);
+  const toggle = () => {
+    const folding = !dayFolds.has("ideas");
+    const apply = () => { if (folding) dayFolds.add("ideas"); else dayFolds.delete("ideas"); saveDayFolds(); setIdeasFolded(folding); if (!folding) popIn(below()); };
+    if (folding) popOut(below(), apply); else apply();
+  };
+  span.addEventListener("click", toggle);
+  span.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  setIdeasFolded(dayFolds.has("ideas"));
+  for (const [id, headSel] of [["fitin-card", ".fitin-head"], ["suggest-card", ":scope > h3"], ["activity-card", ":scope > h3"]]) {
+    const card = $(id), head = card && card.querySelector(headSel);
+    if (!head) continue;
+    head.classList.add("fold-head");
+    head.setAttribute("role", "button");
+    head.tabIndex = 0;
+    head.appendChild(Object.assign(document.createElement("span"), { className: "section-chevron", textContent: "▾" }));
+    const set = open => { card.classList.toggle("card-folded", !open); head.setAttribute("aria-expanded", String(open));
+      if (open) dayFolds.delete(id); else dayFolds.add(id); saveDayFolds(); };
+    const toggle = e => { if (e.target.closest("button:not(.fold-head)")) return; const open = card.classList.contains("card-folded"); foldAnim(card, open, () => set(open)); };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } });
+    card.classList.toggle("card-folded", dayFolds.has(id));
+    head.setAttribute("aria-expanded", String(!dayFolds.has(id)));
+  }
+})();
 
 let completedOpen = false;
 try { completedOpen = localStorage.getItem("arpPlanner.completedOpen") === "1"; } catch {}
@@ -447,13 +528,17 @@ function addCompleted(ul, rows) {
   b.appendChild(el("span", "section-chevron", "▾"));
   b.setAttribute("aria-expanded", String(completedOpen));
   b.addEventListener("click", () => {
-    completedOpen = !completedOpen;
-    try { localStorage.setItem("arpPlanner.completedOpen", completedOpen ? "1" : "0"); } catch {}
-    render();
+    const apply = () => {
+      completedOpen = !completedOpen;
+      try { localStorage.setItem("arpPlanner.completedOpen", completedOpen ? "1" : "0"); } catch {}
+      render();
+      if (completedOpen) popIn(secRows("completed"));
+    };
+    if (completedOpen) popOut(secRows("completed"), apply); else apply();
   });
   li.appendChild(b);
   ul.appendChild(li);
-  if (completedOpen) rows.forEach(t => ul.appendChild(taskRow(t, false)));
+  if (completedOpen) rows.forEach(t => { const r = taskRow(t, false); r.dataset.sec = "completed"; ul.appendChild(r); });
 }
 
 let dayEnergy = null;
@@ -518,17 +603,18 @@ function renderFreeTimer() {
   const fxNote = $("chaos-fx-note"), mins = u => Math.max(1, Math.ceil((u - Date.now()) / 60000));
   const fxText = fx.win ? `🏆 Victory glow · ${mins(fx.win)} min` : fx.faint ? `😵‍💫 Still a little dizzy · ${mins(fx.faint)} min` : "";
   const mindText = fx.mindful ? `🧘 Mindful · ${mins(fx.mindful)} min` : "";
-  fxNote.textContent = [fxText, mindText].filter(Boolean).join("  ");
-  fxNote.hidden = ft.past || !fxNote.textContent;
+  const fxAll = [fxText, mindText].filter(Boolean).join("  ");
+  fxNote.hidden = ft.past || !fxAll;
+  if (!fxNote.hidden) setTapNote(fxNote, (fx.win ? "🏆" : fx.faint ? "😵‍💫" : "") + (fx.mindful ? "🧘" : ""), fxAll);
   const note = $("chaos-note");
   note.hidden = !(chaos.boost > 1 && !ft.past);
-  if (!note.hidden) note.textContent = `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`;
+  if (!note.hidden) setTapNote(note, "⚡", `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`);
   $("chaos-flask").closest(".meter").title = "How much of your free time the day uses up" + (chaos.work ? ` (work counts about ${chaos.work}%)` : "");
   const joyNote = $("chaos-joy-note");
   joyNote.hidden = ft.past || !chaos.joy.minutes;
-  if (!joyNote.hidden) joyNote.textContent = joyDone.minutes
+  if (!joyNote.hidden) setTapNote(joyNote, "🌈", joyDone.minutes
     ? `🌈 ${formatMinutes(joyDone.minutes)} of joy is calming the chaos` + (chaos.joy.minutes >= 30 ? " (it can't boil over today) 💖" : " 💖")
-    : `🌈 ${formatMinutes(chaos.joy.minutes)} of joy planned. Do it and the vial blooms 🌸`;
+    : `🌈 ${formatMinutes(chaos.joy.minutes)} of joy planned. Do it and the vial blooms 🌸`);
 
   // Endless-task alert: no free time left at all (or barely any).
   const warn = $("overload");
@@ -606,6 +692,30 @@ function renderChaosFlask(realPct, joy = 0) {
     b.style.animationDelay = `${-Math.random() * dur}s, ${-Math.random()}s`;
     box.appendChild(b);
   }
+}
+
+// The little notes under the chaos vial show just their emoji; a tap shows the words (tap again to hide).
+function setTapNote(n, emoji, text) {
+  if (!n.dataset.tap) {
+    n.dataset.tap = "1";
+    n.classList.add("tap-note");
+    n.setAttribute("role", "button");
+    n.tabIndex = 0;
+    const flip = () => {
+      n.classList.toggle("open");
+      n.textContent = n.classList.contains("open") ? n.dataset.full : n.dataset.emoji;
+      clearTimeout(n._t);
+      if (n.classList.contains("open")) n._t = setTimeout(() => { n.classList.remove("open"); n.textContent = n.dataset.emoji; }, 9000);
+    };
+    n.addEventListener("click", flip);
+    n.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+  }
+  n.dataset.full = text;
+  n.dataset.emoji = emoji;
+  n.title = text;
+  n.setAttribute("aria-label", text);
+  const show = n.classList.contains("open") ? text : emoji;
+  if (n.textContent !== show) n.textContent = show;
 }
 
 // The face under the chaos vial: an emoji, or Ori himself after an adventure win.
@@ -707,7 +817,7 @@ function pokeDone() {
   flask.classList.remove("glimmer");
   void flask.offsetWidth;
   flask.classList.add("glimmer");
-  if (!calmMode() && doneState.pct >= 100 && n >= 6) blessFlask();
+  if (!calmMode() && doneState.pct >= 100) blessFlask();          // full: one tap does it
 }
 // While she taps out a song: angel wings sprout from the vial and the screen's edges glow gold.
 let songTimer = null;
@@ -775,6 +885,53 @@ function blessFlask() {
   showToast("😇 Every single thing done. You're glowing. ✨");
 }
 $("done-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeDone(); });
+
+// 💖 Everything on today's list done: a big love note from Logan, and the whole app bursts like
+// the Order vial does (once a day).
+function maybeCelebrateAllDone() {
+  if (celebrating) return setTimeout(maybeCelebrateAllDone, 300);         // let the animal finish first
+  const day = todayKey();
+  const items = planDay(day).list.filter(t => !t.deleted && !isWorkShift(t));
+  if (!items.length || items.some(t => !t.done)) return;
+  try { if (localStorage.getItem("arpPlanner.allDone") === day) return; localStorage.setItem("arpPlanner.allDone", day); } catch {}
+  celebrateAllDone();
+}
+function burstFrom(x, y, count, bits, spread = 380) {
+  for (let i = 0; i < count; i++) {
+    const b = document.createElement("span");
+    b.className = "bless-bit";
+    b.textContent = bits[i % bits.length];
+    b.style.left = `${x}px`;
+    b.style.top = `${y}px`;
+    b.style.fontSize = `${14 + Math.random() * 18}px`;
+    document.body.appendChild(b);
+    const dx = (Math.random() - .5) * spread, up = 120 + Math.random() * 260, dur = 2400 + Math.random() * 1600;
+    b.animate([{ transform: "translate(-50%, 0) scale(.4)", opacity: 0 },
+      { transform: `translate(calc(-50% + ${dx * .5}px), ${-up}px) scale(1.15)`, opacity: 1, offset: .35 },
+      { transform: `translate(calc(-50% + ${dx}px), ${innerHeight * .6 - y + Math.random() * 220}px) rotate(${Math.random() * 140 - 70}deg) scale(.9)`, opacity: 0 }],
+      { duration: dur, easing: "cubic-bezier(.2,.7,.4,1)" }).onfinish = () => b.remove();
+  }
+}
+function celebrateAllDone() {
+  const pop = el("div", "love-pop");
+  pop.setAttribute("role", "alert");
+  pop.append(el("div", "love-text", "GOOD JOB ARP,  LOGAN LOVES YOOOOU!!! ❤️ ❤️ ❤️"), el("div", "love-sub", "Tap to close"));
+  const close = () => { pop.classList.add("leaving"); setTimeout(() => pop.remove(), 450); };
+  pop.addEventListener("click", close);
+  document.body.appendChild(pop);
+  setTimeout(close, 7000);
+  if (calmMode()) return;                                   // calm mode: the note, no fireworks
+  if (typeof playBlessing === "function") playBlessing();
+  buzz([30, 60, 30, 60, 60, 120, 120]);
+  const flash = el("div", "love-flash");
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 1800);
+  document.body.classList.add("love-burst");
+  setTimeout(() => document.body.classList.remove("love-burst"), 1400);
+  const hearts = ["❤️", "💖", "✨", "💛", "⭐", "💕", "🪶", "🤍"];
+  if (view === "day") { try { blessFlask(); } catch {} }
+  for (let k = 0; k < 7; k++) setTimeout(() => burstFrom(innerWidth * (.1 + Math.random() * .8), innerHeight * (.2 + Math.random() * .6), 22, hearts, 460), k * 220);
+}
 
 // ---------- 😇 the angel (everything done today) ----------
 const ANGEL_LINES = ["Good job! 💛", "You did ALL of it! ✨", "So proud of you, Ariel 🥹", "Look at you go! 🌟", "Every. Single. Task. 👑",
@@ -1393,11 +1550,25 @@ function recoveryCard(rec) {
   return li;
 }
 
-function sectionLabel(ul, text, cls) {
+// A heading in the Day list. With a count, it folds its section (returns true when folded).
+function sectionLabel(ul, text, cls, count) {
   const li = document.createElement("li");
   li.className = "section-label " + cls;
   li.textContent = text;
   ul.appendChild(li);
+  if (count === undefined || !cls) return false;
+  const folded = dayFolds.has(cls);
+  li.classList.add("foldable");
+  li.classList.toggle("folded", folded);
+  li.dataset.sec = cls;
+  if (folded) li.appendChild(el("span", "fold-count", ` · ${count}`));
+  li.appendChild(el("span", "section-chevron", "▾"));
+  li.setAttribute("role", "button");
+  li.tabIndex = 0;
+  li.setAttribute("aria-expanded", String(!folded));
+  li.addEventListener("click", () => foldDaySection(cls));
+  li.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); foldDaySection(cls); } });
+  return folded;
 }
 
 function summaryText(day, timed, important, normal, chores, optional, choreMinutes) {
@@ -2252,7 +2423,7 @@ function makeFoldable(card, setOpen, startOpen) {
   chevron.className = "section-chevron";
   chevron.textContent = "▾";
   h.appendChild(chevron);
-  const toggle = () => setOpen(card, !card.classList.contains("open"));
+  const toggle = () => { const open = !card.classList.contains("open"); foldAnim(card, open, () => setOpen(card, open)); };
   h.addEventListener("click", toggle);
   h.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
   card.classList.toggle("open", startOpen);
@@ -2271,7 +2442,7 @@ function makeFoldable(card, setOpen, startOpen) {
     const view = $(bar.dataset.for);
     const cards = () => [...view.querySelectorAll(".section")];
     const setter = bar.dataset.for === "settings-view" ? (c, o) => setSectionOpen(c, o) : (c, o) => setHomeOpen(c, o);
-    const all = open => () => cards().forEach(c => setter(c, open));
+    const all = open => () => cards().forEach(c => { if (c.classList.contains("open") !== open) foldAnim(c, open, () => setter(c, open)); });
     const a = document.createElement("button"), b = document.createElement("button");
     a.className = b.className = "link-btn";
     a.textContent = "▸ Collapse all";
@@ -2293,7 +2464,7 @@ function makeFoldable(card, setOpen, startOpen) {
     chevron.className = "section-chevron";
     chevron.textContent = "▾";
     h.appendChild(chevron);
-    const toggle = () => setSectionOpen(card, !card.classList.contains("open"));
+    const toggle = () => { const open = !card.classList.contains("open"); foldAnim(card, open, () => setSectionOpen(card, open)); };
     h.addEventListener("click", toggle);
     h.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
     setSectionOpen(card, openSections.includes(sectionKey(card)));
@@ -2640,6 +2811,7 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
     if (old.minutesGuess && old.minutes !== task.minutes) task = { ...task, minutesGuess: false };
     if (task.rolledFrom && (old.date || null) !== (task.date || null)) task = { ...task, rolledFrom: null };
   }
+  if (by === "her" && task.done && !(old && old.done)) setTimeout(maybeCelebrateAllDone, 500);
   // ⏰ When she ticked it off, on her clock ("YYYY-MM-DDTHH:MM"). Kept for the current week only.
   if (task.done && !(old && old.done) && !task.doneAt) task = { ...task, doneAt: localStamp() };
   if (!task.done && task.doneAt) task = { ...task, doneAt: null };
@@ -2717,6 +2889,8 @@ $("tab-joy").addEventListener("click", () => showView("joy"));
 $("tab-recap").addEventListener("click", () => { recapAnchor = todayKey(); showView("recap"); });
 const goDay = day => { currentDay = day; showOptional = false; render(); };
 $("prev-day").addEventListener("click", () => turnPage(-1));
+$("energy-pill").addEventListener("click", () => openSettingsSection("brain-settings"));
+$("work-pill").addEventListener("click", () => openSettingsSection("work-hours"));
 $("next-day").addEventListener("click", () => turnPage(1));
 
 // 📖 Turning the page: next day (swipe left / ›) or the day before (swipe right / ‹).

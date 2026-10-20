@@ -533,6 +533,8 @@ function renderWorkHours() {
   const box = $("work-hours");
   box.innerHTML = "";
   const hours = currentWorkHours();
+  const host = box;                       // the day-by-day hours go in their own box, grayed out
+  const manual = el("div", "wh-manual");  // when her calendar's work shifts are in charge
 
   for (let i = 0; i < 7; i++) {
     const dayName = new Date(2024, 0, 7 + i).toLocaleDateString(undefined, { weekday: "long" });
@@ -555,7 +557,7 @@ function renderWorkHours() {
     } else {
       row.appendChild(el("span", "wh-off", "Day off: heavy jobs and workouts go here"));
     }
-    box.appendChild(row);
+    manual.appendChild(row);
   }
 
   // Quick fill: copy the first workday's hours to every workday.
@@ -567,11 +569,17 @@ function renderWorkHours() {
       for (let i = 0; i < 7; i++) next[i] = hours[i] ? { ...first } : null;
       saveWorkHours(next);
     });
-    box.appendChild(copy);
+    manual.appendChild(copy);
   }
 
   // Work shifts from her calendar (e.g. "Ariel - Work Dayshift" in Google Calendar).
   const pref = workFromCal();
+  if (pref.enabled) {
+    manual.classList.add("disabled");
+    manual.inert = true;
+    host.appendChild(el("p", "wh-locked", "📆 Your calendar's work shifts are in charge, so these hours are switched off. Untick the box below to set them by hand."));
+  }
+  host.appendChild(manual);
   const wrap = el("div", "work-cal");
   const lab = el("label", "check");
   const cb = el("input");
