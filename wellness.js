@@ -634,10 +634,15 @@ function chaosFor(day, ft) {
   else if (ft.total <= 0) used = 1.2;
   else used = ft.planned / ft.total;
   // A full day (all free time used) reads about 90; going over pins it at 100.
-  let pct = Math.max(0, Math.min(100, Math.round(used * 90 * boost * (1 - 0.3 * joy.frac))));
+  // Work counts too (it's mostly brain load): about 2.8% per hour of shift, so a 9-hour day starts
+  // around 25% even with nothing else planned, a little more when her brain battery is low.
+  const shift = workHoursFor(day);
+  let work = shift ? (shiftMinutes(shift) / 60) * 2.8 : 0;
+  if (work) { try { if (batteriesFor(day).brain.pctLeft < 30) work *= 1.2; } catch {} }
+  let pct = Math.max(0, Math.min(100, Math.round((used * 90 + work) * boost * (1 - 0.3 * joy.frac))));
   if (joy.minutes >= 30) pct = Math.min(pct, 89);         // a day with fun in it never hits full chaos
   const [, emoji, label] = CHAOS_LEVELS.find(l => pct < l[0]);
-  return { pct, emoji, label, boost, reason, joy };
+  return { pct, emoji, label, boost, reason, joy, work: Math.round(work) };
 }
 
 // ---------- body fine, heart not ----------

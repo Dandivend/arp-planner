@@ -451,6 +451,7 @@ function renderFreeTimer() {
   const note = $("chaos-note");
   note.hidden = !(chaos.boost > 1 && !ft.past);
   if (!note.hidden) note.textContent = `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`;
+  $("chaos-flask").closest(".meter").title = "How much of your free time the day uses up" + (chaos.work ? ` (work counts about ${chaos.work}%)` : "");
   const joyNote = $("chaos-joy-note");
   joyNote.hidden = ft.past || !chaos.joy.minutes;
   if (!joyNote.hidden) joyNote.textContent = `🌈 ${formatMinutes(chaos.joy.minutes)} of joy is calming the chaos` +
@@ -2046,6 +2047,58 @@ function setSectionOpen(card, open) {
   openSections = open ? [...new Set([...openSections, key])] : openSections.filter(k => k !== key);
   try { localStorage.setItem(OPEN_SECTIONS_KEY, JSON.stringify(openSections)); } catch {}
 }
+
+// Home cards fold up too (fewer things pulling at her attention). Some start folded.
+const HOME_OPEN_KEY = "arpPlanner.openHome";
+const HOME_START_CLOSED = ["Free time together", "This week"];
+let homeOpen = {};
+try { homeOpen = JSON.parse(localStorage.getItem(HOME_OPEN_KEY)) || {}; } catch {}
+function setHomeOpen(card, open) {
+  card.classList.toggle("open", open);
+  card.querySelector(":scope > h3").setAttribute("aria-expanded", String(open));
+  homeOpen[sectionKey(card)] = open;
+  try { localStorage.setItem(HOME_OPEN_KEY, JSON.stringify(homeOpen)); } catch {}
+}
+function makeFoldable(card, setOpen, startOpen) {
+  const h = card.querySelector(":scope > h3");
+  if (!h || card.classList.contains("section")) return;
+  card.classList.add("section");
+  h.classList.add("section-head");
+  h.setAttribute("role", "button");
+  h.tabIndex = 0;
+  const chevron = document.createElement("span");
+  chevron.className = "section-chevron";
+  chevron.textContent = "▾";
+  h.appendChild(chevron);
+  const toggle = () => setOpen(card, !card.classList.contains("open"));
+  h.addEventListener("click", toggle);
+  h.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+  card.classList.toggle("open", startOpen);
+  h.setAttribute("aria-expanded", String(startOpen));
+}
+(function setupHomeSections() {
+  for (const card of document.querySelectorAll("#home-view .home-card")) {
+    if (!card.querySelector(":scope > h3")) continue;            // (the Today card stays open)
+    const key = sectionKey(card);
+    makeFoldable(card, setHomeOpen, key in homeOpen ? homeOpen[key] : !HOME_START_CLOSED.includes(key));
+  }
+})();
+// "Collapse all / Expand all" for a page with folding cards.
+(function setupCollapseAll() {
+  for (const bar of document.querySelectorAll(".collapse-all")) {
+    const view = $(bar.dataset.for);
+    const cards = () => [...view.querySelectorAll(".section")];
+    const setter = bar.dataset.for === "settings-view" ? (c, o) => setSectionOpen(c, o) : (c, o) => setHomeOpen(c, o);
+    const all = open => () => cards().forEach(c => setter(c, open));
+    const a = document.createElement("button"), b = document.createElement("button");
+    a.className = b.className = "link-btn";
+    a.textContent = "▸ Collapse all";
+    b.textContent = "▾ Expand all";
+    a.addEventListener("click", all(false));
+    b.addEventListener("click", all(true));
+    bar.append(a, b);
+  }
+})();
 
 (function setupSettingsSections() {
   for (const card of document.querySelectorAll("#settings-view > .fit-card")) {

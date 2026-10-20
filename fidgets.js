@@ -175,6 +175,19 @@ function renderFidgets() {
   }
   box.appendChild(prefs);
 
+  // ---------- calm timer ----------
+  const calm = el("div", "fidget-card");
+  calm.appendChild(el("h3", "", "🫁 Calm timer"));
+  calm.appendChild(el("p", "hint-small", "Permission to breathe. Pick a length: it keeps the screen on, and can chime and show a notice on your lock screen when it's done."));
+  const row = el("div", "calm-times");
+  for (const m of [3, 5, 10, 15, 20]) {
+    const b = el("button", "g-btn", `${m} min`);
+    b.addEventListener("click", () => openBreather("calm", m));
+    row.appendChild(b);
+  }
+  calm.appendChild(row);
+  box.appendChild(calm);
+
   // ---------- zen garden ----------
   const zen = el("div", "fidget-card");
   zen.appendChild(el("h3", "", "🏝️ Zen garden"));

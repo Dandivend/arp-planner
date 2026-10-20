@@ -1835,3 +1835,34 @@ body.in-heaven main { padding-bottom: 110px; }
 body.demon-takeover #season-fx, body.demon-takeover #molly-peek { opacity: 0; transition: opacity .25s; }
 #season-fx, #molly-peek { transition: opacity 1.4s ease-out; }
 @media (prefers-reduced-motion: reduce) { #golden-aura.on, .d-eyes, .vial-demon, .done-wings .dw { animation: none !important; } }
+
+/* Folding cards on Home (same look as Settings) + "Collapse all / Expand all" */
+#home-view .home-card.section { padding-top: 0; padding-bottom: 0; }
+#home-view .section-head { display: flex; align-items: center; gap: 8px; margin: 0; padding: 12px 2px; cursor: pointer; user-select: none; border-radius: 10px; }
+#home-view .section-head:hover { color: var(--accent); }
+#home-view .home-card.section.open { padding-bottom: 14px; }
+#home-view .home-card.section.open .section-chevron { transform: rotate(180deg); color: var(--accent); }
+#home-view .home-card.section:not(.open) > :not(.section-head) { display: none !important; }
+.collapse-all { display: flex; gap: 16px; justify-content: flex-end; margin: -2px 0 8px; font-size: 14px; }
+
+/* 🫁 Calm timer */
+.breather-dialog { width: min(460px, 94vw); padding: 18px 20px 16px; }
+.breath-text { color: var(--muted); margin: 6px 0 10px; }
+.breath-stage { position: relative; display: grid; place-items: center; height: 210px; }
+.breath-orb { position: absolute; width: 112px; height: 112px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 70%, transparent) 0 52%, color-mix(in srgb, var(--accent) 30%, transparent) 64%, transparent 72%);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: breathe 10s ease-in-out infinite; }
+.breath-stage.still .breath-orb { animation-play-state: paused; }
+@keyframes breathe { 0% { transform: scale(.8); } 40% { transform: scale(1.55); } 50% { transform: scale(1.55); } 100% { transform: scale(.8); } }
+.breath-ring { position: relative; z-index: 1; }
+.breath-word { position: absolute; bottom: 4px; font-weight: 700; color: var(--muted); letter-spacing: .04em; }
+.breath-opts { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 15px; }
+.breath-offer { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 80; width: min(440px, 92vw); padding: 14px 16px;
+  border-radius: 16px; background: var(--card); border: 1px solid var(--accent); box-shadow: 0 14px 40px rgba(0, 0, 0, .45), 0 0 24px color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: adv-pop .4s ease-out; }
+.breath-offer-text { font-weight: 700; }
+.breath-offer-btns { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+@media screen and (max-width: 600px) { .breath-offer { bottom: calc(80px + env(safe-area-inset-bottom)); } }
+.calm-times { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (prefers-reduced-motion: reduce) { .breath-orb { animation: none; } }

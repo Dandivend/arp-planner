@@ -401,7 +401,14 @@ const PhoneMS = {
     if (out !== (t.notes || "")) { t.notes = out; touch(t); }
     if ((await todoHash(t)) !== m.hash) {
       const changes = toDoChanges(t, todo);
-      if (todo.recurrence && dueValue(t) !== dueDay(todo)) { m.keepDate = t.date ?? null; m.dueSeen = dueDay(todo); }   // moved here only
+      const moved = todo.recurrence && dueValue(t) !== dueDay(todo);
+      // A repeating to-do she moved (not an old planner-only move she hasn't touched since):
+      // move it in To Do too, following Microsoft's split (see moveRepeating).
+      if (moved && dueValue(t) && !(m.keepDate !== undefined && m.keepDate === (t.date ?? null) && m.dueSeen === dueDay(todo))) {
+        const live = await this.moveRepeating(t, todo, listId, changes, stats, taskUrl);
+        if (live) { todo = live; m.updated = todo.lastModifiedDateTime; m.hash = await todoHash(t); m.closed = false; return todo; }
+      }
+      if (moved) { m.keepDate = t.date ?? null; m.dueSeen = dueDay(todo); }   // moved here only (couldn't move it there)
       if (Object.keys(changes).length) {
         const res = await this.request("PATCH", taskUrl(listId, todo.id), changes);
         todo = (res && Object.keys(res).length) ? res : todo;
@@ -415,6 +422,33 @@ const PhoneMS = {
       stats.updatedHere++;
     }
     m.closed = !!t.done && todo.status === "completed";
+    return todo;
+  },
+
+  // Moving one repeating to-do. When an app changes a repeating to-do's date, Microsoft splits it:
+  // the moved occurrence becomes a one-off at the new date, and the original carries the series on
+  // from its next date. So: make the change, then re-attach this task to the moved one-off (steps
+  // matched by name, so her ticks carry over). The series' next one comes in on its own next sync,
+  // on its own date: one task this week, one next week, never two on the same day.
+  async moveRepeating(t, todo, listId, changes, stats, taskUrl) {
+    const m = t.external.microsoft, newDay = dueValue(t);
+    const res = await this.request("PATCH", taskUrl(listId, todo.id), { ...changes, dueDateTime: taskToTodo(t).dueDateTime });
+    stats.updatedThere++;
+    const title = (res && res.title) || todo.title || "";
+    let found = [];
+    for (const query of [{ $filter: `title eq '${title.replace(/'/g, "''")}'`, $expand: "checklistItems" }, { $filter: `title eq '${title.replace(/'/g, "''")}'` }]) {
+      try { found = (await this.request("GET", taskUrl(listId), null, query)).value || []; break; } catch (e) { if (!e.status || e.status >= 500) throw e; }
+    }
+    const copy = found.find(x => x.id !== todo.id && x.status !== "completed" && dueDay(x) === newDay);
+    if (!copy) return null;
+    m.taskId = copy.id;
+    delete m.keepDate; delete m.dueSeen;
+    if (copy.checklistItems && t.steps && t.steps.length) {
+      const byName = new Map(copy.checklistItems.map(i => [(i.displayName || "").trim().toLowerCase(), i]));
+      for (const s of t.steps) { const i = byName.get((s.title || "").trim().toLowerCase()); if (i) s.id = i.id; }
+      m.stepsBase = Object.fromEntries(copy.checklistItems.map(i => [i.id, !!i.isChecked]));
+    }
+    return copy;
   },
 
   // Two-way sync of `tasks` (changed in place), like mstodo.MSTodo.sync. Returns the summary.
@@ -509,8 +543,8 @@ const PhoneMS = {
             if (t) {
               t.external = { ...(t.external || {}), microsoft: { listId, taskId: todo.id, updated: todo.lastModifiedDateTime, imported: false, hash: null } };
               linked.set(todo.id, t);
-              await this.settle(t, todo, listId, stats, touch, taskUrl, false);
-              await this.syncSteps(t, todo, taskUrl(listId, todo.id), stats, touch);
+              const live = (await this.settle(t, todo, listId, stats, touch, taskUrl, false)) || todo;
+              await this.syncSteps(t, live, taskUrl(listId, live.id), stats, touch);
               continue;
             }
           }
@@ -524,8 +558,8 @@ const PhoneMS = {
           continue;
         }
         if (t.deleted || (own && !wanted(t))) continue;   // hidden here (her list) or handled in step 3 (ARP list)
-        await this.settle(t, todo, listId, stats, touch, taskUrl, todo.lastModifiedDateTime !== link(t).updated);
-        await this.syncSteps(t, todo, taskUrl(listId, todo.id), stats, touch);
+        const live = (await this.settle(t, todo, listId, stats, touch, taskUrl, todo.lastModifiedDateTime !== link(t).updated)) || todo;
+        await this.syncSteps(t, live, taskUrl(listId, live.id), stats, touch);
       }
       // Linked to-dos that weren't in the open list: finished or deleted in To Do.
       for (const [taskId, t] of linked) {
