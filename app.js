@@ -446,7 +446,7 @@ function renderFreeTimer() {
     }
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
-  $("chaos-emoji").textContent = ft.past ? "😴" : chaos.emoji;
+  $("chaos-emoji").textContent = Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : chaos.emoji;
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const note = $("chaos-note");
   note.hidden = !(chaos.boost > 1 && !ft.past);
@@ -589,12 +589,47 @@ function pokeDone() {
   void flask.offsetWidth;
   flask.classList.add("poked");
   buzz(Math.round(6 + power * 16));
-  if (typeof playChime === "function") playChime(n);
+  const tune = typeof playSongNote === "function" ? playSongNote() : null;
+  if (tune) showSongPlaying(tune);
   flask.classList.remove("glimmer");
   void flask.offsetWidth;
   flask.classList.add("glimmer");
   if (!calmMode() && doneState.pct >= 100 && n >= 6) blessFlask();
 }
+// While she taps out a song: angel wings sprout from the vial and the screen's edges glow gold.
+let songTimer = null;
+function showSongPlaying(tune) {
+  const flask = $("done-flask");
+  if (!flask.querySelector(".done-wings")) {
+    const w = document.createElement("div");
+    w.className = "done-wings";
+    const wing = side => `<svg class="dw ${side}" viewBox="0 0 60 70" aria-hidden="true"><path d="M58 30 C40 2 6 0 2 18 C14 16 20 22 8 30 C22 30 26 36 12 44 C26 44 32 50 22 58 C40 58 54 48 58 30 Z"
+      fill="#fffdf6" stroke="#f0d68f" stroke-width="1.6"/><path d="M50 30 C38 14 22 10 12 16 M50 34 C38 28 26 30 18 36 M50 38 C40 40 32 46 28 52" stroke="#eadfbf" stroke-width="1.2" fill="none"/></svg>`;
+    w.innerHTML = wing("l") + wing("r");
+    flask.appendChild(w);
+  }
+  let aura = $("golden-aura");
+  if (!aura) {
+    aura = document.createElement("div");
+    aura.id = "golden-aura";
+    aura.setAttribute("aria-hidden", "true");
+    document.body.appendChild(aura);
+  }
+  let label = flask.querySelector(".song-name");
+  if (!label) { label = document.createElement("div"); label.className = "song-name"; flask.appendChild(label); }
+  label.textContent = `🎵 ${tune.name}`;
+  flask.classList.add("singing");
+  aura.classList.add("on");
+  const note = document.createElement("span");                // a little note floats up
+  note.className = "song-note";
+  note.textContent = ["♪", "♫", "♩", "♬"][tune.at % 4];
+  note.style.left = `${20 + Math.random() * 60}%`;
+  flask.appendChild(note);
+  setTimeout(() => note.remove(), 1600);
+  clearTimeout(songTimer);
+  songTimer = setTimeout(() => { flask.classList.remove("singing"); aura.classList.remove("on"); }, 2200);
+}
+
 function blessFlask() {
   const flask = $("done-flask");
   doneState.blessing = true;
@@ -676,7 +711,7 @@ function setHeaven(on) {
 // ---------- poking the vial ----------
 // Tap it and it shakes; tap faster and it goes wilder, and the goop flashes up to the next chaos
 // colour for a few seconds. On a chaotic day (75%+), enough fast taps make it erupt like a volcano.
-const flaskPoke = { taps: [], until: 0, pct: 0, erupting: false, t: null };
+const flaskPoke = { taps: [], until: 0, pct: 0, erupting: false, t: null, demonUntil: 0 };
 let lastFlask = { pct: 0, joy: 0 };
 const buzz = ms => { try { if (fidgetPrefs().buzz && navigator.vibrate) navigator.vibrate(ms); } catch {} };
 
@@ -704,6 +739,46 @@ function pokeFlask() {
   flaskPoke.t = setTimeout(() => renderChaosFlask(lastFlask.pct, lastFlask.joy), 3050);
 }
 
+// After the eruption: a demon pops out of the vial cackling, the chaos face turns 😈 for two seconds,
+// and glowing demon eyes take over the background before it all fades back to her theme.
+function demonTakeover() {
+  const flask = $("chaos-flask");
+  flaskPoke.demonUntil = Date.now() + 2000;
+  $("chaos-emoji").textContent = "😈";
+  setTimeout(() => { if (Date.now() >= flaskPoke.demonUntil) render(); }, 2050);
+  const pop = document.createElement("div");
+  pop.className = "vial-demon";
+  pop.innerHTML = makeImp().innerHTML;                        // the same little demon as the fire floor
+  const say = pop.querySelector(".imp-say");
+  if (say) { say.textContent = "Mwahahaha!"; say.classList.add("pop"); }
+  const r = flask.getBoundingClientRect();
+  Object.assign(pop.style, { left: `${r.left + r.width / 2 - 36}px`, top: `${r.top - 30}px` });
+  document.body.appendChild(pop);
+  setTimeout(() => pop.classList.add("leaving"), 2000);
+  setTimeout(() => pop.remove(), 2600);
+  if (typeof playCackle === "function") playCackle();
+  let eyes = $("demon-eyes");
+  if (!eyes) {
+    eyes = document.createElement("div");
+    eyes.id = "demon-eyes";
+    eyes.setAttribute("aria-hidden", "true");
+    document.body.prepend(eyes);
+  }
+  eyes.innerHTML = "";
+  for (let i = 0; i < 26; i++) {
+    const e = document.createElement("span");
+    e.className = "d-eyes";
+    e.style.left = `${Math.random() * 94}vw`;
+    e.style.top = `${Math.random() * 92}vh`;
+    e.style.setProperty("--s", (.6 + Math.random() * 1.1).toFixed(2));
+    e.style.animationDelay = `${Math.random() * 1.4}s, ${Math.random() * .6}s`;
+    eyes.appendChild(e);
+  }
+  document.body.classList.add("demon-takeover");
+  eyes.classList.add("on");
+  setTimeout(() => { eyes.classList.remove("on"); document.body.classList.remove("demon-takeover"); }, 2000);
+}
+
 function eruptFlask() {
   const flask = $("chaos-flask");
   flaskPoke.erupting = true;
@@ -712,6 +787,7 @@ function eruptFlask() {
   flask.classList.add("erupting");
   buzz([40, 30, 40, 30, 60, 30, 90, 40, 250]);
   if (typeof playEruption === "function") playEruption();
+  setTimeout(demonTakeover, 900);
   const colour = getComputedStyle($("chaos-liquid")).getPropertyValue("--liq") || "hsl(10, 78%, 50%)";
   setTimeout(() => {
     flask.classList.remove("erupting");
@@ -963,7 +1039,10 @@ function makeImp() {
   let i = 0;                                                  // starts with "I win!!! I win!!!"
   const talk = () => { say.textContent = IMP_LINES[i++ % IMP_LINES.length]; say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop"); };
   talk();
-  setInterval(() => { if (!box.closest("[hidden]")) talk(); }, 3200);
+  const tick = setInterval(() => {
+    if (!box.isConnected) { clearInterval(tick); return; }      // (a copy used for the vial demon never joins the page)
+    if (!box.closest("[hidden]")) talk();
+  }, 3200);
   return box;
 }
 
