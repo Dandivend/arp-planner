@@ -231,12 +231,18 @@
         <h2 id="month-title" class="month-title"></h2>
         <button id="next-month" class="nav-btn">&#8250;</button>
         <button id="this-month" class="nav-btn today">This month</button>
+        <div id="cal-modes" class="sort-toggle cal-modes" role="group" aria-label="Calendar view">
+          <button class="sort-btn" data-cal="month">🗓️ Month</button>
+          <button class="sort-btn" data-cal="week">📅 Week</button>
+          <button class="sort-btn" data-cal="work">💼 Work week</button>
+        </div>
         <button id="work-toggle" class="nav-btn work-toggle" title="Color workdays blue and days off green">💼 Work days</button>
         <button class="nav-btn print-btn" data-print title="Print this month, or save it as a PDF">🖨️ Print / PDF</button>
       </div>
       <div id="month-filters" class="month-filters" role="group" aria-label="Show in the calendar"></div>
       <p class="hint">Click a day to see it and plan it.</p>
       <div class="month-grid" id="month-grid"></div>
+      <div id="week-board" class="week-board" hidden></div>
       <!-- What the colours and icons mean: tucked behind a button -->
       <button id="legend-btn" class="legend-btn" aria-expanded="false" aria-controls="legend-box">🗺️ Legend <span class="section-chevron">▾</span></button>
       <div id="legend-box" class="legend-box" hidden>

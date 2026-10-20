@@ -608,6 +608,15 @@ const emojiOf = t => t.emoji || guessEmoji(t);
 const isLogan = t => /\blogan\b/i.test(t.title || "");
 const isJoy = t => kindOf(t) === "joy" || /\bwith logan\b/i.test(t.title || "");
 const JOY_FULL = 120;                // 2 hours of joy = the full buffer
+// The joy she's actually had (ticked off, or a joyful appointment that's over): this is what
+// brings out the flowers and hearts on the chaos vial.
+function joyDoneFor(day) {
+  const tk = todayKey(), n = nowLocal(), now = n.getHours() * 60 + n.getMinutes();
+  const over = t => kindOf(t) === "event" && t.time && (day < tk || (day === tk && toMin(t.time) + (t.minutes || 60) <= now));
+  const list = joyFor(day).list.filter(t => t.done || over(t));
+  const minutes = list.reduce((s, t) => s + (t.minutes || 30), 0);
+  return { list, minutes, frac: Math.min(1, minutes / JOY_FULL) };
+}
 function joyFor(day) {
   const list = tasksFor(day).filter(t => !t.deleted && isJoy(t) && !isWorkShift(t));
   const minutes = list.reduce((s, t) => s + (t.minutes || 30), 0);

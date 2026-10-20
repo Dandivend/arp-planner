@@ -498,7 +498,8 @@ function renderFreeTimer() {
   // Chaos meter: how much of her free time the day eats, faster when she's worn out.
   const chaos = chaosFor(day, ft);
   const shown = ft.past ? 0 : chaos.pct;
-  renderChaosFlask(shown, ft.past ? 0 : chaos.joy.frac);
+  const joyDone = joyDoneFor(day);
+  renderChaosFlask(shown, ft.past ? 0 : joyDone.frac);
   renderDoneFlask(day, p);
   renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
   renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
@@ -525,8 +526,9 @@ function renderFreeTimer() {
   $("chaos-flask").closest(".meter").title = "How much of your free time the day uses up" + (chaos.work ? ` (work counts about ${chaos.work}%)` : "");
   const joyNote = $("chaos-joy-note");
   joyNote.hidden = ft.past || !chaos.joy.minutes;
-  if (!joyNote.hidden) joyNote.textContent = `🌈 ${formatMinutes(chaos.joy.minutes)} of joy is calming the chaos` +
-    (chaos.joy.minutes >= 30 ? " (it can't boil over today) 💖" : " 💖");
+  if (!joyNote.hidden) joyNote.textContent = joyDone.minutes
+    ? `🌈 ${formatMinutes(joyDone.minutes)} of joy is calming the chaos` + (chaos.joy.minutes >= 30 ? " (it can't boil over today) 💖" : " 💖")
+    : `🌈 ${formatMinutes(chaos.joy.minutes)} of joy planned. Do it and the vial blooms 🌸`;
 
   // Endless-task alert: no free time left at all (or barely any).
   const warn = $("overload");
@@ -1863,6 +1865,72 @@ function showToast(text, actionLabel, onAction) {
   showToast.t = setTimeout(() => (toast.hidden = true), 6000);
 }
 
+// ---------- 📅 week view (like a wall calendar's week: one tall column per day) ----------
+let calMode = "month";               // "month" | "week" | "work" (Mon–Fri)
+try { calMode = localStorage.getItem("arpPlanner.calMode") || "month"; } catch {}
+let weekCursor = weekStartOf(todayKey());
+const WEEK_COLORS = { event: "#3987e5", task: "#d95926", chore: "#199e70", workout: "#c98500", joy: "#d6609a", work: "#6b7bb8" };
+
+function renderWeekBoard() {
+  const board = $("week-board"), grid = $("month-grid");
+  for (const b of document.querySelectorAll("#cal-modes [data-cal]")) b.classList.toggle("active", b.dataset.cal === calMode);
+  $("this-month").textContent = calMode === "month" ? "This month" : "This week";
+  const week = calMode !== "month";
+  board.hidden = !week;
+  grid.hidden = week;
+  document.querySelector("#month-view > .hint").textContent = week
+    ? "Scroll sideways for more days. Tap a day's name to plan it, or a card to change it."
+    : "Click a day to see it and plan it.";
+  if (!week) return;
+
+  const tk = todayKey();
+  const days = calMode === "work" ? [1, 2, 3, 4, 5].map(i => addDays(weekCursor, i)) : [0, 1, 2, 3, 4, 5, 6].map(i => addDays(weekCursor, i));
+  const fmt = (k, o) => fromKey(k).toLocaleDateString(undefined, o);
+  $("month-title").textContent = `${fmt(days[0], { month: "short", day: "numeric" })} – ${fmt(days[days.length - 1], { month: "short", day: "numeric", year: "numeric" })}`;
+  board.innerHTML = "";
+  board.style.setProperty("--cols", days.length);
+  let todayCol = null;
+  for (const key of days) {
+    const col = el("div", "week-col" + (key === tk ? " today" : "") + (key < tk ? " past" : ""));
+    const head = el("button", "week-head");
+    head.type = "button";
+    head.append(el("span", "week-dow", fmt(key, { weekday: "short" })), el("span", "week-num", String(fromKey(key).getDate())));
+    const feel = feelingOf(moods[key]);
+    if (feel) head.appendChild(el("span", "week-mood", feel.emoji));
+    head.title = "See and plan " + fmt(key, { weekday: "long", month: "long", day: "numeric" });
+    head.addEventListener("click", () => openDayPeek(key));
+    col.appendChild(head);
+    const shift = workHoursFor(key), hol = holidayOn(key);
+    const tags = el("div", "week-tags");
+    tags.appendChild(el("span", "week-tag " + (shift ? "work" : "off"), shift ? `💼 ${shortTime(shift.start)}–${shortTime(shift.end)}` : "🌴 Day off"));
+    if (hol) tags.appendChild(el("span", "week-tag hol", `${hol.emoji} ${hol.name}`));
+    col.appendChild(tags);
+
+    const list = tasks.filter(t => !t.deleted && (t.dueDate ? t.dueDate === key : t.date === key) && !monthHidden.has(monthKind(t)))
+      .sort((a, b) => (!a.time !== !b.time ? (a.time ? -1 : 1) : byTime(a, b)));
+    const body = el("div", "week-items");
+    if (!list.length) body.appendChild(el("div", "week-empty", "Nothing planned ✨"));
+    for (const t of list) {
+      const card = el("button", "week-card" + (t.done ? " done" : "") + (t.dueDate ? " due" : ""));
+      card.type = "button";
+      card.style.setProperty("--kind", WEEK_COLORS[monthKind(t)] || WEEK_COLORS.task);
+      if (t.time || t.dueDate) card.appendChild(el("span", "week-time", t.dueDate ? "⏰ Due" : formatTime(t.time) + (t.minutes ? ` · ${formatMinutes(t.minutes)}` : "")));
+      card.appendChild(el("span", "week-title", `${emojiOf(t) || ""} ${t.title}`.trim()));
+      card.title = t.title;
+      card.addEventListener("click", () => openDialog(t));
+      body.appendChild(card);
+    }
+    col.appendChild(body);
+    board.appendChild(col);
+    if (key === tk) todayCol = col;
+  }
+  // Open on today's column when it's in view (phones show a few days at a time).
+  if (todayCol) requestAnimationFrame(() => {
+    if (todayCol.getBoundingClientRect().right <= board.getBoundingClientRect().right + 2) return;     // already in view
+    board.scrollLeft = Math.max(0, todayCol.getBoundingClientRect().left - board.firstChild.getBoundingClientRect().left - 8);
+  });
+}
+
 // ---------- month view ----------
 let showWorkDays = false;   // calendar "💼 Work days" toggle (remembered on this device)
 try { showWorkDays = localStorage.getItem("arpPlanner.showWork") === "1"; } catch {}
@@ -2057,6 +2125,7 @@ function renderMonth() {
   setFireFloor(level, level === 2
     ? `🔥 This month is on fire! ${parts}. Spread things out before you burn out.`
     : `🔥 Things are heating up: ${parts}. Leave some days lighter.`);
+  renderWeekBoard();
 
   const fitLegend = $("fit-legend");
   const cats = goalCats();
@@ -2684,9 +2753,19 @@ function turnPage(dir) {
   }, { passive: true });
 })();
 $("today-btn").addEventListener("click", () => goDay(todayKey()));
-$("prev-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() - 1); render(); });
-$("next-month").addEventListener("click", () => { monthCursor.setMonth(monthCursor.getMonth() + 1); render(); });
-$("this-month").addEventListener("click", () => { monthCursor = nowLocal(); monthCursor.setDate(1); render(); });
+$("prev-month").addEventListener("click", () => { if (calMode !== "month") weekCursor = addDays(weekCursor, -7); else monthCursor.setMonth(monthCursor.getMonth() - 1); render(); });
+$("next-month").addEventListener("click", () => { if (calMode !== "month") weekCursor = addDays(weekCursor, 7); else monthCursor.setMonth(monthCursor.getMonth() + 1); render(); });
+$("this-month").addEventListener("click", () => { weekCursor = weekStartOf(todayKey()); monthCursor = nowLocal(); monthCursor.setDate(1); render(); });
+for (const b of document.querySelectorAll("#cal-modes [data-cal]")) b.addEventListener("click", () => {
+  calMode = b.dataset.cal;
+  try { localStorage.setItem("arpPlanner.calMode", calMode); } catch {}
+  // Keep looking at the same stretch of time when switching.
+  if (calMode === "month") { monthCursor = fromKey(weekCursor < toKey(monthCursor) ? toKey(monthCursor) : weekCursor); monthCursor.setDate(1); }
+  else if (weekStartOf(todayKey()) < toKey(monthCursor) || weekStartOf(todayKey()) > toKey(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0)))
+    weekCursor = weekStartOf(toKey(monthCursor));
+  else weekCursor = weekStartOf(todayKey());
+  render();
+});
 $("sort-plan").addEventListener("click", () => setSort("plan"));
 $("sort-time").addEventListener("click", () => setSort("time"));
 $("add-task").addEventListener("click", () => openDialog(null));
