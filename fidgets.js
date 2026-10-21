@@ -167,22 +167,24 @@ const sandSound = {
 const fidgetFeel = (ms, sound, arg) => { buzz(ms); fidgetSound(sound, arg); };
 
 // 🧘 Fidget time: the seconds she's really playing here (touched in the last 15 seconds) or
-// breathing with the calm timer. Every 3 minutes of it makes the chaos vial glow a mindful teal
-// for an hour (just a look: the real chaos numbers don't change).
-const MINDFUL_AFTER = 180;
+// breathing with the calm timer. Each time she reaches her fidget goal (Fidgets → 🎯 Goal, 5 min
+// to start) the chaos vial glows a mindful teal for an hour and gets a 🍃 zen breeze for the day
+// (just looks: the real chaos numbers don't change).
 const FIDGET_TIME_KEY = "arpPlanner.fidgetTime";
+const FIDGET_GOALS = [3, 5, 10, 15, 20, 30];
+const fidgetGoal = () => Number(fidgetPrefs().goal) || 5;          // minutes
 let fidgetTouch = 0;
 function fidgetTime() {
-  const fresh = { day: todayKey(), sec: 0, toward: 0 };
+  const fresh = { day: todayKey(), sec: 0 };
   try { const f = JSON.parse(localStorage.getItem(FIDGET_TIME_KEY) || "null"); return f && f.day === fresh.day ? f : fresh; } catch { return fresh; }
 }
 function showFidgetMinutes() {
   const line = $("fidget-minutes");
   if (!line) return;
-  const f = fidgetTime(), m = Math.floor(f.sec / 60);
-  const mindful = typeof vialFx === "function" && vialFx().mindful;
-  line.textContent = `🧘 ${m ? `${m} min` : "Under a minute"} of fidget time today` +
-    (mindful ? " · your chaos vial is glowing teal 💙" : ` · ${Math.max(1, Math.ceil((MINDFUL_AFTER - (f.toward || 0)) / 60))} more min for a mindful glow`);
+  const f = fidgetTime(), m = Math.floor(f.sec / 60), g = fidgetGoal() * 60;
+  const reached = Math.floor(f.sec / g), left = Math.max(1, Math.ceil((g - (f.sec % g)) / 60));
+  line.textContent = `🧘 ${m ? `${m} min` : "Under a minute"} of fidget time today · 🎯 ${left} more min to ` +
+    (reached ? `your next goal (reached ${reached}× today 🍃)` : "your goal");
 }
 for (const ev of ["pointerdown", "pointermove", "keydown"]) addEventListener(ev, e => {
   if (e.target && e.target.closest && e.target.closest("#fidget-body")) fidgetTouch = Date.now();
@@ -193,14 +195,14 @@ setInterval(() => {
   if (!breathing && !playing) return;
   const f = fidgetTime();
   f.sec++;
-  if (!(typeof vialFx === "function" && vialFx().mindful)) f.toward = (f.toward || 0) + 1;
-  if (f.toward >= MINDFUL_AFTER && typeof setVialFx === "function") {
-    f.toward = 0;
-    setVialFx("mindful", 60);
-    showToast("🧘 Mindful moment! Your chaos vial glows teal for the next hour 💙");
-  }
+  const goalHit = f.sec % (fidgetGoal() * 60) === 0;
   try { localStorage.setItem(FIDGET_TIME_KEY, JSON.stringify(f)); } catch {}
-  if (f.sec % 5 === 0 || f.toward === 0) showFidgetMinutes();
+  if (goalHit) {
+    if (typeof setVialFx === "function") setVialFx("mindful", 60);
+    if (typeof addStatus === "function") addStatus("zen");
+    showToast("🍃 Fidget goal reached! Your chaos vial glows teal for an hour and gets a little zen breeze 💙");
+  }
+  if (f.sec % 5 === 0 || goalHit) showFidgetMinutes();
 }, 1000);
 
 function renderFidgets() {
@@ -219,6 +221,14 @@ function renderFidgets() {
     l.append(cb, el("span", "", label));
     prefs.appendChild(l);
   }
+  // 🎯 the fidget goal: how long counts as a mindful break
+  const goal = el("label", "fidget-goal");
+  goal.appendChild(el("span", "", "🎯 Fidget goal"));
+  const gs = el("select");
+  for (const m of FIDGET_GOALS) gs.add(new Option(`${m} min`, m, false, m === fidgetGoal()));
+  gs.addEventListener("change", () => { setFidgetPref("goal", Number(gs.value)); showFidgetMinutes(); });
+  goal.appendChild(gs);
+  prefs.appendChild(goal);
   box.appendChild(prefs);
   const minutes = el("p", "fidget-minutes", "");
   minutes.id = "fidget-minutes";
@@ -327,6 +337,143 @@ function renderFidgets() {
 
   toys.appendChild(board);
   box.appendChild(toys);
+
+  // ---------- 🦜 Flappy Molly ----------
+  const flap = el("div", "fidget-card");
+  flap.appendChild(el("h3", "", "🦜 Flappy Molly"));
+  flap.appendChild(el("p", "hint-small", "Tap to flap! Help Molly fly between the perches. She has opinions about the perches."));
+  const fc = el("canvas", "flappy-canvas");
+  fc.tabIndex = 0;
+  fc.setAttribute("aria-label", "Flappy Molly game. Tap or press space to flap.");
+  const score = el("div", "flappy-score");
+  flap.append(fc, score);
+  box.appendChild(flap);
+  setupFlappy(fc, score);
+}
+
+// 🦜 Flappy Molly: a tiny flappy-bird game starring Molly the grey parrot (red tail, very loud).
+function setupFlappy(canvas, info) {
+  const W = 320, H = 440, GROUND = 44, GAP = 150, PW = 54, SPEED = 135, GRAV = 1250, FLAP = -385, BX = 92, R = 13;
+  const ctx = canvas.getContext("2d");
+  let best = 0;
+  try { best = Number(localStorage.getItem("arpPlanner.flappyBest") || 0); } catch {}
+  let state = "ready", bird, pipes, score, spawn, last = 0, raf = 0, overAt = 0, wing = 0, clouds = [];
+  const reset = () => { bird = { y: H * .42, v: 0 }; pipes = []; score = 0; spawn = .6; };
+  reset();
+  for (let i = 0; i < 4; i++) clouds.push({ x: Math.random() * W, y: 30 + Math.random() * 160, s: .6 + Math.random() * .7 });
+  const showScore = () => { info.textContent = `Score ${score} · Best ${best}`; };
+  showScore();
+  const size = () => {
+    const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    if (!r.width) return;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.width * H / W * dpr);
+    ctx.setTransform(canvas.width / W, 0, 0, canvas.width / W, 0, 0);
+  };
+
+  const drawMolly = (y, v) => {
+    ctx.save();
+    ctx.translate(BX, y);
+    ctx.rotate(Math.max(-.5, Math.min(1.1, v / 600)));
+    ctx.fillStyle = "#d7263d";                                   // the famous red tail
+    ctx.beginPath(); ctx.moveTo(-10, 2); ctx.lineTo(-24, -4); ctx.lineTo(-25, 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#9aa1a9";                                   // grey body
+    ctx.beginPath(); ctx.ellipse(0, 0, 15, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#7c838b";                                   // flapping wing
+    ctx.save(); ctx.rotate(Math.sin(wing) * .6 - .2);
+    ctx.beginPath(); ctx.ellipse(-3, 2, 9, 5, -.3, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = "#eef0f2";                                   // pale face patch
+    ctx.beginPath(); ctx.arc(7, -4, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#111";                                      // eye
+    ctx.beginPath(); ctx.arc(8, -5, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#222";                                      // hooked beak
+    ctx.beginPath(); ctx.moveTo(12, -3); ctx.quadraticCurveTo(20, -2, 16, 5); ctx.lineTo(12, 2); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  };
+  const drawPerch = (x, top, bottom) => {
+    for (const [y0, y1, capY] of [[0, top, top - 12], [bottom, H - GROUND, bottom]]) {
+      ctx.fillStyle = "#8a5a35"; ctx.fillRect(x + 8, y0, PW - 16, y1 - y0);               // trunk
+      ctx.fillStyle = "#6f4627"; ctx.fillRect(x + 8, y0, 6, y1 - y0);
+      ctx.fillStyle = "#4caf50";                                                            // leafy cap
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, capY, PW, 12, 6) : ctx.rect(x, capY, PW, 12); ctx.fill();
+      ctx.fillStyle = "#3d8f40"; ctx.fillRect(x + 4, capY + 8, PW - 8, 3);
+    }
+  };
+  const draw = () => {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, "#8fd3ff"); sky.addColorStop(1, "#dff3ff");
+    ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(255,255,255,.9)";
+    for (const c of clouds) { ctx.beginPath(); ctx.ellipse(c.x, c.y, 26 * c.s, 11 * c.s, 0, 0, Math.PI * 2); ctx.ellipse(c.x + 16 * c.s, c.y - 6 * c.s, 16 * c.s, 10 * c.s, 0, 0, Math.PI * 2); ctx.fill(); }
+    for (const p of pipes) drawPerch(p.x, p.gap, p.gap + GAP);
+    ctx.fillStyle = "#7cc96b"; ctx.fillRect(0, H - GROUND, W, GROUND);                        // grass
+    ctx.fillStyle = "#5fae52"; for (let x = -((performance.now() / 8) % 16); x < W; x += 16) ctx.fillRect(x, H - GROUND, 8, 5);
+    drawMolly(bird.y, bird.v);
+    ctx.textAlign = "center";
+    if (state === "play") {
+      ctx.font = "900 40px system-ui, sans-serif"; ctx.lineWidth = 6; ctx.strokeStyle = "rgba(0,0,0,.35)";
+      ctx.strokeText(score, W / 2, 62); ctx.fillStyle = "#fff"; ctx.fillText(score, W / 2, 62);
+    } else {
+      ctx.fillStyle = "rgba(20,24,32,.55)"; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(40, 140, W - 80, 120, 16) : ctx.rect(40, 140, W - 80, 120); ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "800 24px system-ui, sans-serif";
+      ctx.fillText(state === "ready" ? "Tap to flap!" : "BURD! 🦜", W / 2, 185);
+      ctx.font = "600 15px system-ui, sans-serif";
+      ctx.fillText(state === "ready" ? "Molly is ready. Molly is always ready." : `Score ${score} · Best ${best}`, W / 2, 215);
+      if (state === "over") ctx.fillText("Tap to try again", W / 2, 240);
+    }
+  };
+  const die = () => {
+    state = "over";
+    overAt = Date.now();
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem("arpPlanner.flappyBest", String(best)); } catch {}
+      fidgetFeel([20, 40, 20], "fanfare");
+    } else fidgetFeel(40, "thock");
+    showScore();
+  };
+  const step = ts => {
+    if (typeof view !== "undefined" && view !== "fidget" || document.hidden || !canvas.isConnected) { raf = 0; return; }
+    const dt = Math.min(.033, (ts - (last || ts)) / 1000);
+    last = ts;
+    wing += dt * (state === "play" ? 18 : 8);
+    for (const c of clouds) { c.x -= dt * 12 * c.s; if (c.x < -50) { c.x = W + 40; c.y = 30 + Math.random() * 160; } }
+    if (state === "ready") bird.y = H * .42 + Math.sin(ts / 300) * 8;
+    if (state === "play") {
+      bird.v += GRAV * dt;
+      bird.y += bird.v * dt;
+      if (bird.y < R) { bird.y = R; bird.v = 0; }
+      spawn -= dt;
+      if (spawn <= 0) { spawn = 1.45; pipes.push({ x: W + 10, gap: 70 + Math.random() * (H - GROUND - GAP - 130), scored: false }); }
+      for (const p of pipes) {
+        p.x -= SPEED * dt;
+        if (!p.scored && p.x + PW < BX - R) { p.scored = true; score++; showScore(); fidgetSound("pop"); }
+        const inX = BX + R - 3 > p.x && BX - R + 3 < p.x + PW;
+        if (inX && (bird.y - R + 3 < p.gap || bird.y + R - 3 > p.gap + GAP)) die();
+      }
+      pipes = pipes.filter(p => p.x > -PW - 10);
+      if (bird.y + R >= H - GROUND) { bird.y = H - GROUND - R; die(); }
+    } else if (state === "over" && bird.y + R < H - GROUND) {
+      bird.v += GRAV * dt; bird.y = Math.min(H - GROUND - R, bird.y + bird.v * dt);          // tumble down
+    }
+    draw();
+    raf = requestAnimationFrame(step);
+  };
+  const run = () => { if (!raf) { last = 0; size(); raf = requestAnimationFrame(step); } };
+  const flap = () => {
+    if (state === "over") { if (Date.now() - overAt < 600) return; state = "ready"; reset(); showScore(); run(); return; }
+    if (state === "ready") { state = "play"; reset(); showScore(); }
+    bird.v = FLAP;
+    buzz(6);
+    fidgetSound("key");
+    run();
+  };
+  canvas.addEventListener("pointerdown", e => { e.preventDefault(); flap(); });
+  canvas.addEventListener("keydown", e => { if (e.key === " " || e.key === "ArrowUp" || e.key === "Enter") { e.preventDefault(); flap(); } });
+  addEventListener("resize", () => { if (canvas.isConnected) size(); });
+  setInterval(() => { if (typeof view !== "undefined" && view === "fidget" && !document.hidden) run(); }, 1000);
+  requestAnimationFrame(run);
 }
 
 function setupZen(canvas, smoothBtn) {

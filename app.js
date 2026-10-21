@@ -676,6 +676,7 @@ function renderFreeTimer() {
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
+  renderStatusFx(day, ft.past);
   const fx = vialFx();
   setChaosFace(Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -820,6 +821,55 @@ function vialFx() {
   for (const k of ["mindful", "win", "faint"]) if (fx[k] > now) out[k] = fx[k];
   return out;
 }
+// 💪👑🍃 Status effects for the day (they stack, and all their animations play together):
+//   💪 Pumped up: a workout done (the vial wears a sweatband and flicks off sweat drops)
+//   👑 Champion: an adventure won (a bobbing crown, plus a star orbiting it for each extra win)
+//   🍃 Zen: the fidget goal reached (leaves drifting around the vial, more each time)
+// Workouts come from her tasks; wins and zen are kept on this device for a week.
+const STATUS_KEY = "arpPlanner.status";
+function statusLog() { try { return JSON.parse(localStorage.getItem(STATUS_KEY) || "{}") || {}; } catch { return {}; } }
+function addStatus(kind) {
+  const log = statusLog(), d = todayKey();
+  log[d] = { ...(log[d] || {}), [kind]: ((log[d] || {})[kind] || 0) + 1 };
+  for (const k of Object.keys(log)) if (k < addDays(d, -7)) delete log[k];
+  try { localStorage.setItem(STATUS_KEY, JSON.stringify(log)); } catch {}
+  try { if (timerPlan) renderFreeTimer(); } catch {}
+}
+function statusFor(day) {
+  const s = statusLog()[day] || {};
+  const workout = tasks.filter(t => !t.deleted && t.done && kindOf(t) === "workout" && (t.doneDate || t.date) === day).length;
+  return { workout, hero: s.hero || 0, zen: s.zen || 0 };
+}
+function renderStatusFx(day, off) {
+  const flask = $("chaos-flask"), st = off ? { workout: 0, hero: 0, zen: 0 } : statusFor(day);
+  flask.classList.toggle("st-workout", st.workout > 0);
+  flask.classList.toggle("st-hero", st.hero > 0);
+  flask.classList.toggle("st-zen", st.zen > 0);
+  let box = flask.querySelector(".status-fx");
+  if (!box) { box = el("div", "status-fx"); box.setAttribute("aria-hidden", "true"); flask.appendChild(box); }
+  const drops = Math.min(st.workout, 3), stars = Math.min(Math.max(st.hero - 1, 0), 3), leaves = st.zen ? Math.min(st.zen + 1, 6) : 0;
+  const key = `${drops}-${st.hero ? 1 : 0}-${stars}-${leaves}-${calmMode() ? 1 : 0}`;
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    box.innerHTML = "";
+    for (let i = 0; i < drops; i++) {
+      const d = el("span", "st-drop", "💦");
+      d.style.animationDelay = `${i * .8}s`;
+      d.style.setProperty("--side", i % 2 ? "1" : "-1");
+      box.appendChild(d);
+    }
+    if (st.hero) box.appendChild(el("span", "st-crown", "👑"));
+    for (let i = 0; i < stars; i++) { const s = el("span", "st-star", "⭐"); s.style.animationDelay = `${-i * (3 / Math.max(stars, 1))}s`; box.appendChild(s); }
+    for (let i = 0; i < leaves; i++) { const l = el("span", "st-leaf", i % 3 === 2 ? "🌿" : "🍃"); l.style.animationDelay = `${-i * (8 / leaves)}s`; box.appendChild(l); }
+  }
+  const note = $("chaos-status"), parts = [];
+  if (st.workout) parts.push([`💪${st.workout > 1 ? "⁠" + st.workout : ""}`, `💪 Pumped up: ${plural(st.workout, "workout")} done today (sweatband on!)`]);
+  if (st.hero) parts.push([`👑${st.hero > 1 ? "⁠" + st.hero : ""}`, `👑 Champion: ${plural(st.hero, "adventure")} won today`]);
+  if (st.zen) parts.push([`🍃${st.zen > 1 ? "⁠" + st.zen : ""}`, `🍃 Zen: fidget goal reached ${st.zen}× today`]);
+  note.hidden = !parts.length;
+  if (parts.length) setTapNote(note, parts.map(p => p[0]).join(" "), parts.map(p => p[1]).join("  "));
+}
+
 function setVialFx(kind, minutes = 60) {
   const fx = vialFx();
   fx[kind] = Date.now() + minutes * 60000;
@@ -2892,6 +2942,8 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
     if (task.rolledFrom && (old.date || null) !== (task.date || null)) task = { ...task, rolledFrom: null };
   }
   if (by === "her" && task.done && !(old && old.done)) setTimeout(maybeCelebrateAllDone, 500);
+  if (by === "her" && task.done && !(old && old.done) && kindOf(task) === "workout")
+    setTimeout(() => showToast("💪 Pumped up! Your chaos vial put on a sweatband for the day."), 1200);
   // ⏰ When she ticked it off, on her clock ("YYYY-MM-DDTHH:MM"). Kept for the current week only.
   if (task.done && !(old && old.done) && !task.doneAt) task = { ...task, doneAt: localStamp() };
   if (!task.done && task.doneAt) task = { ...task, doneAt: null };

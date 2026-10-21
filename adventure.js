@@ -62,6 +62,7 @@ function advApply(e) {
 const STAT_LABEL = { might: "💪 Might", wits: "🧠 Wits", charm: "✨ Charm" };
 
 function advChoose(c) {
+  let fainted = false;
   const notes = advApply(c.effect);
   let to = c.to, roll = null;
   if (c.roll) {
@@ -83,6 +84,7 @@ function advChoose(c) {
     adv.hp = adv.maxHp;
     notes.push(`😵 You fainted! You wake at the inn, fully healed${lost ? `, ${lost} gold lighter` : ""}.`);
     adv.node = ADV_WORLDS[adv.world].inn || to;
+    fainted = true;
     if (typeof setVialFx === "function") {
       setVialFx("faint", 60);
       notes.push("😵‍💫 Your chaos vial is a little dizzy for the next hour (stars and all).");
@@ -91,13 +93,29 @@ function advChoose(c) {
   const landed = ADV_WORLDS[adv.world].nodes[adv.node];
   if (landed && landed.end && typeof setVialFx === "function") {
     setVialFx("win", 60);
-    notes.push("🏆 Victory! Ori takes over your chaos vial, and it glows gold for the next hour.");
+    if (typeof addStatus === "function") addStatus("hero");
+    notes.push("🏆 Victory! Ori takes over your chaos vial, and it glows gold for the next hour. 👑 And it wears a crown for the rest of the day.");
   }
   advLog = { roll, notes };
   advSave();
   if (typeof buzz === "function") buzz(roll ? (roll.win ? [12, 40, 20] : [40]) : 8);
   if (roll && typeof fidgetSound === "function") fidgetSound(roll.win ? "fanfare" : "thock");
   renderAdventure(true);
+  if (fainted) bossGloat();
+}
+
+// Fainting: the world's final boss pops up to gloat (then it's off to the inn, as always).
+function bossGloat() {
+  const b = (ADV_WORLDS[adv.world] && ADV_WORLDS[adv.world].boss) || { name: "The Final Boss", emoji: "👹" };
+  document.querySelectorAll(".boss-gloat").forEach(x => x.remove());
+  const o = el("div", "boss-gloat");
+  o.setAttribute("role", "status");
+  o.append(el("div", "boss-emoji", b.emoji), el("div", "boss-say", "I win!!! Hehehehe"), el("div", "boss-name", `— ${b.name}`));
+  const close = () => { o.classList.add("leaving"); setTimeout(() => o.remove(), 450); };
+  o.addEventListener("click", close);
+  document.body.appendChild(o);
+  setTimeout(close, 3200);
+  if (typeof playCackle === "function") playCackle();
 }
 
 function renderAdventure(scrollTop) {

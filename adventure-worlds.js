@@ -8,6 +8,7 @@ const ADV_WORLDS = {};
 // =====================================================================================
 ADV_WORLDS.azerhoof = {
   title: "Azerhoof: The Goat King's Scream", emoji: "🪓", color: "#d9822b",
+  boss: { name: "The Goat King Grumblehorns", emoji: "🐐" },
   blurb: "Factions! Fish-people! A 40-minute queue! Somewhere, a legendary goat is screaming so loudly the continent keeps cracking.",
   start: "a0", inn: "inn",
   nodes: {
@@ -224,6 +225,7 @@ ADV_WORLDS.azerhoof = {
 // =====================================================================================
 ADV_WORLDS.spiral = {
   title: "Spiral Pointe Academy", emoji: "🪄", color: "#7d6bff",
+  boss: { name: "Malpurrtaire, Dark Lord of Naps", emoji: "🐈‍⬛" },
   blurb: "Wizard school! Spell cards! A grey parrot professor who is never wrong, and a dramatic Siamese villain who wants ALL the sunbeams.",
   start: "s0", inn: "sinn",
   nodes: {
@@ -400,6 +402,7 @@ ADV_WORLDS.spiral = {
 // =====================================================================================
 ADV_WORLDS.crystal = {
   title: "Crystal Star", emoji: "💎", color: "#48b6e8",
+  boss: { name: "The Primal of Laundry", emoji: "🧺" },
   blurb: "You are the Warrior of Mostly Light. Ride your goatobo, face a Primal made of laundry, and learn that fashion is the true endgame.",
   start: "c0", inn: "cinn",
   nodes: {
