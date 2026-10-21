@@ -677,7 +677,7 @@ function renderFreeTimer() {
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
   renderStatusFx(day, ft.past);
-  const fx = vialFx();
+  const fx = vialFx(day);
   setChaosFace(Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const fxNote = $("chaos-fx-note"), mins = u => Math.max(1, Math.ceil((u - Date.now()) / 60000));
@@ -737,7 +737,7 @@ function renderChaosFlask(realPct, joy = 0) {
   liquid.style.height = `${Math.max(pct, 3)}%`;
   // Short visual treats (an hour each; they never change the real numbers): 🏆 gold after winning an
   // adventure, 😵‍💫 dizzy after fainting in one, 🧘 teal after some time with the Fidgets.
-  const fx = vialFx();
+  const fx = vialFx(currentDay);
   const base = `hsl(${Math.round(135 * (1 - pct / 100))}, 78%, 50%)`;
   const colour = fx.win ? `color-mix(in srgb, ${base} 22%, #ffc83a)` : fx.faint ? `color-mix(in srgb, ${base} 40%, #a07cff)`
     : fx.mindful ? `color-mix(in srgb, ${base} 30%, #19c2b0)` : base;
@@ -812,12 +812,16 @@ function setChaosFace(face) {
   } else box.textContent = face;
 }
 
-// Short vial effects, kept on this device: { mindful, win, faint } = when each one ends.
+// Short vial effects, kept on this device: { day, mindful, win, faint } = the day they're for and
+// when each one ends. They belong to the day she earned them: at midnight (her clock) they're gone,
+// even if the hour isn't up, and they only show when she's looking at that day.
 const VIAL_FX_KEY = "arpPlanner.vialFx";
-function vialFx() {
+function vialFx(viewing) {
   let fx = {};
   try { fx = JSON.parse(localStorage.getItem(VIAL_FX_KEY) || "{}") || {}; } catch {}
-  const now = Date.now(), out = { ori: fx.ori };
+  const tk = todayKey();
+  if ((fx.day && fx.day !== tk) || (viewing && viewing !== tk)) return {};
+  const now = Date.now(), out = { ori: fx.ori, day: fx.day };
   for (const k of ["mindful", "win", "faint"]) if (fx[k] > now) out[k] = fx[k];
   return out;
 }
@@ -825,6 +829,8 @@ function vialFx() {
 //   💪 Pumped up: a workout done (the vial wears a sweatband and flicks off sweat drops)
 //   👑 Champion: an adventure won (a bobbing crown, plus a star orbiting it for each extra win)
 //   🍃 Zen: the fidget goal reached (leaves drifting around the vial, more each time)
+//   🦜 Molly: 5 minutes of Flappy Molly (she perches on the vial, bobs, and says things; red
+//      tail feathers float down for each extra 5 minutes)
 // Workouts come from her tasks; wins and zen are kept on this device for a week.
 const STATUS_KEY = "arpPlanner.status";
 function statusLog() { try { return JSON.parse(localStorage.getItem(STATUS_KEY) || "{}") || {}; } catch { return {}; } }
@@ -838,17 +844,19 @@ function addStatus(kind) {
 function statusFor(day) {
   const s = statusLog()[day] || {};
   const workout = tasks.filter(t => !t.deleted && t.done && kindOf(t) === "workout" && (t.doneDate || t.date) === day).length;
-  return { workout, hero: s.hero || 0, zen: s.zen || 0 };
+  return { workout, hero: s.hero || 0, zen: s.zen || 0, molly: s.molly || 0 };
 }
 function renderStatusFx(day, off) {
-  const flask = $("chaos-flask"), st = off ? { workout: 0, hero: 0, zen: 0 } : statusFor(day);
+  const flask = $("chaos-flask"), st = off ? { workout: 0, hero: 0, zen: 0, molly: 0 } : statusFor(day);
   flask.classList.toggle("st-workout", st.workout > 0);
   flask.classList.toggle("st-hero", st.hero > 0);
   flask.classList.toggle("st-zen", st.zen > 0);
+  flask.classList.toggle("st-molly", st.molly > 0);
   let box = flask.querySelector(".status-fx");
   if (!box) { box = el("div", "status-fx"); box.setAttribute("aria-hidden", "true"); flask.appendChild(box); }
   const drops = Math.min(st.workout, 3), stars = Math.min(Math.max(st.hero - 1, 0), 3), leaves = st.zen ? Math.min(st.zen + 1, 6) : 0;
-  const key = `${drops}-${st.hero ? 1 : 0}-${stars}-${leaves}-${calmMode() ? 1 : 0}`;
+  const feathers = Math.min(Math.max(st.molly - 1, 0), 3);
+  const key = `${drops}-${st.hero ? 1 : 0}-${stars}-${leaves}-${st.molly ? 1 : 0}-${feathers}-${calmMode() ? 1 : 0}`;
   if (box.dataset.key !== key) {
     box.dataset.key = key;
     box.innerHTML = "";
@@ -861,17 +869,34 @@ function renderStatusFx(day, off) {
     if (st.hero) box.appendChild(el("span", "st-crown", "👑"));
     for (let i = 0; i < stars; i++) { const s = el("span", "st-star", "⭐"); s.style.animationDelay = `${-i * (3 / Math.max(stars, 1))}s`; box.appendChild(s); }
     for (let i = 0; i < leaves; i++) { const l = el("span", "st-leaf", i % 3 === 2 ? "🌿" : "🍃"); l.style.animationDelay = `${-i * (8 / leaves)}s`; box.appendChild(l); }
+    if (st.molly) {
+      const m = el("span", "st-parrot");
+      m.innerHTML = MOLLY_SVG;
+      const say = el("span", "st-say", MOLLY_SAYS[Math.floor(Math.random() * MOLLY_SAYS.length)]);
+      m.appendChild(say);
+      box.appendChild(m);
+      for (let i = 0; i < feathers; i++) { const f = el("span", "st-feather"); f.style.animationDelay = `${-i * 1.4}s`; f.style.left = `${20 + i * 25}%`; box.appendChild(f); }
+    }
   }
   const note = $("chaos-status"), parts = [];
   if (st.workout) parts.push([`💪${st.workout > 1 ? "⁠" + st.workout : ""}`, `💪 Pumped up: ${plural(st.workout, "workout")} done today (sweatband on!)`]);
   if (st.hero) parts.push([`👑${st.hero > 1 ? "⁠" + st.hero : ""}`, `👑 Champion: ${plural(st.hero, "adventure")} won today`]);
   if (st.zen) parts.push([`🍃${st.zen > 1 ? "⁠" + st.zen : ""}`, `🍃 Zen: fidget goal reached ${st.zen}× today`]);
+  if (st.molly) parts.push([`🦜${st.molly > 1 ? "⁠" + st.molly : ""}`, `🦜 Molly moved in: ${formatMinutes(st.molly * 5)} of Flappy Molly today`]);
   note.hidden = !parts.length;
   if (parts.length) setTapNote(note, parts.map(p => p[0]).join(" "), parts.map(p => p[1]).join("  "));
 }
 
+// Molly herself (grey, pale face, red tail, very opinionated), perched on the chaos vial.
+const MOLLY_SVG = `<svg viewBox="0 0 40 34" aria-hidden="true"><path d="M7 21 L0 29 L4 31 L11 24Z" fill="#d7263d"/>
+  <ellipse cx="18" cy="20" rx="11" ry="9" fill="#9aa1a9"/><ellipse cx="14" cy="21" rx="7" ry="5" fill="#7c838b"/>
+  <circle cx="27" cy="11" r="7" fill="#a7adb4"/><circle cx="29" cy="11" r="4" fill="#eef0f2"/><circle cx="29.6" cy="10.4" r="1.5" fill="#111"/>
+  <path d="M33 10.5 Q39.5 11.5 35.6 17 L33 14Z" fill="#222"/><path d="M15 28 v4 M21 28 v4" stroke="#555" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const MOLLY_SAYS = ["BURD!", "Hello!", "BEEP BEEP", "Rude.", "*microwave*", "Seed?", "Pretty bird!", "*smoke alarm*"];
+
 function setVialFx(kind, minutes = 60) {
   const fx = vialFx();
+  fx.day = todayKey();
   fx[kind] = Date.now() + minutes * 60000;
   if (kind === "win") { delete fx.faint; fx.ori = 1 + Math.floor(Math.random() * (typeof PET_PICS === "object" && PET_PICS.ori || 40)); }
   if (kind === "faint") delete fx.win;

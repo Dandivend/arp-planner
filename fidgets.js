@@ -357,7 +357,24 @@ function setupFlappy(canvas, info) {
   const ctx = canvas.getContext("2d");
   let best = 0;
   try { best = Number(localStorage.getItem("arpPlanner.flappyBest") || 0); } catch {}
-  let state = "ready", bird, pipes, score, spawn, last = 0, raf = 0, overAt = 0, wing = 0, clouds = [];
+  let state = "ready", bird, pipes, score, spawn, last = 0, raf = 0, overAt = 0, wing = 0, clouds = [], flapAt = 0, playSaved = 0;
+  // 🦜 Play time today (only while she's actually flapping, within the last 10 seconds). Every
+  // 5 minutes of it, Molly moves onto the chaos vial for the day.
+  const PLAY_KEY = "arpPlanner.flappyTime", MOLLY_EVERY = 300;
+  const playTime = () => { const fresh = { day: todayKey(), sec: 0 };
+    try { const p = JSON.parse(localStorage.getItem(PLAY_KEY) || "null"); return p && p.day === fresh.day ? p : fresh; } catch { return fresh; } };
+  let play = playTime();
+  const countPlay = dt => {
+    if (play.day !== todayKey()) play = playTime();
+    const before = Math.floor(play.sec / MOLLY_EVERY);
+    play.sec += dt;
+    if (play.sec - playSaved >= 1) { playSaved = play.sec; try { localStorage.setItem(PLAY_KEY, JSON.stringify(play)); } catch {} }
+    if (Math.floor(play.sec / MOLLY_EVERY) > before) {
+      try { localStorage.setItem(PLAY_KEY, JSON.stringify(play)); } catch {}
+      if (typeof addStatus === "function") addStatus("molly");
+      showToast("🦜 5 minutes of Flappy Molly! Molly has moved onto your chaos vial. She lives there now. Rent: one seed.");
+    }
+  };
   const reset = () => { bird = { y: H * .42, v: 0 }; pipes = []; score = 0; spawn = .6; };
   reset();
   for (let i = 0; i < 4; i++) clouds.push({ x: Math.random() * W, y: 30 + Math.random() * 160, s: .6 + Math.random() * .7 });
@@ -438,6 +455,7 @@ function setupFlappy(canvas, info) {
     const dt = Math.min(.033, (ts - (last || ts)) / 1000);
     last = ts;
     wing += dt * (state === "play" ? 18 : 8);
+    if (Date.now() - flapAt < 10000) countPlay(dt);
     for (const c of clouds) { c.x -= dt * 12 * c.s; if (c.x < -50) { c.x = W + 40; c.y = 30 + Math.random() * 160; } }
     if (state === "ready") bird.y = H * .42 + Math.sin(ts / 300) * 8;
     if (state === "play") {
@@ -465,6 +483,7 @@ function setupFlappy(canvas, info) {
     if (state === "over") { if (Date.now() - overAt < 600) return; state = "ready"; reset(); showScore(); run(); return; }
     if (state === "ready") { state = "play"; reset(); showScore(); }
     bird.v = FLAP;
+    flapAt = Date.now();
     buzz(6);
     fidgetSound("key");
     run();
