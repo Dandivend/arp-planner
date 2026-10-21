@@ -375,7 +375,7 @@ function renderDay() {
   const ul = $("task-list");
   ul.innerHTML = "";
   const doneRows = [];                     // finished ones fold away under "✅ Completed" (still counted)
-  const keep = rows => rows.filter(t => (t.done && !isWorkShift(t)) ? (doneRows.includes(t) || doneRows.push(t), false) : true);
+  const keep = rows => rows.filter(t => t.done ? (doneRows.includes(t) || doneRows.push(t), false) : true);   // (work shifts too)
   const addRows = rows => keep(rows).forEach(t => ul.appendChild(taskRow(t, t.id === nextId)));
   $("empty-day").hidden = list.length > 0;
   const recovery = currentDay <= tk ? recoveryFor(currentDay) : null;
