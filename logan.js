@@ -371,3 +371,120 @@ function showMissYou() {
   if (typeof buzz === "function") buzz([30, 60, 30, 60, 120]);
   setTimeout(() => o.remove(), 4500);
 }
+
+
+// ---------- 💙 "Add Free Time Together" ----------
+// A little form for putting time with Logan on her day: what, which day, what time (or any time)
+// and how long. It shows the times you're both free (when his calendar is connected) as one-tap
+// picks, and what time it'll be for him in Tokyo. It's a joy task, so it calms the chaos meter too.
+async function openAddTogether() {
+  let dlg = $("together-dialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "together-dialog";
+    dlg.className = "pick-day-dialog together-dialog";
+    dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+    document.body.appendChild(dlg);
+  }
+  dlg.innerHTML = "";
+  const tk = herToday(), la = loganAwake();
+  let day = tk, time = "", minutes = 60;
+
+  dlg.appendChild(el("h3", "pick-day-title", "💙 Add free time together"));
+  const what = el("input", "together-what");
+  what.value = "Time with Logan";
+  what.maxLength = 80;
+  what.setAttribute("aria-label", "What you'll do together");
+  dlg.append(el("label", "together-label", "What"), what);
+
+  // ✨ Times you're both free (from his calendar), as quick picks.
+  const sugg = el("div", "together-sugg");
+  dlg.appendChild(sugg);
+
+  dlg.appendChild(el("label", "together-label", "Day"));
+  const grid = el("div", "pick-day-grid");
+  const dayBtns = [];
+  for (let i = 0; i <= 6; i++) {
+    const d = addDays(tk, i), dt = fromKey(d);
+    const b = el("button", "pick-day-btn");
+    b.type = "button";
+    b.append(el("b", "", i === 0 ? "Today" : i === 1 ? "Tomorrow" : dt.toLocaleDateString(undefined, { weekday: "short" })),
+      el("span", "", dt.toLocaleDateString(undefined, { month: "short", day: "numeric" })));
+    b.addEventListener("click", () => { day = d; paint(); });
+    dayBtns.push([d, b]);
+    grid.appendChild(b);
+  }
+  dlg.appendChild(grid);
+
+  const row = el("div", "together-row2");
+  const tIn = el("input");
+  tIn.type = "time";
+  tIn.setAttribute("aria-label", "Time (leave empty for any time)");
+  tIn.addEventListener("input", () => { time = tIn.value; paint(); });
+  const len = el("select");
+  for (const m of [15, 30, 45, 60, 90, 120, 180, 240]) len.add(new Option(formatMinutes(m), m, false, m === minutes));
+  len.addEventListener("change", () => { minutes = Number(len.value); });
+  const tWrap = el("label", "together-field"), lWrap = el("label", "together-field");
+  tWrap.append(el("span", "together-label", "Time (optional)"), tIn);
+  lWrap.append(el("span", "together-label", "How long"), len);
+  row.append(tWrap, lWrap);
+  dlg.appendChild(row);
+  const hisTime = el("p", "hint-small together-his");
+  dlg.appendChild(hisTime);
+
+  const btns = el("div", "pick-day-later");
+  const add = el("button", "g-btn primary", "💙 Add to her day");
+  add.type = "button";
+  const cancel = el("button", "link-btn", "Cancel");
+  cancel.type = "button";
+  cancel.addEventListener("click", () => dlg.close());
+  btns.append(add, cancel);
+  dlg.appendChild(btns);
+
+  function paint() {
+    for (const [d, b] of dayBtns) b.classList.toggle("active", d === day);
+    if (tIn.value !== time) tIn.value = time;
+    if (time) {
+      const his = zLocal(msAt(day, toMin(time), herZone()), la.zone);
+      const hisDay = fromKey(his.day).toLocaleDateString(undefined, { weekday: "short" });
+      const s = toMin(la.start), e = toMin(la.end), hm = toMin(his.time);
+      const awake = e > s ? hm >= s && hm < e : hm >= s || hm < e;
+      hisTime.textContent = `🗾 That's ${hisDay} ${formatTime(his.time)} for Logan` + (awake ? "." : " 💤 (he may be asleep then)");
+    } else hisTime.textContent = "No time picked: it goes on the day as \"any time\".";
+  }
+  paint();
+
+  add.addEventListener("click", async () => {
+    let title = what.value.trim() || "Time with Logan";
+    if (!/\blogan\b/i.test(title)) title += " with Logan";           // so it counts as time together
+    dlg.close();
+    await persist({ id: newId(), date: day, time: time || null, title, notes: "", done: false, doneDate: null, kind: "joy",
+      priority: "normal", dueDate: null, minutes, area: null, effort: "light", brain: "light",
+      workout: null, createdAt: new Date().toISOString(), deleted: false, external: {} }, false);
+    togetherCache = null;
+    const when = day === tk ? "today" : day === addDays(tk, 1) ? "tomorrow" : fromKey(day).toLocaleDateString(undefined, { weekday: "long" });
+    showToast(`💙 "${title}" is on ${when}${time ? ` at ${formatTime(time)}` : ""}. Logan can't wait 🥰`);
+    render();
+  });
+
+  dlg.showModal();
+  // Fill in the shared free times once they've loaded (his calendar can take a moment).
+  try {
+    const slots = (await freeTogether()) || [];
+    if (!dlg.open) return;
+    const picks = slots.slice(0, 4);
+    if (!picks.length) return;
+    sugg.appendChild(el("span", "together-label", "✨ You're both free"));
+    const wrap = el("div", "together-picks");
+    for (const [s, e] of picks) {
+      const a = zLocal(s), b = zLocal(e);
+      const dn = a.day === tk ? "Today" : a.day === addDays(tk, 1) ? "Tomorrow" : fromKey(a.day).toLocaleDateString(undefined, { weekday: "short" });
+      const p = el("button", "chip-btn", `${dn} ${formatTime(a.time)}–${formatTime(b.time)}`);
+      p.type = "button";
+      p.addEventListener("click", () => { day = a.day; time = a.time; minutes = Math.min(240, Math.max(15, Math.round((e - s) / 60000 / 15) * 15)); len.value = String([15, 30, 45, 60, 90, 120, 180, 240].reduce((x, y) => Math.abs(y - minutes) < Math.abs(x - minutes) ? y : x)); minutes = Number(len.value); paint(); });
+      wrap.appendChild(p);
+    }
+    sugg.appendChild(wrap);
+  } catch {}
+}
+$("logan-add-together").addEventListener("click", openAddTogether);

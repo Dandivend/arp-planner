@@ -2062,13 +2062,58 @@ function stepList(t) {
 }
 
 // "Next day's problem": push a chore / to-do to the day after the one being looked at.
-function nextDaysProblem(t) {
+// …and on its way out, the task gets either zapped by a laser 🛸 or flattened by a bulldozer 🚜.
+async function nextDaysProblem(t) {
   const from = t.date && t.date > currentDay ? t.date : currentDay;
   const next = addDays(from, 1);
   const before = { ...t };
+  const li = document.querySelector(`#task-list li[data-id="${t.id}"]`);
+  if (li && motionOk() && !celebrating) {
+    celebrating = true;                               // (no redraws mid-demolition)
+    try { await (Math.random() < .5 ? laserTask(li) : bulldozeTask(li)); } catch {} finally { celebrating = false; }
+  }
   persist({ ...t, date: next });
   const when = next === addDays(todayKey(), 1) ? "tomorrow" : fromKey(next).toLocaleDateString(undefined, { weekday: "long" });
   showToast(`😴 "${t.title}" is ${when}'s problem now.`, "Undo", () => persist(before));
+}
+
+// A finished-with demolition: resolves when it's over (a timer, too, so a hidden screen can't stall it).
+const demoDone = (ms, cleanup) => new Promise(res => setTimeout(() => { try { cleanup(); } catch {} res(); }, ms));
+function fxAt(cls, text, r, x, y) {
+  const e = el("div", cls, text || "");
+  Object.assign(e.style, { left: `${x}px`, top: `${y}px` });
+  document.body.appendChild(e);
+  return e;
+}
+// 🛸 A little UFO swoops in from the left, charges up, and fires a laser across the task: it flashes
+// white, crackles and fizzles away into sparks.
+function laserTask(li) {
+  const r = li.getBoundingClientRect(), cy = r.top + r.height / 2;
+  const ufo = fxAt("zap-ufo", "🛸", r, r.left - 6, cy);
+  const beam = fxAt("zap-beam", "", r, r.left + 22, cy);
+  beam.style.setProperty("--w", `${Math.max(40, r.width - 30)}px`);
+  li.classList.add("zap-target");
+  if (typeof playLaser === "function") setTimeout(playLaser, 380);
+  setTimeout(() => { buzz([15, 20, 15, 20, 40]); li.classList.add("zapped"); }, 560);
+  setTimeout(() => { try { burstFrom(r.left + r.width * .55, cy, 16, ["✨", "⚡", "💥", "✦"], 260); } catch {} }, 700);
+  return demoDone(1350, () => { ufo.remove(); beam.remove(); });
+}
+// 🚜 A bulldozer rumbles in from the left and drives straight through the task, scraping it away
+// as it goes, with bricks and dust flying off the blade.
+function bulldozeTask(li) {
+  const r = li.getBoundingClientRect(), cy = r.top + r.height / 2;
+  const size = Math.max(34, Math.min(64, r.height * .95));
+  const dozer = fxAt("dozer", "🚜", r, r.left - size, cy);
+  dozer.style.fontSize = `${size}px`;
+  dozer.style.setProperty("--dist", `${r.width + size * 1.6}px`);
+  li.classList.add("dozed");
+  if (typeof playBulldozer === "function") playBulldozer();
+  buzz([30, 40, 30, 40, 30, 40, 60]);
+  const bits = setInterval(() => {                    // rubble flies off the front of the blade
+    const d = dozer.getBoundingClientRect();
+    try { burstFrom(d.right - 4, cy, 2, ["🧱", "💨", "🪨"], 90); } catch {}
+  }, 160);
+  return demoDone(1500, () => { clearInterval(bits); dozer.remove(); });
 }
 
 // "Pick a day": a small chooser with the next week's days as one-tap buttons, and a date box

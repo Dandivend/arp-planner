@@ -2129,3 +2129,43 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .joy-dice-pick.flicker { animation: none; opacity: .75; }
 .joy-dice-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; }
 @media (prefers-reduced-motion: reduce) { .joy-die.rolling, .joy-dice-pick { animation: none; } }
+
+/* 🛸 laser / 🚜 bulldozer: "Next day's problem" */
+.zap-ufo { position: fixed; z-index: 120; font-size: 30px; transform: translate(-100px, -50%) rotate(-12deg); pointer-events: none;
+  animation: zap-ufo 1.35s cubic-bezier(.2, .8, .3, 1) forwards; filter: drop-shadow(0 0 8px rgba(120, 255, 180, .7)); }
+@keyframes zap-ufo { 0% { transform: translate(-100px, -50%) rotate(-12deg); opacity: 0; } 25% { transform: translate(0, -50%) rotate(4deg); opacity: 1; }
+  30%, 60% { transform: translate(0, -50%) rotate(0); } 64% { transform: translate(-6px, -50%) rotate(-4deg); } 100% { transform: translate(-140px, -120%) rotate(-20deg); opacity: 0; } }
+.zap-beam { position: fixed; z-index: 119; height: 6px; width: 0; transform: translateY(-50%); border-radius: 6px; pointer-events: none;
+  background: linear-gradient(90deg, #fff, #ff2d55 30%, #ff6b8a); box-shadow: 0 0 10px #ff2d55, 0 0 24px #ff2d55, 0 0 40px rgba(255, 45, 85, .6);
+  animation: zap-beam 1.35s ease-out forwards; }
+@keyframes zap-beam { 0%, 28% { width: 0; opacity: 0; } 30% { width: 0; opacity: 1; } 42% { width: var(--w); opacity: 1; height: 8px; }
+  55% { width: var(--w); opacity: 1; height: 4px; } 70% { width: var(--w); opacity: 0; height: 2px; } 100% { width: var(--w); opacity: 0; } }
+.task.zapped { animation: zapped .8s ease-in forwards !important; pointer-events: none; }
+@keyframes zapped { 0% { filter: none; } 12% { filter: brightness(3) saturate(0); background: #fff; }
+  35% { filter: brightness(1.6) hue-rotate(-30deg); transform: scaleY(1) skewX(-6deg); }
+  70% { opacity: .6; transform: scaleY(.45) scaleX(1.03); filter: blur(1px) brightness(1.4); }
+  100% { opacity: 0; transform: scaleY(0) scaleX(.6); filter: blur(4px); } }
+.dozer { position: fixed; z-index: 120; line-height: 1; transform: translate(0, -55%) scaleX(-1); pointer-events: none;
+  animation: dozer-drive 1.5s cubic-bezier(.45, 0, .55, 1) forwards; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, .5)); }
+@keyframes dozer-drive {
+  0% { transform: translate(0, -55%) scaleX(-1); } 10% { transform: translate(calc(var(--dist) * .08), -58%) scaleX(-1) rotate(-3deg); }
+  20% { transform: translate(calc(var(--dist) * .18), -53%) scaleX(-1); } 35% { transform: translate(calc(var(--dist) * .34), -58%) scaleX(-1) rotate(-3deg); }
+  50% { transform: translate(calc(var(--dist) * .5), -53%) scaleX(-1); } 65% { transform: translate(calc(var(--dist) * .66), -58%) scaleX(-1) rotate(-3deg); }
+  80% { transform: translate(calc(var(--dist) * .82), -53%) scaleX(-1); } 100% { transform: translate(var(--dist), -55%) scaleX(-1); } }
+.task.dozed { animation: dozed 1.5s cubic-bezier(.45, 0, .55, 1) forwards !important; pointer-events: none; }
+@keyframes dozed { 0%, 8% { clip-path: inset(0 0 0 0); transform: none; }
+  60% { transform: translateX(6px) rotate(.6deg); }
+  92% { clip-path: inset(0 0 0 100%); transform: translateX(14px) rotate(1deg); opacity: .8; } 100% { clip-path: inset(0 0 0 100%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .zap-ufo, .zap-beam, .dozer { display: none; } .task.zapped, .task.dozed { animation: none !important; } }
+
+/* 💙 Add Free Time Together */
+.logan-add { display: block; width: 100%; max-width: 420px; margin: 4px auto 14px; font-size: 16px; padding: 12px 16px; }
+.together-dialog { width: min(460px, 94vw); }
+.together-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 10px 0 5px; }
+.together-what, .together-row2 input, .together-row2 select { width: 100%; box-sizing: border-box; background: var(--card); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; height: 40px; }
+.together-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.together-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.together-his { margin: 8px 0 0; }
+.pick-day-btn.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
+.together-dialog .pick-day-later { display: flex; align-items: center; gap: 14px; margin-top: 14px; }

@@ -251,6 +251,26 @@ function playCackle() {
 }
 
 // The eruption: a rising rumble, then a boom and a fizzy hiss.
+// 🛸 Pew! A laser zap: a falling sci-fi sweep, a crackle, and a fizzle.
+function playLaser() {
+  if (!soundsOn()) return;
+  const ctx = sfx();
+  if (!ctx) return;
+  voice(ctx, { type: "sine", pitch: [[0, 300], [.3, 1400]], vol: [[0, 0], [.05, .05], [.3, .08], [.32, 0]] });                 // charging
+  for (const at of [.32, .42]) voice(ctx, { type: "sawtooth", at, pitch: [[0, 2400], [.18, 180]], vol: [[0, 0], [.005, .12], [.2, 0]], filter: { type: "lowpass", freq: 3000 } });
+  noiseBurst(ctx, { at: .5, dur: .5, freq: 6000, vol: .18 });                                                                    // fizzle
+}
+// 🚜 A bulldozer: a chugging diesel rumble, a scrape, and a crunch.
+function playBulldozer() {
+  if (!soundsOn()) return;
+  const ctx = sfx();
+  if (!ctx) return;
+  for (let i = 0; i < 9; i++) voice(ctx, { type: "square", at: i * .15, pitch: [[0, 48 + (i % 2) * 6]], vol: [[0, 0], [.01, .09], [.12, 0]], filter: { type: "lowpass", freq: 260 } });
+  noiseBurst(ctx, { at: .2, dur: 1.1, freq: 700, vol: .25 });                                                                    // the scrape
+  noiseBurst(ctx, { at: .9, dur: .4, freq: 2200, vol: .3 });                                                                     // crunch
+  voice(ctx, { type: "sine", at: .9, pitch: [[0, 110], [.3, 45]], vol: [[0, 0], [.01, .3], [.35, 0]] });
+}
+
 function playEruption() {
   if (!soundsOn()) return;
   const ctx = sfx();
