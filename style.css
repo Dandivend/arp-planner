@@ -2005,7 +2005,7 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .chaos-side .chaos-note.tap-note:not(.open) { font-size: 28px; line-height: 1.1; }
 
 /* 🧼 Care Time */
-.care-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.care-row { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
 .care-row input, .care-row select { min-width: 0; }
 .care-del { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 34px; height: 34px; cursor: pointer; }
 .care-del:hover { color: #ff7b7b; border-color: #ff7b7b; }
@@ -2013,6 +2013,7 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .care-ideas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 @media screen and (max-width: 600px) {
   .care-row { grid-template-columns: 1fr 1fr auto; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+  .care-row .care-at { grid-column: 1 / 3; }
   .care-row .care-name { grid-column: 1 / -1; }
 }
 
@@ -2023,3 +2024,8 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   .ff-label, #fire-floor[data-level="1"] .ff-label { bottom: calc(70px + env(safe-area-inset-bottom)); font-size: 13px; }
   body.on-fire main { padding-bottom: 190px; }
 }
+/* 🧼 Care Time boxes: the same look as the rest of Settings */
+.care-row input, .care-row select { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px;
+  padding: 7px 10px; font: inherit; font-size: 15px; height: 38px; }
+.care-row input:focus, .care-row select:focus { outline: none; border-color: var(--accent); }
+.care-del { height: 38px; width: 38px; }

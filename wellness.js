@@ -285,8 +285,10 @@ function freeTimeLeft(day, list) {
   const work = workMinutesBetween(day, from, w.end) * 60;
   // Care time still ahead today: her care minutes, shrinking as the day goes by (we don't know
   // exactly when she showers or eats, so it's spread over the free part of her day).
+  // (Items with a time of day count until they're over.)
   const wholeFree = (w.end - w.start - workMinutesBetween(day, w.start, w.end)) * 60;
-  const care = wholeFree > 0 ? Math.round(careFor(day) * 60 * Math.min(1, Math.max(0, (awake - work) / wholeFree))) : 0;
+  const frac = wholeFree > 0 ? Math.min(1, Math.max(0, (awake - work) / wholeFree)) : 0;
+  const care = typeof careAheadFor === "function" ? Math.round(careAheadFor(day, nowMin, frac) * 60) : 0;
   return {
     seconds: awake - work - care - planned, total: awake - work - care, planned, care,
     past: nowMin >= w.end, beforeWake: nowMin < w.start,
