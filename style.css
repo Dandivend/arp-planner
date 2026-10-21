@@ -2015,3 +2015,11 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   .care-row { grid-template-columns: 1fr 1fr auto; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
   .care-row .care-name { grid-column: 1 / -1; }
 }
+
+/* 🔥 the funny fire warnings are longer: let them wrap, centered, on any screen */
+.ff-label { white-space: normal; width: max-content; max-width: min(640px, calc(100vw - 32px)); text-align: center; line-height: 1.35; border-radius: 18px; }
+/* Phones: the tab bar sits at the bottom, so the warning rides just above it */
+@media screen and (max-width: 600px) {
+  .ff-label, #fire-floor[data-level="1"] .ff-label { bottom: calc(70px + env(safe-area-inset-bottom)); font-size: 13px; }
+  body.on-fire main { padding-bottom: 190px; }
+}

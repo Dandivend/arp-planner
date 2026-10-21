@@ -582,6 +582,33 @@ function formatHrsMin(sec) {
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
 }
 
+// 🔥 A day with no free time left: a different silly warning each time the app opens.
+const FIRE_LINES = [
+  "🔥 This day is on fire! No free time at all. Molly has started doing the smoke alarm noise and honestly? Valid.",
+  "🔥 Zero free time detected. Molly says \"BURD\" in a very concerned voice. Something's got to give.",
+  "🔥 Your schedule is a dumpster fire, and the dumpster is also on fire. Move a thing or two? 💛",
+  "🔥 Molly has called the fire department. She did it in the voice of the microwave. BEEP BEEP BEEP. Free up some time!",
+  "🔥 Breaking news: local planner bursts into flames. Witnesses describe the day as \"a lot.\" Drop something optional.",
+  "🔥 Molly looked at today's list, said \"Rude,\" and flew off to sit on the curtain rod. Lighten it up?",
+  "🔥 Not even a 5-minute nap fits in today. The chaos vial is filing for overtime pay.",
+  "🔥 The floor is lava. The day is lava. Everything is lava. Push one thing to tomorrow 🧯",
+  "🔥 Molly is shouting \"HELLO?\" in Logan's voice at the calendar. It does not answer. It's too busy being on fire.",
+  "🔥 You've planned more than a day can hold. Even the demon is impressed, and he LIVES in fire. 😈",
+  "🔥 Free time: 0. Tasks: yes. Molly: screaming. Maybe give something to next week?",
+  "🔥 This day has more plans than Molly has opinions (and she has a LOT of opinions). Something's got to give.",
+  "🔥 Somewhere, a tiny firefighter is looking at this day and quietly putting the hose down. Move a task, save a firefighter.",
+  "🔥 Molly has fluffed up to twice her size, which in bird means \"absolutely not.\" Too much today!",
+  "🔥 Today is not a to-do list, it's a bonfire. Roast a marshmallow, then move something to a lighter day 🍡",
+];
+const FIRE_LINE = (() => {
+  let last = -1;
+  try { last = Number(localStorage.getItem("arpPlanner.fireLine") ?? -1); } catch {}
+  let i = Math.floor(Math.random() * FIRE_LINES.length);
+  if (i === last) i = (i + 1) % FIRE_LINES.length;       // never the same one twice in a row
+  try { localStorage.setItem("arpPlanner.fireLine", String(i)); } catch {}
+  return FIRE_LINES[i];
+})();
+
 let n0 = 0;                                   // the minute the "now" glow was last checked
 function renderFreeTimer() {
   if (!timerPlan) return;
@@ -664,7 +691,7 @@ function renderFreeTimer() {
 
   // The day itself catches fire when there's little or no free time.
   if (view === "day") {
-    if (!ft.past && p.planned > 0 && spare < 0) setFireFloor(2, "🔥 This day is on fire! No free time at all. Something's got to give.");
+    if (!ft.past && p.planned > 0 && spare < 0) setFireFloor(2, FIRE_LINE);
     else if (!ft.past && p.planned > 0 && spare < 30) setFireFloor(1, "🔥 Barely any free time. Don't pile anything else on!");
     else setFireFloor(0);
   }
