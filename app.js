@@ -389,6 +389,7 @@ function renderDay() {
     if (heldOpen.length && !sectionLabel(ul, "💤 Can wait for a better day", "s-held", heldOpen.length)) addRows(heldOpen);
     tagSections(ul);
     addCompleted(ul, doneRows);
+    syncNowGlow();
     return;
   }
 
@@ -438,6 +439,7 @@ function renderDay() {
   }
   tagSections(ul);
   addCompleted(ul, doneRows);
+  syncNowGlow();
 }
 
 // ---------- folding the Day page ----------
@@ -671,8 +673,9 @@ function renderFreeTimer() {
   if (isToday && n0 !== (n0 = Math.floor(Date.now() / 60000))) {                // once a minute: move the "now" glow
     for (const li of document.querySelectorAll("#task-list .task[data-id]")) {
       const t = tasks.find(x => x.id === li.dataset.id);
-      if (t) li.classList.toggle("now", isHappeningNow(t, day));
+      if (t) { li.classList.toggle("now", isHappeningNow(t, day)); li.classList.toggle("now-at-work", duringWorkNow(t, day)); }
     }
+    syncNowGlow();
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
@@ -1250,6 +1253,20 @@ function eruptFlask() {
 $("chaos-flask").addEventListener("pointerdown", e => { e.preventDefault(); pokeFlask(); });
 
 // Is she in the middle of this one right now? (Today, timed, and the clock is inside its slot.)
+// Something happening right now while she's at work (an appointment in the middle of her shift):
+// it glows in step with the work shift's glow, in work blue mixed with her theme's colour.
+function duringWorkNow(t, day) {
+  if (isWorkShift(t) || !isHappeningNow(t, day)) return false;
+  const n = nowLocal();
+  return atWork(day, `${pad(n.getHours())}:${pad(n.getMinutes())}`);
+}
+// Every "now" glow pulses on the same beat (they share one clock), so the work shift and whatever
+// is happening during it breathe together.
+function syncNowGlow() {
+  const delay = `-${(Date.now() % 2600) / 1000}s`;
+  for (const li of document.querySelectorAll("#task-list .task.now, .home-card.has-now")) li.style.animationDelay = delay;
+}
+
 function isHappeningNow(t, day) {
   if (t.done || t.deleted || !t.time || day !== todayKey() || t.date !== day) return false;
   const n = nowLocal(), m = n.getHours() * 60 + n.getMinutes(), s = toMin(t.time);
@@ -1745,7 +1762,7 @@ function taskRow(t, isNext) {
   const day = currentDay;
   const level = levelOf(t, day);
   const li = document.createElement("li");
-  li.className = `task lvl-${level}` + (t.done ? " done" : "") + (isNext ? " next" : "") + (isHappeningNow(t, day) ? " now" : "");
+  li.className = `task lvl-${level}` + (t.done ? " done" : "") + (isNext ? " next" : "") + (isHappeningNow(t, day) ? " now" : "") + (duringWorkNow(t, day) ? " now-at-work" : "");
   li.dataset.id = t.id;
   const color = colorOf(t, day);
   if (color) li.style.setProperty("--lvl", color);
@@ -3050,6 +3067,17 @@ $("energy-pill").addEventListener("click", () => openSettingsSection("brain-sett
 $("work-pill").addEventListener("click", () => openSettingsSection("work-hours"));
 $("next-day").addEventListener("click", () => turnPage(1));
 
+// 📅 The Calendar turns like a page too: swipe left for the next month (or week), right for the one before.
+function turnCalendar(dir) {
+  $(dir > 0 ? "next-month" : "prev-month").click();
+  const v = $("month-view");
+  v.classList.remove("turn-next", "turn-prev");
+  void v.offsetWidth;
+  v.classList.add(dir > 0 ? "turn-next" : "turn-prev");
+  clearTimeout(turnCalendar.t);
+  turnCalendar.t = setTimeout(() => v.classList.remove("turn-next", "turn-prev"), 550);
+}
+
 // 📖 Turning the page: next day (swipe left / ›) or the day before (swipe right / ‹).
 function turnPage(dir) {
   goDay(addDays(currentDay, dir));
@@ -3066,7 +3094,7 @@ function turnPage(dir) {
   let sx = 0, sy = 0, st = 0, ok = false;
   addEventListener("touchstart", e => {
     ok = false;
-    if (view !== "day" || e.touches.length !== 1 || document.querySelector("dialog[open]")) return;
+    if ((view !== "day" && view !== "month") || e.touches.length !== 1 || document.querySelector("dialog[open]")) return;
     const p = e.touches[0], tgt = e.target;
     if (p.clientX < 24 || p.clientX > innerWidth - 24) return;
     if (tgt.closest && tgt.closest("input, textarea, select, canvas, .no-swipe")) return;
@@ -3080,7 +3108,8 @@ function turnPage(dir) {
     ok = false;
     const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
     if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
-    turnPage(dx < 0 ? 1 : -1);
+    if (view === "month") turnCalendar(dx < 0 ? 1 : -1);
+    else turnPage(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();
 $("today-btn").addEventListener("click", () => goDay(todayKey()));

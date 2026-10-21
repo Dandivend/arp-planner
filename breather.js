@@ -21,9 +21,10 @@ const BREATH_KINDS = {
   calm: { title: "🌿 Calm timer", text: "A little pocket of quiet, just for you. Breathe with the circle, or don't. Either is perfect. 💛" },
 };
 
-function openBreather(kind = "calm", minutes = 10) {
+function openBreather(kind = "calm", minutes = 10, opts = {}) {
   const k = BREATH_KINDS[kind] || BREATH_KINDS.calm;
-  breath = { kind, title: k.title, text: k.text, total: minutes * 60, endAt: Date.now() + minutes * 60000, left: minutes * 60, paused: false, done: false };
+  breath = { kind, title: opts.title || k.title, text: opts.text || k.text, onDone: opts.onDone || null,
+    total: minutes * 60, endAt: Date.now() + minutes * 60000, left: minutes * 60, paused: false, done: false };
   let dlg = $("breather-dialog");
   if (!dlg) {
     dlg = document.createElement("dialog");
@@ -71,6 +72,7 @@ function finishBreath() {
   if (!breath || breath.done) return;
   breath.done = true;
   breath.left = 0;
+  if (breath.onDone) { try { breath.onDone(); } catch {} }
   if (breathPrefs().tone) playBowl();
   try { navigator.vibrate && navigator.vibrate([160, 120, 160, 120, 320]); } catch {}
   if (breathPrefs().notice) breathNotice(true);
