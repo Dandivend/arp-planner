@@ -2029,3 +2029,8 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   padding: 7px 10px; font: inherit; font-size: 15px; height: 38px; }
 .care-row input:focus, .care-row select:focus { outline: none; border-color: var(--accent); }
 .care-del { height: 38px; width: 38px; }
+
+/* The free-time line: each part opens its setting */
+.ft-link { background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline dotted color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
+.ft-link:hover, .ft-link:focus-visible { color: var(--accent); outline: none; text-decoration-color: currentColor; }

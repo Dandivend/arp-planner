@@ -609,6 +609,27 @@ const FIRE_LINE = (() => {
   return FIRE_LINES[i];
 })();
 
+// The line under the free-time timer: each part is a little link to where it's set
+// (Sleep, Work, Care Time in Settings; the tasks jump down to the list). Only redrawn when the
+// words change, so a tap never lands on a line that's being replaced.
+function setFtSub(parts) {
+  const box = $("ft-sub"), key = JSON.stringify(parts);
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.replaceChildren();
+  parts.forEach(([text, target], i) => {
+    if (i) box.append(" · ");
+    const b = el("button", "ft-link", text);
+    b.type = "button";
+    b.title = target.startsWith("#") ? "Jump to your list" : "Open this in Settings";
+    b.addEventListener("click", () => {
+      if (target.startsWith("#")) document.querySelector(target).scrollIntoView({ behavior: calmMode() ? "auto" : "smooth", block: "start" });
+      else openSettingsSection(target);
+    });
+    box.appendChild(b);
+  });
+}
+
 let n0 = 0;                                   // the minute the "now" glow was last checked
 function renderFreeTimer() {
   if (!timerPlan) return;
@@ -624,15 +645,18 @@ function renderFreeTimer() {
     $("ft-label").textContent = "🌙 It's past your bedtime";
     $("ft-time").textContent = "";
     $("ft-sub").textContent = "Whatever's left can wait for tomorrow. Rest up! 💛";
+    delete $("ft-sub").dataset.key;
     $("ft-fill").style.width = "0%";
   } else {
     $("ft-label").textContent = isToday ? "⏳ Free time left today" : "⏳ Free time this day";
     $("ft-time").textContent = ft.seconds <= 0 ? "None 😣" : isToday ? formatClock(ft.seconds) : `about ${formatHrsMin(ft.seconds)}`;
     $("ft-fill").style.width = `${ft.total > 0 ? Math.max(0, Math.min(100, (ft.seconds / ft.total) * 100)) : 0}%`;
-    $("ft-sub").textContent = `☀️ Up ${formatTime(sleep.wake)} · 🌙 Bed ${formatTime(sleep.bed)}` +
-      (p.shift ? ` · 💼 Work ${shiftLabel(p.shift)}` : "") +
-      (ft.care >= 60 ? ` · 🧼 ${formatHrsMin(ft.care)} care${isToday ? " ahead" : ""}` : "") +
-      ` · ${formatHrsMin(ft.planned)} of tasks ${isToday ? "still to do" : "planned"}`;
+    setFtSub([
+      [`☀️ Up ${formatTime(sleep.wake)}`, "sleep-hours"], [`🌙 Bed ${formatTime(sleep.bed)}`, "sleep-hours"],
+      ...(p.shift ? [[`💼 Work ${shiftLabel(p.shift)}`, "work-hours"]] : []),
+      ...(ft.care >= 60 ? [[`🧼 ${formatHrsMin(ft.care)} care${isToday ? " ahead" : ""}`, "care-settings"]] : []),
+      [`${formatHrsMin(ft.planned)} of tasks ${isToday ? "still to do" : "planned"}`, "#task-list"],
+    ]);
   }
 
   // Chaos meter: how much of her free time the day eats, faster when she's worn out.
