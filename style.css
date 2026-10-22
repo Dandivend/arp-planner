@@ -2169,3 +2169,40 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .together-his { margin: 8px 0 0; }
 .pick-day-btn.active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--card)); }
 .together-dialog .pick-day-later { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+
+/* 🧥 The Coat Rack (chaos meter full): grows slowly… then snaps back. Forever. */
+.home-coatrack { display: flex; align-items: center; gap: 14px; margin: -4px 0 12px; padding: 10px 14px; border-radius: var(--radius);
+  background: radial-gradient(circle at 20% 50%, rgba(255, 228, 107, .08), transparent 60%), var(--card); border: 1px dashed #8c2f39; }
+.home-coatrack[hidden] { display: none; }
+.cr-grow { width: 70px; height: 140px; flex: none; transform-origin: 50% 100%; animation: cr-grow 7s infinite; }
+.cr-grow svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .45)); }
+@keyframes cr-grow { 0% { transform: scale(.55); animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
+  92% { transform: scale(1.35) rotate(-2deg); animation-timing-function: cubic-bezier(.2, 0, 0, 1); } 95.5%, 100% { transform: scale(.55); } }
+.cr-caption { font-weight: 800; font-size: 17px; color: #ffcf6b; text-shadow: 0 0 10px rgba(255, 200, 80, .25); }
+.cr-eye { animation: cr-blink 4.3s infinite; transform-origin: center; transform-box: fill-box; }
+@keyframes cr-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+/* …and little ones haunting the fire floor with the demon */
+.ff-rack { position: fixed; bottom: 18px; left: var(--start); width: 26px; height: 52px; display: none; z-index: 2;
+  animation: rack-wander 12s ease-in-out infinite alternate; }
+#fire-floor[data-level="2"] .ff-rack { display: block; }
+.rack-bob { width: 100%; height: 100%; transform-origin: 50% 100%; animation: rack-hop .9s ease-in-out infinite alternate; }
+.rack-bob svg { width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5)); }
+@keyframes rack-wander { 0% { transform: translateX(-40px); } 50% { transform: translateX(60px); } 100% { transform: translateX(-10px); } }
+@keyframes rack-hop { from { transform: translateY(0) rotate(-5deg); } to { transform: translateY(-6px) rotate(5deg); } }
+.ff-rack .rack-say { bottom: 54px; left: 14px; font-size: 11px; background: #2a1810; color: #ffe2b8; border-color: #8c2f39; }
+@media (prefers-reduced-motion: reduce) { .cr-grow, .cr-eye, .ff-rack, .rack-bob { animation: none; } }
+
+/* To Do: folding groups and the 💭 No Day Yet tab */
+.todo-group-title.fold-head { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; }
+.todo-group-title.fold-head .section-chevron { margin-left: auto; transform: rotate(180deg); }
+.todo-group.folded .todo-group-title .section-chevron { transform: none; }
+.todo-group-title.fold-head:hover { color: var(--accent); }
+.no-day-tab { white-space: nowrap; }
+.todo-filter .no-day-tab.active { background: color-mix(in srgb, #a593ff 25%, var(--card)); color: var(--ink); }
+/* Phones: the little coat racks walk along the top of the tab bar, under the fire warning */
+@media screen and (max-width: 600px) {
+  .ff-rack { bottom: calc(62px + env(safe-area-inset-bottom)); width: 22px; height: 44px; }
+  .ff-rack .rack-say { bottom: 46px; }
+  .ff-label, #fire-floor[data-level="1"] .ff-label { bottom: calc(112px + env(safe-area-inset-bottom)); }
+  body.on-fire main { padding-bottom: 240px; }
+}

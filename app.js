@@ -1447,12 +1447,47 @@ function setFireFloor(level, text) {
     label.className = "ff-label";
     floor.appendChild(label);
     floor.appendChild(makeImp());
+    for (let i = 0; i < 3; i++) floor.appendChild(makeCoatRack(i));     // 🧥 they followed you here too
     document.body.appendChild(floor);
   }
   floor.hidden = !level;
   floor.dataset.level = String(level || 0);
   floor.querySelector(".ff-label").textContent = text || "";
   document.body.classList.toggle("on-fire", !!level);
+}
+
+// 🧥 The Coat Rack. It follows you around. It is always a little closer than before. Eventually, it
+// attacks. (Logan and Ariel's long-running joke.) A wooden hat stand with a coat and a bowler hat,
+// and two small glowing eyes under the brim.
+const COAT_RACK_SVG = `<svg viewBox="0 0 60 120" aria-hidden="true">
+  <path d="M30 100 L13 117 M30 100 L47 117 M30 100 L30 118" stroke="#5e3a20" stroke-width="4" stroke-linecap="round"/>
+  <rect x="27.5" y="16" width="5" height="88" rx="2.5" fill="#7a4a2a"/><rect x="28.5" y="16" width="1.6" height="88" fill="#9a6440" opacity=".7"/>
+  <path d="M30 30 Q17 29 14 20 M30 30 Q43 29 46 20 M30 44 Q19 44 16 36 M30 44 Q41 44 44 36" stroke="#7a4a2a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="14" cy="19" r="2.4" fill="#5e3a20"/><circle cx="46" cy="19" r="2.4" fill="#5e3a20"/>
+  <path d="M15 21 Q7 44 9 70 L25 70 Q24 46 19 23 Z" fill="#8c2f39"/><path d="M15 21 Q11 40 12 66" stroke="#6d1f29" stroke-width="1.5" fill="none"/>
+  <circle cx="18" cy="40" r="1.3" fill="#e8c46a"/><circle cx="18" cy="50" r="1.3" fill="#e8c46a"/>
+  <path d="M44 22 Q50 30 46 38 Q41 32 44 22" fill="#d6a640"/>
+  <ellipse cx="30" cy="14" rx="14" ry="3.2" fill="#26262e"/><path d="M20 14 Q20 1 30 1 Q40 1 40 14 Z" fill="#33333d"/>
+  <rect x="20" y="10" width="20" height="2.4" fill="#8c2f39"/>
+  <ellipse class="cr-eye" cx="26" cy="18.5" rx="1.8" ry="1.3" fill="#ffe46b"/><ellipse class="cr-eye" cx="34" cy="18.5" rx="1.8" ry="1.3" fill="#ffe46b"/>
+</svg>`;
+const COAT_RACK_LINES = ["*creak*", "👀", "I'm right behind you", "Need a coat hung?", "Don't turn around", "I live here now", "*creeeak*", "Hold still…"];
+function makeCoatRack(i) {
+  const box = document.createElement("div");
+  box.className = "ff-rack";
+  box.style.setProperty("--start", `${12 + i * 28 + Math.random() * 10}%`);
+  box.style.animationDuration = `${11 + i * 3}s`;
+  box.style.animationDelay = `${-i * 2.5}s`;
+  box.innerHTML = `<div class="rack-bob">${COAT_RACK_SVG}</div><span class="imp-say rack-say"></span>`;
+  const say = box.querySelector(".rack-say");
+  let n = i * 3;
+  const talk = () => { say.textContent = COAT_RACK_LINES[n++ % COAT_RACK_LINES.length]; say.classList.remove("pop"); void say.offsetWidth; say.classList.add("pop"); };
+  setTimeout(talk, 1200 + i * 1100);
+  const tick = setInterval(() => {
+    if (!box.isConnected) { clearInterval(tick); return; }
+    if (!box.closest("[hidden]")) talk();
+  }, 4100 + i * 700);
+  return box;
 }
 
 // A little whimsical demon who bounces along the flames, cackling, when the day is fully on fire.

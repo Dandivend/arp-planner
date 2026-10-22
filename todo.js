@@ -5,6 +5,12 @@
 
 let todoFilter = "all";        // which list the To Do tab shows ("all" or a list id)
 try { todoFilter = localStorage.getItem("arpPlanner.todoList") || "all"; } catch {}
+let todoNoDay = false;         // 💭 "No day yet" tab: only the to-dos that aren't on a day
+try { todoNoDay = localStorage.getItem("arpPlanner.todoNoDay") === "1"; } catch {}
+// Folded groups on the To Do tab (remembered on this device). "Done lately" starts folded.
+let todoFolds = new Set(["done"]);
+try { const f = localStorage.getItem("arpPlanner.todoFolds"); if (f) todoFolds = new Set(JSON.parse(f)); } catch {}
+const saveTodoFolds = () => { try { localStorage.setItem("arpPlanner.todoFolds", JSON.stringify([...todoFolds])); } catch {} };
 
 const todoItems = () => tasks.filter(t => !t.deleted && isTodo(t));
 const syncedLists = () => ((msStatus && msStatus.lists) || []).filter(l => l.synced);
@@ -101,10 +107,14 @@ function renderTodo() {
     box.appendChild(add);
   }
 
-  // Which list.
-  if (lists.length > 1) {
+  const tk = todayKey();
+  const mine = todoItems().filter(t => todoFilter === "all" || t.external.microsoft.listId === todoFilter);
+  const open = mine.filter(t => !t.done);
+
+  // Which list, plus 💭 "No day yet": the to-dos she hasn't put on a day.
+  if (lists.length) {
     const chips = el("div", "todo-filter");
-    for (const [id, name] of [["all", "All lists"], ...lists.map(l => [l.id, l.name])]) {
+    if (lists.length > 1) for (const [id, name] of [["all", "All lists"], ...lists.map(l => [l.id, l.name])]) {
       const b = el("button", "sort-btn" + (todoFilter === id ? " active" : ""), name);
       b.addEventListener("click", () => {
         todoFilter = id;
@@ -113,32 +123,51 @@ function renderTodo() {
       });
       chips.appendChild(b);
     }
+    const noDay = open.filter(t => !t.date).length;
+    const nd = el("button", "sort-btn no-day-tab" + (todoNoDay ? " active" : ""), `💭 No Day Yet${noDay ? " · " + noDay : ""}`);
+    nd.title = todoNoDay ? "Show everything again" : "Only the to-dos you haven't put on a day";
+    nd.addEventListener("click", () => {
+      todoNoDay = !todoNoDay;
+      try { localStorage.setItem("arpPlanner.todoNoDay", todoNoDay ? "1" : "0"); } catch {}
+      renderTodo();
+    });
+    chips.appendChild(nd);
     box.appendChild(chips);
   }
-
-  const tk = todayKey();
-  const mine = todoItems().filter(t => todoFilter === "all" || t.external.microsoft.listId === todoFilter);
-  const open = mine.filter(t => !t.done);
   const groups = [
-    ["⚠️ Overdue", open.filter(t => t.date && t.date < tk).sort((a, b) => a.date.localeCompare(b.date)), "overdue"],
-    ["📅 Today", open.filter(t => t.date === tk).sort(byImportance), ""],
-    ["🗓️ Coming up", open.filter(t => t.date && t.date > tk).sort((a, b) => a.date.localeCompare(b.date) || byImportance(a, b)), ""],
-    ["💭 No day yet", open.filter(t => !t.date).sort(byImportance), ""],
+    ["⚠️ Overdue", open.filter(t => t.date && t.date < tk).sort((a, b) => a.date.localeCompare(b.date)), "overdue", "overdue"],
+    ["📅 Today", open.filter(t => t.date === tk).sort(byImportance), "", "today"],
+    ["🗓️ Coming up", open.filter(t => t.date && t.date > tk).sort((a, b) => a.date.localeCompare(b.date) || byImportance(a, b)), "", "soon"],
+    ["💭 No day yet", open.filter(t => !t.date).sort(byImportance), "", "noday"],
     ["✅ Done lately", mine.filter(t => t.done && (t.doneDate || "") >= addDays(tk, -7))
-      .sort((a, b) => (b.doneDate || "").localeCompare(a.doneDate || "")).slice(0, 15), "done-group"],
-  ];
+      .sort((a, b) => (b.doneDate || "").localeCompare(a.doneDate || "")).slice(0, 15), "done-group", "done"],
+  ].filter(g => !todoNoDay || g[3] === "noday");
   let shown = 0;
-  for (const [title, items, cls] of groups) {
+  for (const [title, items, cls, key] of groups) {
     if (!items.length) continue;
     shown += items.length;
-    const sec = el("div", "todo-group " + cls);
-    sec.appendChild(el("h3", "todo-group-title", `${title} · ${items.length}`));
+    const folded = todoFolds.has(key) && !todoNoDay;
+    const sec = el("div", "todo-group " + cls + (folded ? " folded" : ""));
+    const head = el("h3", "todo-group-title fold-head", `${title} · ${items.length}`);
+    head.appendChild(el("span", "section-chevron", "▾"));
+    head.setAttribute("role", "button");
+    head.tabIndex = 0;
+    head.setAttribute("aria-expanded", String(!folded));
     const ul = el("ul", "task-list");
-    for (const t of items) ul.appendChild(todoRow(t));
-    sec.appendChild(ul);
+    if (!folded) for (const t of items) ul.appendChild(todoRow(t));
+    const toggle = () => {
+      const closing = !todoFolds.has(key);
+      const apply = () => { if (closing) todoFolds.add(key); else todoFolds.delete(key); saveTodoFolds(); renderTodo();
+        if (!closing && typeof popIn === "function") popIn([...document.querySelectorAll(`#todo-body .todo-group[data-key="${key}"] .task-list > li`)]); };
+      if (closing && typeof popOut === "function") popOut([...ul.children], apply); else apply();
+    };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    sec.dataset.key = key;
+    sec.append(head, ul);
     box.appendChild(sec);
   }
-  if (!shown && lists.length) box.appendChild(el("p", "empty", "All clear! Nothing on your list. 🎉"));
+  if (!shown && lists.length) box.appendChild(el("p", "empty", todoNoDay ? "Every to-do has a day. Nice planning! 🗓️" : "All clear! Nothing on your list. 🎉"));
 }
 
 // A normal task row (so ticking off still gets an animal) plus "when" controls.

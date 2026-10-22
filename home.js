@@ -54,6 +54,19 @@ function renderHome() {
     (ft.past ? " · 🌙 Past bedtime, rest up!" :
       over ? ` · 🛑 No free time left: ${formatHrsMin(ft.planned)} of tasks for ${formatHrsMin(ft.total)}. Move something!` :
       ` · ⏳ About ${formatHrsMin(ft.seconds)} of free time left today`)));
+  // 🧥 Chaos meter full today: the Coat Rack appears. It grows… slowly… then snaps back. Again. And again.
+  const rack = $("home-coatrack");
+  let full = false;
+  try { full = !ft.past && chaosFor(tk, ft).pct >= 100; } catch {}
+  rack.hidden = !full;
+  if (full && !rack.firstChild) {
+    const lines = ["It's getting closer…", "Don't turn around.", "It followed you home.", "It just wants to hold your coat. For now.",
+      "You can't outrun the coat rack.", "It knows your schedule."];
+    rack.innerHTML = `<div class="cr-grow">${COAT_RACK_SVG}</div>`;
+    rack.appendChild(el("div", "cr-caption", `🧥 ${lines[Math.floor(Math.random() * lines.length)]}`));
+    rack.title = "The chaos meter is full today. The coat rack has noticed.";
+  }
+  if (!full) rack.innerHTML = "";
   const rec = recoveryFor(tk);
   if (rec) next.appendChild(el("div", "home-rec", "💗 It's a recovery day. Your self-care list is on the Day tab."));
   const e = p.energy, et = ENERGY_TEXT[e.level];
