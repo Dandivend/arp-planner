@@ -80,6 +80,7 @@ const AWARD_STATES = {
   checkin: ["📝", "Checked In", "#a593ff", "You told the planner how you feel"],
   alldone: ["🏆", "Everything Done", "#ffc107", "Every single thing on today's list"],
   coatrack: ["coatrack", "Coat Rack Sighting", "#8c2f39", "The chaos meter hit 100%. It saw you."],
+  volcano: ["🌋", "Volcano Day", "#ff5722", "Two 100% chaos days in a row. The vial has erupted."],
   champion: ["👑", "Champion", "#ffd54f", "Won an adventure"],
   zen: ["🍃", "Zen", "#66bb6a", "Reached your fidget goal"],
   mollyin: ["🦜", "Molly Moved In", "#9aa1a9", "5 minutes of Flappy Molly"],
@@ -114,7 +115,9 @@ function awardsFor(day) {
   if (typeof feelingOf === "function" && (feelingOf(moods[day]) || (typeof bodyOf === "function" && bodyOf(moods[day])))) { const s = AWARD_STATES.checkin; add("checkin", s[0], s[1], s[2], s[3]); }
   const items = tasksFor(day).filter(t => !t.deleted && !isWorkShift(t));
   if (items.length && items.every(t => t.done)) { const s = AWARD_STATES.alldone; add("alldone", s[0], s[1], s[2], s[3]); }
-  if (((profile.dayMarks || {}).fire || []).includes(day)) { const s = AWARD_STATES.coatrack; add("coatrack", s[0], s[1], s[2], s[3]); }
+  const fire = (profile.dayMarks || {}).fire || [];
+  if (fire.includes(day)) { const s = AWARD_STATES.coatrack; add("coatrack", s[0], s[1], s[2], s[3]); }
+  if (fire.includes(day) && fire.includes(addDays(day, -1))) { const s = AWARD_STATES.volcano; add("volcano", s[0], s[1], s[2], s[3]); }
   if (typeof statusLog === "function") {
     const st = statusLog()[day] || {};
     for (const [k, id] of [["hero", "champion"], ["zen", "zen"], ["molly", "mollyin"]]) for (let i = 0; i < (st[k] || 0); i++) {

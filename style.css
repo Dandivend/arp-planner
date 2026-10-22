@@ -2264,3 +2264,35 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 @media screen and (max-width: 960px) {
   .meter .award-more { grid-column: 1 / -1; justify-self: center; max-width: 150px; font-size: 11px; padding: 3px 8px; margin-top: 4px; }
 }
+
+/* 🧥 tidier coat racks: they lurk at the edges, never over the warning, and talk sideways */
+.ff-label { z-index: 3; }
+.ff-rack { animation-name: rack-lurk; }
+@keyframes rack-lurk { 0% { transform: translateX(-6px); } 50% { transform: translateX(10px); } 100% { transform: translateX(0); } }
+.ff-rack .rack-say { bottom: 22px; left: 28px; }
+.ff-rack.side-r .rack-say { left: auto; right: 28px; }
+@media screen and (max-width: 600px) { .ff-rack .rack-say { bottom: 16px; } }
+
+/* 🌋 Volcano vial (second full chaos day in a row): it never stops erupting */
+.flask.volcano { animation: shake-hard .16s ease-in-out infinite !important;
+  filter: drop-shadow(0 0 14px rgba(255, 87, 34, .85)) drop-shadow(0 -10px 22px rgba(255, 152, 0, .55)) !important; }
+.flask.volcano .flask-liquid { --liq: #ff5722 !important; background: linear-gradient(to top, #6d0f00, #d84315 45%, #ff9800 80%, #ffeb3b) !important;
+  animation: magma 1.2s ease-in-out infinite alternate; }
+@keyframes magma { from { filter: brightness(1) saturate(1.1); } to { filter: brightness(1.35) saturate(1.4); } }
+.flask.volcano .flask-cap { animation: volcano-cap .28s ease-in-out infinite !important; background: #3a1a12; }
+@keyframes volcano-cap { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-9px) rotate(8deg); } }
+.volcano-fx { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.lava { position: absolute; left: 50%; top: 2px; width: var(--s); height: var(--s); border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff59d, #ff9800 45%, #e53935 80%); box-shadow: 0 0 8px #ff6d00;
+  animation: lava-spout 1.3s cubic-bezier(.2, .7, .5, 1) infinite; opacity: 0; }
+@keyframes lava-spout {
+  0% { transform: translate(-50%, 0) scale(.4); opacity: 0; } 8% { opacity: 1; }
+  45% { transform: translate(calc(-50% + var(--dx) * .55), calc(var(--up) * -1)) scale(1.1); }
+  100% { transform: translate(calc(-50% + var(--dx)), 90px) scale(.6); opacity: 0; } }
+.volcano-smoke { position: absolute; left: 50%; top: -6px; font-size: 18px; opacity: 0; animation: volcano-smoke 3.2s ease-out infinite; filter: grayscale(.6) brightness(.7); }
+@keyframes volcano-smoke { 0% { transform: translate(-50%, 0) scale(.5); opacity: 0; } 20% { opacity: .8; }
+  100% { transform: translate(calc(-50% + var(--sx) * 3), -90px) scale(1.8); opacity: 0; } }
+.volcano-tag { position: absolute; right: -24px; bottom: -6px; font-size: 18px; animation: volcano-cap .5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .flask.volcano, .flask.volcano .flask-cap, .flask.volcano .flask-liquid, .lava, .volcano-smoke, .volcano-tag { animation: none !important; } .lava, .volcano-smoke { display: none; } }
+@media screen and (min-width: 601px) { .ff-label { max-width: min(640px, calc(100vw - 200px)); } }
+@media screen and (min-width: 601px) { .ff-rack .rack-say, .ff-rack.side-r .rack-say { bottom: 56px; left: 0; right: auto; } .ff-rack.side-r .rack-say { left: auto; right: 0; } }

@@ -679,6 +679,8 @@ function renderFreeTimer() {
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
+  // 🌋 The second 100% chaos day in a row: the vial won't stop erupting.
+  setVolcano(!ft.past && chaos.pct >= 100 && ((profile.dayMarks || {}).fire || []).includes(addDays(day, -1)));
   renderStatusFx(day, ft.past);
   if (typeof renderAwards === "function") renderAwards(day, ft.past);
   const fx = vialFx(day);
@@ -1476,7 +1478,9 @@ const COAT_RACK_LINES = ["*creak*", "👀", "I'm right behind you", "Need a coat
 function makeCoatRack(i) {
   const box = document.createElement("div");
   box.className = "ff-rack";
-  box.style.setProperty("--start", `${12 + i * 28 + Math.random() * 10}%`);
+  // They lurk at the edges (two on the left, one on the right), clear of the warning in the middle.
+  box.style.setProperty("--start", ["1.5%", "7%", "calc(98% - 26px)"][i % 3]);
+  if (i % 3 === 2) box.classList.add("side-r");
   box.style.animationDuration = `${11 + i * 3}s`;
   box.style.animationDelay = `${-i * 2.5}s`;
   box.innerHTML = `<div class="rack-bob">${COAT_RACK_SVG}</div><span class="imp-say rack-say"></span>`;
@@ -2111,6 +2115,36 @@ async function nextDaysProblem(t) {
   persist({ ...t, date: next });
   const when = next === addDays(todayKey(), 1) ? "tomorrow" : fromKey(next).toLocaleDateString(undefined, { weekday: "long" });
   showToast(`😴 "${t.title}" is ${when}'s problem now.`, "Undo", () => persist(before));
+}
+
+// 🌋 Volcano mode: lava blobs spurt out of the top non-stop, smoke billows, the cap rattles and the
+// whole vial glows like magma. (Only on the second full chaos day in a row.)
+function setVolcano(on) {
+  const flask = $("chaos-flask");
+  if (calmMode()) on = false;
+  flask.classList.toggle("volcano", on);
+  let v = flask.querySelector(".volcano-fx");
+  if (!on) { if (v) v.remove(); return; }
+  if (v) return;
+  v = el("div", "volcano-fx");
+  v.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 14; i++) {
+    const b = el("span", "lava");
+    b.style.setProperty("--dx", `${Math.round((Math.random() * 2 - 1) * 46)}px`);
+    b.style.setProperty("--up", `${50 + Math.round(Math.random() * 50)}px`);
+    b.style.setProperty("--s", `${5 + Math.random() * 7}px`);
+    b.style.animationDuration = `${1 + Math.random() * .7}s`;
+    b.style.animationDelay = `${-Math.random() * 1.6}s`;
+    v.appendChild(b);
+  }
+  for (let i = 0; i < 4; i++) {
+    const s = el("span", "volcano-smoke", "💨");
+    s.style.animationDelay = `${-i * .8}s`;
+    s.style.setProperty("--sx", `${(i % 2 ? 1 : -1) * (6 + i * 4)}px`);
+    v.appendChild(s);
+  }
+  v.appendChild(el("span", "volcano-tag", "🌋"));
+  flask.appendChild(v);
 }
 
 // A finished-with demolition: resolves when it's over (a timer, too, so a hidden screen can't stall it).
