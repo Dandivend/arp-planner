@@ -206,6 +206,50 @@ function renderAwards(day, off) {
 }
 let renderAwardsList = [];
 
+// 💨 Tap the tornado: every effect bursts out of it and flies off the screen super fast, spinning,
+// then 2 seconds later they all pop back into the tornado.
+let scattering = false;
+function scatterTornado(storm) {
+  if (scattering) return;
+  const pieces = [...storm.querySelectorAll(".aw-whirl")];
+  if (!pieces.length) return;
+  scattering = true;
+  if (typeof buzz === "function") buzz([20, 30, 50]);
+  if (typeof soundsOn === "function" && soundsOn()) {
+    const ctx = sfx();
+    if (ctx) { noiseBurst(ctx, { dur: .45, freq: 2400, vol: .35 }); voice(ctx, { type: "sine", pitch: [[0, 300], [.35, 1400]], vol: [[0, 0], [.03, .12], [.4, 0]] }); }
+  }
+  const flyers = [];
+  const calm = typeof motionOk === "function" ? !motionOk() : false;
+  for (const p of pieces) {
+    const r = p.getBoundingClientRect();
+    p.style.visibility = "hidden";
+    if (calm) continue;
+    const f = p.cloneNode(true);
+    f.className = "aw-flyer";
+    f.style.visibility = "visible";
+    Object.assign(f.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    (storm.closest("dialog") || document.body).appendChild(f);        // (inside the dialog: it sits on top of everything)
+    const ang = Math.random() * Math.PI * 2, dist = Math.max(innerWidth, innerHeight) * (.8 + Math.random() * .6);
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 80;
+    const spin = (Math.random() < .5 ? -1 : 1) * (360 + Math.random() * 720);
+    f.animate([{ transform: "translate(0,0) rotate(0) scale(1)", opacity: 1 },
+      { transform: `translate(${dx * .15}px, ${dy * .15 - 30}px) rotate(${spin * .2}deg) scale(1.5)`, opacity: 1, offset: .15 },
+      { transform: `translate(${dx}px, ${dy}px) rotate(${spin}deg) scale(.7)`, opacity: .9 }],
+      { duration: 550 + Math.random() * 300, easing: "cubic-bezier(.3, 0, .9, .4)", fill: "forwards" });
+    flyers.push(f);
+  }
+  setTimeout(() => flyers.forEach(f => f.remove()), 1000);
+  // Respawn: they pop back into the tornado, one after another.
+  setTimeout(() => {
+    pieces.forEach((p, i) => setTimeout(() => {
+      p.style.visibility = "";
+      if (!calm) p.firstChild && p.firstChild.animate([{ transform: "scale(0)", opacity: 0 }, { transform: "scale(1.6)", opacity: 1, offset: .6 }, { transform: "scale(1)" }], { duration: 380, easing: "ease-out" });
+    }, i * 25));
+    setTimeout(() => { scattering = false; }, pieces.length * 25 + 400);
+  }, 2000);
+}
+
 // 🌪️ All of today's effects: a tornado of every one, plus the list of what earned them.
 function openAwards(day) {
   let dlg = $("awards-dialog");
@@ -246,6 +290,8 @@ function openAwards(day) {
     p.innerHTML = awIcon(a.icon, "aw-ic");
     storm.appendChild(p);
   });
+  storm.title = "Tap to scatter them!";
+  storm.addEventListener("click", () => scatterTornado(storm));
   dlg.appendChild(storm);
   const grid = el("div", "aw-grid");
   for (const a of list) {

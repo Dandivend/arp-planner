@@ -2296,3 +2296,8 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 @media (prefers-reduced-motion: reduce) { .flask.volcano, .flask.volcano .flask-cap, .flask.volcano .flask-liquid, .lava, .volcano-smoke, .volcano-tag { animation: none !important; } .lava, .volcano-smoke { display: none; } }
 @media screen and (min-width: 601px) { .ff-label { max-width: min(640px, calc(100vw - 200px)); } }
 @media screen and (min-width: 601px) { .ff-rack .rack-say, .ff-rack.side-r .rack-say { bottom: 56px; left: 0; right: auto; } .ff-rack.side-r .rack-say { left: auto; right: 0; } }
+
+/* 💨 tapping the tornado flings the effects off the screen */
+.aw-tornado { cursor: pointer; }
+.aw-flyer { position: fixed; z-index: 400; pointer-events: none; font-size: 24px; line-height: 1; display: grid; place-items: center; }
+.aw-flyer .aw-ic.svg, .aw-flyer .aw-ic.svg svg { width: 26px; height: 26px; display: block; }
