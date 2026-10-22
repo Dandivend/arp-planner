@@ -2,7 +2,8 @@
 // vial: time with Logan is a glowing heart, a store run a tiny shopping cart, gaming a controller,
 // a day off a palm island, and so on. They're earned when a thing is done (an appointment counts once
 // it's over), last the whole day, and reset at midnight like the other status effects.
-//   · the 3 newest orbit the vial; with more than 3, a little arrow opens all of them (a tornado!)
+//   · the 3 newest orbit the vial (just to look at: taps go through them to the vials); with more
+//     than 3, a little arrow opens all of them (a tornado!)
 //   · a brand-new one glows for a few seconds, like an award being handed over
 //   · the vial's liquid swirls in the colours of what she's earned
 // Nothing here changes the real chaos numbers; it's all celebration.
@@ -172,25 +173,22 @@ function renderAwards(day, off) {
     orbit.dataset.key = key;
     orbit.innerHTML = "";
     top.forEach((a, i) => {
-      const b = document.createElement("button");
-      b.type = "button";
+      const b = document.createElement("span");          // just to look at: taps go straight through to the vials
       b.className = "aw-orb" + ((awFresh[a.id] || 0) > now ? " fresh" : "");
       b.style.setProperty("--aw", a.color);
       b.style.animationDelay = `${-i * (9 / Math.max(top.length, 1))}s`;
       b.title = `${a.name}${a.count > 1 ? ` ×${a.count}` : ""}`;
-      b.setAttribute("aria-label", b.title);
+      b.setAttribute("aria-hidden", "true");
       b.innerHTML = awIcon(a.icon) + (a.count > 1 ? `<i class="aw-n">${a.count}</i>` : "");
-      b.addEventListener("click", e => { e.stopPropagation(); openAwards(day); });
-      b.addEventListener("pointerdown", e => e.stopPropagation());      // (don't poke the vial)
       orbit.appendChild(b);
     });
     for (const id of Object.keys(awFresh)) if (awFresh[id] <= now) delete awFresh[id];
     if (Object.keys(awFresh).length) setTimeout(() => { if (timerPlan) renderFreeTimer(); }, 6100);
   }
-  // More than 3: a little arrow that opens all of them.
+  // The little dropdown that opens all of them.
   const more = $("award-more");
-  more.hidden = list.length <= 3;
-  if (!more.hidden) more.textContent = `🏅 ${list.length} effects ▾`;
+  more.hidden = !list.length;                         // (the only way into the list now, so it's there from the first one)
+  if (!more.hidden) more.textContent = `🏅 ${list.length} effect${list.length === 1 ? "" : "s"} ▾`;
   // The liquid swirls in the colours of what she's earned.
   const liq = $("chaos-liquid");
   let sw = liq.querySelector(".liq-swirl");

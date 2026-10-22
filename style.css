@@ -2301,3 +2301,6 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 .aw-tornado { cursor: pointer; }
 .aw-flyer { position: fixed; z-index: 400; pointer-events: none; font-size: 24px; line-height: 1; display: grid; place-items: center; }
 .aw-flyer .aw-ic.svg, .aw-flyer .aw-ic.svg svg { width: 26px; height: 26px; display: block; }
+
+/* the orbiting effects are just to look at: taps go through them to the vials */
+.aw-orb { pointer-events: none !important; cursor: default; }
