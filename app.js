@@ -680,6 +680,7 @@ function renderFreeTimer() {
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
   renderStatusFx(day, ft.past);
+  if (typeof renderAwards === "function") renderAwards(day, ft.past);
   const fx = vialFx(day);
   setChaosFace(Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
   $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
@@ -886,7 +887,7 @@ function renderStatusFx(day, off) {
   if (st.hero) parts.push([`👑${st.hero > 1 ? "⁠" + st.hero : ""}`, `👑 Champion: ${plural(st.hero, "adventure")} won today`]);
   if (st.zen) parts.push([`🍃${st.zen > 1 ? "⁠" + st.zen : ""}`, `🍃 Zen: fidget goal reached ${st.zen}× today`]);
   if (st.molly) parts.push([`🦜${st.molly > 1 ? "⁠" + st.molly : ""}`, `🦜 Molly moved in: ${formatMinutes(st.molly * 5)} of Flappy Molly today`]);
-  note.hidden = !parts.length;
+  note.hidden = true;            // (the 🏅 effects list covers these now: tap an orbiting effect or the arrow)
   if (parts.length) setTapNote(note, parts.map(p => p[0]).join(" "), parts.map(p => p[1]).join("  "));
 }
 
@@ -3144,6 +3145,7 @@ $("tab-recap").addEventListener("click", () => { recapAnchor = todayKey(); showV
 const goDay = day => { currentDay = day; showOptional = false; render(); };
 $("prev-day").addEventListener("click", () => turnPage(-1));
 $("energy-pill").addEventListener("click", () => openSettingsSection("brain-settings"));
+$("award-more").addEventListener("click", () => { if (typeof openAwards === "function") openAwards(currentDay); });
 $("work-pill").addEventListener("click", () => openSettingsSection("work-hours"));
 $("next-day").addEventListener("click", () => turnPage(1));
 

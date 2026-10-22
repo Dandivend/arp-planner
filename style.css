@@ -2206,3 +2206,61 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   .ff-label, #fire-floor[data-level="1"] .ff-label { bottom: calc(112px + env(safe-area-inset-bottom)); }
   body.on-fire main { padding-bottom: 240px; }
 }
+
+/* 🏅 Effects: the 3 newest orbit the vial */
+.aw-orbit { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.aw-orb { position: absolute; left: 50%; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; padding: 0; border-radius: 50%; cursor: pointer;
+  pointer-events: auto; display: grid; place-items: center; font-size: 17px; line-height: 1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--aw) 35%, #1b1d24) 55%, color-mix(in srgb, var(--aw) 20%, transparent));
+  border: 1.5px solid color-mix(in srgb, var(--aw) 80%, white); box-shadow: 0 0 8px color-mix(in srgb, var(--aw) 60%, transparent);
+  animation: aw-orbit 9s linear infinite; }
+.aw-orb .aw-ic.svg, .aw-orb .aw-ic.svg svg { width: 20px; height: 20px; display: block; }
+.aw-orb .aw-n { position: absolute; right: -5px; bottom: -4px; font-style: normal; font-size: 9px; font-weight: 900; color: #fff; background: var(--aw);
+  border-radius: 8px; padding: 0 4px; line-height: 13px; box-shadow: 0 1px 3px rgba(0, 0, 0, .5); }
+@keyframes aw-orbit {
+  0% { transform: translate(40px, -30px) scale(1); z-index: 5; } 25% { transform: translate(0, 70px) scale(.9); }
+  50% { transform: translate(-40px, 20px) scale(.82); opacity: .8; } 75% { transform: translate(0, -80px) scale(.92); }
+  100% { transform: translate(40px, -30px) scale(1); } }
+.aw-orb.fresh { animation: aw-orbit 9s linear infinite, aw-fresh 1s ease-in-out 6; z-index: 6; }
+@keyframes aw-fresh { 0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--aw) 60%, transparent); filter: none; }
+  50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--aw) 45%, transparent), 0 0 26px var(--aw), 0 0 46px color-mix(in srgb, var(--aw) 70%, white); filter: brightness(1.35); } }
+.award-more { display: block; margin: 6px auto 0; padding: 4px 10px; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer;
+  color: var(--ink); background: color-mix(in srgb, #ffd54f 18%, var(--card)); border: 1px solid color-mix(in srgb, #ffd54f 60%, var(--line));
+  box-shadow: 0 0 10px rgba(255, 213, 79, .25); white-space: nowrap; }
+.award-more[hidden] { display: none; }
+.award-more:hover { filter: brightness(1.15); }
+
+/* the liquid swirls in the colours of what she's earned */
+.liq-swirl { position: absolute; inset: 0; overflow: hidden; opacity: .55; mix-blend-mode: hard-light; pointer-events: none; }
+.liq-swirl-in { position: absolute; left: 50%; top: 50%; width: 260%; aspect-ratio: 1; margin: -130% 0 0 -130%; border-radius: 50%;
+  filter: blur(6px); animation: liq-swirl 7s linear infinite; }
+@keyframes liq-swirl { to { transform: rotate(360deg); } }
+
+/* 🌪️ the tornado of all of today's effects */
+.awards-dialog { width: min(480px, 94vw); max-height: 88vh; overflow: auto; padding: 16px 18px; }
+.aw-tornado { position: relative; height: 200px; margin: 6px 0 10px; border-radius: 16px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 100%, rgba(165, 147, 255, .18), transparent 70%); }
+.aw-whirl { position: absolute; left: 50%; top: var(--y); font-size: 20px; line-height: 1; animation: aw-whirl var(--d) linear infinite; }
+.aw-whirl .aw-ic.svg, .aw-whirl .aw-ic.svg svg { width: 22px; height: 22px; display: block; }
+@keyframes aw-whirl {
+  0% { transform: translateX(calc(var(--r) * 1)) scale(1); z-index: 2; } 25% { transform: translateX(0) scale(.75); opacity: .65; }
+  50% { transform: translateX(calc(var(--r) * -1)) scale(.9); } 75% { transform: translateX(0) scale(1.2); z-index: 3; }
+  100% { transform: translateX(calc(var(--r) * 1)) scale(1); } }
+.aw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.aw-card { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--aw) 45%, var(--line));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--aw) 16%, var(--card)), var(--card)); }
+.aw-card-ic { flex: none; width: 36px; height: 36px; display: grid; place-items: center; font-size: 24px; border-radius: 50%;
+  background: color-mix(in srgb, var(--aw) 22%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--aw) 40%, transparent); }
+.aw-card-ic .aw-ic.svg, .aw-card-ic .aw-ic.svg svg { width: 28px; height: 28px; display: block; }
+.aw-card-words { display: flex; flex-direction: column; min-width: 0; }
+.aw-card-words span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .aw-orb, .aw-orb.fresh, .liq-swirl-in, .aw-whirl { animation: none; } .aw-orb { transform: translate(40px, -30px); } }
+
+.aw-whirl { font-size: 24px; } .aw-whirl .aw-ic.svg, .aw-whirl .aw-ic.svg svg { width: 26px; height: 26px; }
+.aw-wind { position: absolute; left: 50%; top: var(--wy); width: var(--ww); height: 16px; margin-left: calc(var(--ww) / -2); border-radius: 50%;
+  border: 2px solid rgba(200, 190, 255, .18); border-left-color: transparent; border-bottom-color: rgba(200, 190, 255, .05); animation: aw-wind 1.4s linear infinite; }
+@keyframes aw-wind { to { transform: rotate(360deg) scaleY(.35); } from { transform: rotate(0deg) scaleY(.35); } }
+@media (prefers-reduced-motion: reduce) { .aw-wind { animation: none; } }
+@media screen and (max-width: 960px) {
+  .meter .award-more { grid-column: 1 / -1; justify-self: center; max-width: 150px; font-size: 11px; padding: 3px 8px; margin-top: 4px; }
+}
