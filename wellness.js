@@ -161,17 +161,13 @@ function settingsShiftFor(day) {
 const DEFAULT_WORK_FROM_CAL = { enabled: true, match: "Ariel - Work" };
 const workFromCal = () => ({ ...DEFAULT_WORK_FROM_CAL, ...(profile.workFromGoogle || {}) });
 function isWorkShift(t) {
-  if (t && !t.deleted && isDrill(t)) return true;            // 🪖 drill is work too
   const pref = workFromCal();
   const match = (pref.match || "").trim().toLowerCase();
   return !!(pref.enabled && match && t && !t.deleted && t.time && (t.title || "").toLowerCase().includes(match));
 }
 function calendarShiftFor(day) {
   const ev = tasks.filter(t => t.date === day && t.time && isWorkShift(t)).sort((a, b) => a.time.localeCompare(b.time))[0];
-  if (ev) return { start: ev.time, end: addMinutesTo(ev.time, ev.minutes || 8 * 60), fromCalendar: true, title: ev.title, drill: isDrill(ev) };
-  // An all-day DRILL (maybe a whole weekend): a long day, 7 AM to 5 PM.
-  const d = tasks.find(t => !t.time && isDrill(t) && day >= t.date && day <= (t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date));
-  return d ? { start: "07:00", end: "17:00", fromCalendar: true, title: d.title, drill: true } : null;
+  return ev ? { start: ev.time, end: addMinutesTo(ev.time, ev.minutes || 8 * 60), fromCalendar: true, title: ev.title } : null;
 }
 
 
@@ -184,12 +180,12 @@ function calendarRunsWork() {
   return calWorkMemo.on;
 }
 // 🏖️ "LEAVE" in a calendar event's title (an all-day one) makes those days vacation days: no work,
-// whatever the shifts say. 🪖 "DRILL" in a calendar event's title is work (longer hours): it counts
-// as her work shift for the day (see isWorkShift / calendarShiftFor). Both are whole words, any case.
+// whatever the shifts say. 🪖 "DRILL" in a calendar event's title makes it a note on the day, not a
+// task: it doesn't count toward chaos, the Order vial or effects. Both are whole words, any case.
 const fromCalendar = t => !!(t.external && t.external.google) || kindOf(t) === "event";
 const isLeave = t => !t.deleted && fromCalendar(t) && !t.time && /\bleave\b/i.test(t.title || "");
 const isDrill = t => !t.deleted && fromCalendar(t) && /\bdrill\b/i.test(t.title || "");
-const isDayNote = t => isLeave(t);
+const isDayNote = t => isLeave(t) || isDrill(t);
 const leaveEnd = t => (t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date);
 let leaveMemo = { at: 0, tasks: null, n: -1, list: [] };
 function leavesOn(day) {

@@ -193,7 +193,7 @@ function visibleOn(t, day) {
 const byTime = (a, b) => (a.time || "").localeCompare(b.time || "") || a.createdAt.localeCompare(b.createdAt);
 
 function tasksFor(day) {
-  return tasks.filter(t => visibleOn(t, day) && !isDayNote(t)).sort((a, b) => {      // (LEAVE is a note on the day, above the list)
+  return tasks.filter(t => visibleOn(t, day) && !isDayNote(t)).sort((a, b) => {      // (LEAVE / DRILL are notes on the day, above the list)
     if (!a.time !== !b.time) return a.time ? -1 : 1;   // timed first, anytime last
     return byTime(a, b);
   });
@@ -358,7 +358,7 @@ function renderDay() {
   $("energy-pill").textContent = `${et.emoji} ${et.label} energy`;
   $("energy-pill").style.setProperty("--energy", et.color);
   $("energy-pill").title = p.energy.why.join(", ");
-  $("work-pill").textContent = p.shift ? `${p.shift.drill ? "🪖 Drill" : "💼 Work"} ${shiftLabel(p.shift)}` : vacationOn(currentDay) ? "🏖️ Vacation day" : "🌴 Day off";
+  $("work-pill").textContent = p.shift ? `💼 Work ${shiftLabel(p.shift)}` : vacationOn(currentDay) ? "🏖️ Vacation day" : "🌴 Day off";
   renderDayNotes(currentDay);
   renderBatteries(p);
   timerPlan = p;
@@ -2102,7 +2102,7 @@ function stepList(t) {
   return ul;
 }
 
-// 📌 Notes on the day (not tasks): 🏖️ vacation (a LEAVE event). Tap one to open it.
+// 📌 Notes on the day (not tasks): 🏖️ vacation (a LEAVE event) and 🪖 DRILL events. Tap one to open it.
 function renderDayNotes(day) {
   const box = $("day-notes");
   if (!box) return;
@@ -2110,6 +2110,8 @@ function renderDayNotes(day) {
   const fmt = d => fromKey(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   const notes = [
     ...leavesOn(day).map(t => [`🏖️ Vacation day · ${t.title}` + (leaveEnd(t) > t.date ? ` (${fmt(t.date)}–${fmt(leaveEnd(t))})` : ""), t, "leave"]),
+    ...tasks.filter(t => isDrill(t) && day >= t.date && day <= leaveEnd(t)).sort(byTime)
+      .map(t => [`🪖 ${t.title}` + (t.time ? ` · ${formatTime(t.time)}${t.minutes ? `–${formatTime(addMinutesTo(t.time, t.minutes))}` : ""}` : ""), t, "drill"]),
   ];
   box.hidden = !notes.length;
   for (const [text, t, cls] of notes) {
@@ -2518,7 +2520,7 @@ function renderMonth() {
       const shift = workHoursFor(key);
       cell.classList.add(shift ? "workday" : "offday");
       cell.appendChild(Object.assign(document.createElement("span"), {
-        className: "work-tag", textContent: shift ? `${shift.drill ? "🪖" : "💼"} ${shortTime(shift.start)}–${shortTime(shift.end)}` : vacationOn(key) ? "🏖️ Vacation" : "🌴 Off",
+        className: "work-tag", textContent: shift ? `💼 ${shortTime(shift.start)}–${shortTime(shift.end)}` : vacationOn(key) ? "🏖️ Vacation" : "🌴 Off",
       }));
     }
 
