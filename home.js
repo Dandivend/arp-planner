@@ -50,7 +50,7 @@ function renderHome() {
   const ft = freeTimeLeft(tk, p.active);
   const over = ft.seconds < 0 && p.planned > 0 && !ft.past;
   next.appendChild(el("div", "home-work" + (over ? " over" : ""),
-    (p.shift ? `💼 Work ${shiftLabel(p.shift)}` : "🌴 Day off") +
+    (p.shift ? `${p.shift.drill ? "🪖 Drill" : "💼 Work"} ${shiftLabel(p.shift)}` : vacationOn(tk) ? "🏖️ Vacation day" : "🌴 Day off") +
     (ft.past ? " · 🌙 Past bedtime, rest up!" :
       over ? ` · 🛑 No free time left: ${formatHrsMin(ft.planned)} of tasks for ${formatHrsMin(ft.total)}. Move something!` :
       ` · ⏳ About ${formatHrsMin(ft.seconds)} of free time left today`)));

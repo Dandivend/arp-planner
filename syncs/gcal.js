@@ -21,6 +21,13 @@ function eventTimes(ev) {
   return [start.date, null, null];
 }
 
+// The last day of an all-day event that runs several days (Google's end date is the day after), or
+// null. Kept on the task as spanEnd, so a week of leave covers the whole week.
+function spanEndOf(ev) {
+  const s = (ev.start || {}).date, e = (ev.end || {}).date;
+  return s && e && e > SyncTZ.addDays(s, 1) ? SyncTZ.addDays(e, -1) : null;
+}
+
 function taskToEvent(t) {
   let title = t.title || "(untitled)";
   if (t.dueDate && !t.time) title = "⏰ " + title + " (due)";
@@ -94,7 +101,7 @@ function newTaskFromEvent(ev, calendarId, imported) {
   const now = new Date().toISOString();
   const hex = [...crypto.getRandomValues(new Uint8Array(8))].map(b => b.toString(16).padStart(2, "0")).join("");
   return {
-    id: "g-" + hex, date: day, time: hhmm, title, notes: cleanEventNotes(ev.description), done, doneDate: null,
+    id: "g-" + hex, date: day, time: hhmm, title, notes: cleanEventNotes(ev.description), done, doneDate: null, spanEnd: spanEndOf(ev),
     kind: hhmm ? "event" : "task", priority: "normal", dueDate: null, minutes: mins, area: null, effort: "light",
     workout: null, createdAt: now, updatedAt: now, deleted: false,
     external: { google: { calendarId, eventId: ev.id, updated: ev.updated, imported } },
@@ -247,6 +254,8 @@ const PhoneCalendar = {
         }
         const g = link(t);
         if (t.deleted) continue;                                  // hidden here on purpose; Google keeps it
+        const se = spanEndOf(ev);
+        if ((t.spanEnd || null) !== se) { t.spanEnd = se; touch(t); }
         const changedThere = rezone || ev.updated !== g.updated;
         const changedHere = (await importedHash(t)) !== g.hash;
         if (changedHere) {
@@ -256,7 +265,7 @@ const PhoneCalendar = {
             patch.end = { dateTime: SyncTZ.localIso(t.date, t.time, t.minutes || 30) };
           } else {
             patch.start = { date: t.date };
-            patch.end = { date: SyncTZ.addDays(t.date, 1) };
+            patch.end = { date: SyncTZ.addDays(t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date, 1) };   // (keep a multi-day event's length)
           }
           const res = await this.api("PATCH", `/calendars/${enc(calId)}/events/${enc(ev.id)}`, patch);
           g.updated = res.updated; g.hash = await importedHash(t);

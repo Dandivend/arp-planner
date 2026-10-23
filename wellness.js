@@ -161,14 +161,19 @@ function settingsShiftFor(day) {
 const DEFAULT_WORK_FROM_CAL = { enabled: true, match: "Ariel - Work" };
 const workFromCal = () => ({ ...DEFAULT_WORK_FROM_CAL, ...(profile.workFromGoogle || {}) });
 function isWorkShift(t) {
+  if (t && !t.deleted && isDrill(t)) return true;            // 🪖 drill is work too
   const pref = workFromCal();
   const match = (pref.match || "").trim().toLowerCase();
   return !!(pref.enabled && match && t && !t.deleted && t.time && (t.title || "").toLowerCase().includes(match));
 }
 function calendarShiftFor(day) {
-  const ev = tasks.filter(t => t.date === day && isWorkShift(t)).sort((a, b) => a.time.localeCompare(b.time))[0];
-  return ev ? { start: ev.time, end: addMinutesTo(ev.time, ev.minutes || 8 * 60), fromCalendar: true, title: ev.title } : null;
+  const ev = tasks.filter(t => t.date === day && t.time && isWorkShift(t)).sort((a, b) => a.time.localeCompare(b.time))[0];
+  if (ev) return { start: ev.time, end: addMinutesTo(ev.time, ev.minutes || 8 * 60), fromCalendar: true, title: ev.title, drill: isDrill(ev) };
+  // An all-day DRILL (maybe a whole weekend): a long day, 7 AM to 5 PM.
+  const d = tasks.find(t => !t.time && isDrill(t) && day >= t.date && day <= (t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date));
+  return d ? { start: "07:00", end: "17:00", fromCalendar: true, title: d.title, drill: true } : null;
 }
+
 
 // When her work comes from Google Calendar (the setting is on and her shifts are coming in), the
 // calendar decides: a day with no work event on it is a day off 🌴. Otherwise, Settings' weekly hours.
@@ -178,7 +183,22 @@ function calendarRunsWork() {
   if (calWorkMemo.tasks !== tasks || calWorkMemo.n !== tasks.length) calWorkMemo = { tasks, n: tasks.length, on: tasks.some(isWorkShift) };
   return calWorkMemo.on;
 }
-const workHoursFor = day => calendarShiftFor(day) || (calendarRunsWork() ? null : settingsShiftFor(day));
+// 🏖️ "LEAVE" in a calendar event's title (an all-day one) makes those days vacation days: no work,
+// whatever the shifts say. 🪖 "DRILL" in a calendar event's title is work (longer hours): it counts
+// as her work shift for the day (see isWorkShift / calendarShiftFor). Both are whole words, any case.
+const fromCalendar = t => !!(t.external && t.external.google) || kindOf(t) === "event";
+const isLeave = t => !t.deleted && fromCalendar(t) && !t.time && /\bleave\b/i.test(t.title || "");
+const isDrill = t => !t.deleted && fromCalendar(t) && /\bdrill\b/i.test(t.title || "");
+const isDayNote = t => isLeave(t);
+const leaveEnd = t => (t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date);
+let leaveMemo = { at: 0, tasks: null, n: -1, list: [] };
+function leavesOn(day) {
+  if (leaveMemo.tasks !== tasks || leaveMemo.n !== tasks.length || Date.now() - leaveMemo.at > 3000)
+    leaveMemo = { at: Date.now(), tasks, n: tasks.length, list: tasks.filter(isLeave) };
+  return leaveMemo.list.filter(t => day >= t.date && day <= leaveEnd(t));
+}
+const vacationOn = day => leavesOn(day).length > 0;
+const workHoursFor = day => vacationOn(day) ? null : (calendarShiftFor(day) || (calendarRunsWork() ? null : settingsShiftFor(day)));
 const isWorkday = day => !!workHoursFor(day);
 
 // Work as blocks of minutes within this day (0-1440): today's shift (cut at midnight if it

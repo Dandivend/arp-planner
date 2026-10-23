@@ -193,7 +193,7 @@ function visibleOn(t, day) {
 const byTime = (a, b) => (a.time || "").localeCompare(b.time || "") || a.createdAt.localeCompare(b.createdAt);
 
 function tasksFor(day) {
-  return tasks.filter(t => visibleOn(t, day)).sort((a, b) => {
+  return tasks.filter(t => visibleOn(t, day) && !isDayNote(t)).sort((a, b) => {      // (LEAVE is a note on the day, above the list)
     if (!a.time !== !b.time) return a.time ? -1 : 1;   // timed first, anytime last
     return byTime(a, b);
   });
@@ -358,7 +358,8 @@ function renderDay() {
   $("energy-pill").textContent = `${et.emoji} ${et.label} energy`;
   $("energy-pill").style.setProperty("--energy", et.color);
   $("energy-pill").title = p.energy.why.join(", ");
-  $("work-pill").textContent = p.shift ? `💼 Work ${shiftLabel(p.shift)}` : "🌴 Day off";
+  $("work-pill").textContent = p.shift ? `${p.shift.drill ? "🪖 Drill" : "💼 Work"} ${shiftLabel(p.shift)}` : vacationOn(currentDay) ? "🏖️ Vacation day" : "🌴 Day off";
+  renderDayNotes(currentDay);
   renderBatteries(p);
   timerPlan = p;
   renderFreeTimer();
@@ -2101,6 +2102,25 @@ function stepList(t) {
   return ul;
 }
 
+// 📌 Notes on the day (not tasks): 🏖️ vacation (a LEAVE event). Tap one to open it.
+function renderDayNotes(day) {
+  const box = $("day-notes");
+  if (!box) return;
+  box.innerHTML = "";
+  const fmt = d => fromKey(d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const notes = [
+    ...leavesOn(day).map(t => [`🏖️ Vacation day · ${t.title}` + (leaveEnd(t) > t.date ? ` (${fmt(t.date)}–${fmt(leaveEnd(t))})` : ""), t, "leave"]),
+  ];
+  box.hidden = !notes.length;
+  for (const [text, t, cls] of notes) {
+    const b = el("button", "day-note " + cls, text);
+    b.type = "button";
+    b.title = "A note on the day (not a task). Tap to see it.";
+    b.addEventListener("click", () => openDialog(t));
+    box.appendChild(b);
+  }
+}
+
 // "Next day's problem": push a chore / to-do to the day after the one being looked at.
 // …and on its way out, the task gets either zapped by a laser 🛸 or flattened by a bulldozer 🚜.
 async function nextDaysProblem(t) {
@@ -2498,7 +2518,7 @@ function renderMonth() {
       const shift = workHoursFor(key);
       cell.classList.add(shift ? "workday" : "offday");
       cell.appendChild(Object.assign(document.createElement("span"), {
-        className: "work-tag", textContent: shift ? `💼 ${shortTime(shift.start)}–${shortTime(shift.end)}` : "🌴 Off",
+        className: "work-tag", textContent: shift ? `${shift.drill ? "🪖" : "💼"} ${shortTime(shift.start)}–${shortTime(shift.end)}` : vacationOn(key) ? "🏖️ Vacation" : "🌴 Off",
       }));
     }
 

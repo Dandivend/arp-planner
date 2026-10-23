@@ -2304,3 +2304,10 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
 
 /* the orbiting effects are just to look at: taps go through them to the vials */
 .aw-orb { pointer-events: none !important; cursor: default; }
+
+/* 📌 notes on the day: 🏖️ vacation, 🪖 drill */
+.day-notes { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 10px; }
+.day-note { font: inherit; font-size: 14px; font-weight: 700; padding: 7px 12px; border-radius: 12px; cursor: pointer; text-align: left;
+  color: var(--ink); border: 1px dashed var(--line); background: color-mix(in srgb, var(--card) 85%, transparent); }
+.day-note.leave { border-color: #00bcd4; background: color-mix(in srgb, #00bcd4 14%, var(--card)); }
+.day-note.drill { border-color: #8d9a5b; background: color-mix(in srgb, #6b7b3a 18%, var(--card)); }

@@ -78,6 +78,7 @@ const AWARD_KINDS = [
 const AWARD_STATES = {
   clockout: ["clockout", "Clocked Out", "#8d6e63", "Work's done for the day"],
   dayoff: ["island", "Day Off", "#26c6da", "No work today"],
+  vacation: ["🏖️", "Vacation Day", "#00bcd4", "On leave. Rest, play, recharge"],
   checkin: ["📝", "Checked In", "#a593ff", "You told the planner how you feel"],
   alldone: ["🏆", "Everything Done", "#ffc107", "Every single thing on today's list"],
   coatrack: ["coatrack", "Coat Rack Sighting", "#8c2f39", "The chaos meter hit 100%. It saw you."],
@@ -102,12 +103,12 @@ function awardsFor(day) {
   const over = t => kindOf(t) === "event" && t.time && t.date === day && (day < tk || (day === tk && toMin(t.time) + (t.minutes || 60) <= nowMin));
   // Work: a day off all day; on a workday, "Clocked Out" once the shift is over (or ticked off).
   const shift = workHoursFor(day);
-  if (!shift) { const s = AWARD_STATES.dayoff; add("dayoff", s[0], s[1], s[2], s[3]); }
-  else if (day < tk || (day === tk && toMin(shift.start) + shiftMinutes(shift) <= nowMin + (nowMin < toMin(shift.start) ? 1440 : 0))
+  if (!shift) { const s = vacationOn(day) ? AWARD_STATES.vacation : AWARD_STATES.dayoff; add(vacationOn(day) ? "vacation" : "dayoff", s[0], s[1], s[2], s[3]); }
+  else if (day < tk || (day === tk && nowMin >= toMin(shift.start) + shiftMinutes(shift))      // the shift is over (not just "not started yet")
     || tasks.some(t => isWorkShift(t) && t.date === day && t.done)) { const s = AWARD_STATES.clockout; add("clockout", s[0], s[1], s[2], s[3]); }
   // Every finished thing (an appointment counts once it's over).
   for (const t of tasks) {
-    if (t.deleted || t.skipped || isWorkShift(t)) continue;
+    if (t.deleted || t.skipped || isWorkShift(t) || isDayNote(t)) continue;
     const done = t.done && (t.doneDate || t.date) === day;
     if (!done && !(!t.done && over(t))) continue;
     const k = awardKindOf(t);
