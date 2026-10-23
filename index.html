@@ -20,6 +20,7 @@
       <button id="tab-day" class="tab" role="tab">Day</button>
       <button id="tab-month" class="tab" role="tab">Calendar</button>
       <button id="tab-todo" class="tab" role="tab">To Do</button>
+      <button id="tab-work" class="tab" role="tab" title="Fit things into your work hours"><span class="tab-long">Work helper</span><span class="tab-short">Work</span></button>
       <button id="tab-joy" class="tab" role="tab" title="Rejuvenation: hobbies and fun">Joy</button>
       <button id="tab-logan" class="tab" role="tab" title="What Logan's up to">Logan</button>
       <button id="tab-recap" class="tab" role="tab">Recap</button>
@@ -397,6 +398,18 @@
       <div id="logan-body"></div>
     </section>
 
+    <!-- WORK HELPER: fit appointments and errands into work hours -->
+    <section id="work-view" hidden>
+      <div class="nav-row">
+        <button id="work-prev" class="nav-btn">&#8249;</button>
+        <h2 id="work-title" class="month-title"></h2>
+        <button id="work-next" class="nav-btn">&#8250;</button>
+        <button id="work-today" class="nav-btn today">Today</button>
+      </div>
+      <p class="hint">In the military, a lot can happen during work hours (like a medical appointment on base). Here's the unassigned time in your shift, and what you could move into it.</p>
+      <div id="work-body"></div>
+    </section>
+
     <!-- ADVENTURE MODE (opened from the bottom of Settings) -->
     <section id="adventure-view" hidden>
       <button id="adventure-back" class="link-btn">‹ Back to Settings</button>
@@ -638,5 +651,6 @@
   <script src="logan.js"></script>
   <script src="funfacts.js"></script>
   <script src="awards.js"></script>
+  <script src="workhelp.js"></script>
 </body>
 </html>

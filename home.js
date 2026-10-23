@@ -12,7 +12,7 @@ function renderHome() {
   $("home-greeting").textContent = `${hello}, ${HER_NAME} ${icon}`;
   const hol = holidayOn(tk);
   $("home-date").textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) +
-    (hol ? `  ·  ${hol.emoji} Happy ${hol.name}!` : "");
+    (hol ? `  ·  ${holLabel(hol, "Happy ", "!")}` : "");
 
   // Check-in prompt: glows until she's checked in today.
   const entry = moods[tk] || {};

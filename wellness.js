@@ -279,7 +279,7 @@ const careFor = day => (typeof careMinutesFor === "function" ? careMinutesFor(da
 function plannedMinutes(list, day) {
   return list
     .filter(t => !t.done && !t.deleted && !isWorkShift(t))
-    .filter(t => kindOf(t) !== "event" || !(day && atWork(day, t.time)))
+    .filter(t => !(t.time && day && atWork(day, t.time)))      // anything during work hours doesn't use free time (military: appointments on the clock)
     .reduce((s, t) => s + (minutesLeft(t) ?? (kindOf(t) === "event" ? 30 : 15))    // finished steps don't count
       + (isSocial(t) ? SOCIAL_QUIET : 0), 0);                                      // quiet time after people
 }

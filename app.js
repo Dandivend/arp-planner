@@ -330,7 +330,7 @@ function renderDay() {
   $("day-weekday").textContent = d.toLocaleDateString(undefined, { weekday: "long" });
   const hol = holidayOn(currentDay);
   $("day-date").textContent = d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) +
-    (hol ? `  ·  ${hol.emoji} ${hol.name}` : "");
+    (hol ? `  ·  ${holLabel(hol)}` : "");
   renderDayBanner(currentDay, tk);
   $("day-badge").textContent =
     currentDay === tk ? "Today" :
@@ -1973,7 +1973,7 @@ function openDayPeek(key) {
   const facts = el("div", "peek-facts");
   const fact = text => facts.appendChild(el("span", "peek-fact", text));
   const hol = holidayOn(key);
-  if (hol) fact(`${hol.emoji} ${hol.name}`);
+  if (hol) fact(holLabel(hol));
   const shift = workHoursFor(key);
   fact(shift ? `💼 Work ${shiftLabel(shift)}` : "🌴 Day off");
   try { const e = energyFor(key); fact(`🔋 ${e.level[0].toUpperCase() + e.level.slice(1)} energy`); } catch {}
@@ -2382,7 +2382,7 @@ function renderWeekBoard() {
     const shift = workHoursFor(key), hol = holidayOn(key);
     const tags = el("div", "week-tags");
     tags.appendChild(el("span", "week-tag " + (shift ? "work" : "off"), shift ? `💼 ${shortTime(shift.start)}–${shortTime(shift.end)}` : "🌴 Day off"));
-    if (hol) tags.appendChild(el("span", "week-tag hol", `${hol.emoji} ${hol.name}`));
+    if (hol) tags.appendChild(el("span", "week-tag hol", holLabel(hol)));
     col.appendChild(tags);
 
     const list = tasks.filter(t => !t.deleted && (t.dueDate ? t.dueDate === key : t.date === key) && !monthHidden.has(monthKind(t)))
@@ -2542,7 +2542,7 @@ function renderMonth() {
       top.appendChild(e);
     }
     cell.appendChild(top);
-    if (hol) cell.appendChild(Object.assign(document.createElement("span"), { className: "hol-name", textContent: `${hol.emoji} ${hol.name}` }));
+    if (hol) cell.appendChild(Object.assign(document.createElement("span"), { className: "hol-name", textContent: holLabel(hol) }));
 
     // Cycle phase stripe along the bottom of the cell (dashed = predicted).
     const ci = cycleInfo(key);
@@ -2578,7 +2578,7 @@ function renderMonth() {
       more.textContent = `+${list.length - shown}`;
       cell.appendChild(more);
     }
-    cell.title = (hol ? `${hol.emoji} ${hol.name} · ` : "") + (dueHere.length ? `❗ ${dueHere.length} due · ` : "") +
+    cell.title = (hol ? `${holLabel(hol)} · ` : "") + (dueHere.length ? `❗ ${dueHere.length} due · ` : "") +
       (list.length ? plural(list.length, "task") : "No tasks") +
       (ci ? ` · Cycle day ${ci.cycleDay}, ${PHASES[ci.phase].label.toLowerCase()}` : "");
     cell.addEventListener("click", () => openDayPeek(key));      // a quick look; "Go to that day" opens it
@@ -2635,7 +2635,7 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "joy", "logan", "recap", "settings", "fidget", "adventure"]) {
+  for (const name of ["home", "day", "month", "todo", "work", "joy", "logan", "recap", "settings", "fidget", "adventure"]) {
     $(name + "-view").hidden = v !== name;
     if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && (v === "fidget" || v === "adventure")));
   }
@@ -2654,6 +2654,7 @@ function render() {
   else if (view === "day") { renderDay(); renderSidebar(); renderFitIn(); renderAssistant(); }
   else if (view === "month") renderMonth();
   else if (view === "todo") renderTodo();
+  else if (view === "work") renderWorkHelper();
   else if (view === "joy") renderJoy();
   else if (view === "fidget") renderFidgets();
   else if (view === "logan") renderLogan();
