@@ -268,10 +268,9 @@ function openAwards(day) {
   x.addEventListener("click", () => dlg.close());
   head.appendChild(x);
   dlg.appendChild(head);
-  // The tornado: every effect (each count too) whirling in a funnel.
+  // The tornado: one of each effect whirling in the funnel.
   const storm = el("div", "aw-tornado");
-  let pieces = list.flatMap(a => Array.from({ length: Math.min(a.count, 4) }, () => a));
-  while (pieces.length && pieces.length < 16) pieces = pieces.concat(pieces);          // always a proper tornado
+  const pieces = list;
   // A real-looking funnel cloud: the storm cloud overhead, then stacked slices that taper to the
   // ground (streaks slide across them so it spins, and a ripple runs down it so it sways like a
   // rope), and the dust and debris it kicks up where it touches down.
@@ -298,7 +297,7 @@ function openAwards(day) {
   }
   pieces.slice(0, 40).forEach((a, i, arr) => {
     const p = el("span", "aw-whirl");
-    const lvl = i / Math.max(arr.length - 1, 1);                     // top of the funnel is wide, the bottom narrow
+    const lvl = (i + .5) / arr.length;                               // spread out top to bottom (top wide, bottom narrow)
     p.style.setProperty("--r", `${26 + lvl * 92}px`);
     p.style.setProperty("--y", `${168 - lvl * 150}px`);
     p.style.setProperty("--d", `${1.6 + (1 - lvl) * 1.6}s`);
