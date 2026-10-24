@@ -50,6 +50,7 @@ function aiTaskInfo(t, tk) {
   if (t.herMove && t.herMove.slice(0, 10) >= addDays(tk, -1)) o.sheMovedItToday = true;
   if (t.steps && t.steps.length) o.steps = t.steps.map((s, i) => ({ i, title: s.title, ...(s.minutes ? { minutes: s.minutes } : {}), ...(s.done ? { done: true } : {}) }));
   if (t.notes) o.notes = t.notes.slice(0, 140);
+  if (t.area) o.area = t.area;
   if (isWorkShift(t)) o.workShift = true;
   return o;
 }
@@ -77,7 +78,14 @@ function aiContext() {
   }
   const history = Object.entries(past).slice(0, 80).map(([title, m]) => ({ title, usualMinutes: Math.round(m.reduce((a, b) => a + b, 0) / m.length), times: m.length }));
   const n = nowLocal();
-  return { now: `${tk} ${pad(n.getHours())}:${pad(n.getMinutes())}`, viewingDay: currentDay, days, tasks: inView.map(t => aiTaskInfo(t, tk)), history };
+  // Her week so far (chaos days = 90%+ on her chaos meter) and her vacation days coming up.
+  const wk = weekStartOf(tk);
+  const chaosDaysThisWeek = ((profile.dayMarks || {}).chaos90 || []).filter(d => d >= wk && d <= tk);
+  const vacationDays = [];
+  for (let i = 0; i <= 45; i++) { const d = addDays(tk, i); if (vacationOn(d)) vacationDays.push(d); }
+  const myOrder = myOrderOf(currentDay);
+  return { now: `${tk} ${pad(n.getHours())}:${pad(n.getMinutes())}`, viewingDay: currentDay, days, chaosDaysThisWeek, vacationDays,
+    ...(myOrder ? { herOrderForViewingDay: myOrder } : {}), tasks: inView.map(t => aiTaskInfo(t, tk)), history };
 }
 
 const AI_SYSTEM = `You are the helper inside ARP Planner, Ariel's personal day planner. Ariel has ADHD and is autistic.
@@ -99,7 +107,14 @@ Rules:
 - Tasks marked sheMovedItToday were placed by her: in automatic re-plans never move them.
 - When you guess a length, set guess: true. Base guesses on history (her past lengths for similar tasks) when you can.
 - Don't schedule over work hours or outside awake hours. Don't pile several brain-heavy jobs back to back.
-- After using tools, tell her in one or two sentences what you changed.`;
+- After using tools, tell her in one or two sentences what you changed.
+- The order of a day's untimed things (on her Day tab and in focus mode) is set with set_day_order. Only order; it never
+  moves anything to another day or time.
+
+About Ariel: she reasons things through a lot, and sometimes bites off more than she can chew. When she's tapped out
+(several chaos days this week, low batteries), give mild, kind pushback like a good friend: say plainly what can wait
+and until when (her vacationDays help: "your vacation starts Friday, this can wait"), but it's always her call.
+On heavy days, suggest a little joy to balance things out, framed around her well-being.`;
 
 const AI_TOOLS = [
   { name: "update_tasks", description: "Change existing tasks: move to another day or time, set lengths, priority, loads, title, notes, step lengths, or mark done.",
@@ -120,6 +135,8 @@ const AI_TOOLS = [
     }, required: ["title", "date"] } },
   { name: "ask_to_delete", description: "Ask her to confirm deleting a task. Shows her a Delete button; nothing is deleted until she taps it.",
     input_schema: { type: "object", properties: { id: { type: "string" }, why: { type: "string" } }, required: ["id"] } },
+  { name: "set_day_order", description: "Set the order she does a day's untimed tasks and chores in (her Day tab and focus mode follow it). List every untimed, not-done task id for that day, first to last.",
+    input_schema: { type: "object", properties: { date: { type: "string" }, ids: { type: "array", items: { type: "string" } } }, required: ["date", "ids"] } },
 ];
 
 // ---------- doing what Claude asks ----------
@@ -177,6 +194,14 @@ async function aiRunTool(name, input, batch, auto) {
     if (!t) return "No such task.";
     ai.log.push({ who: "ask", text: `Delete "${t.title}"?${input.why ? " " + input.why : ""}`, id: t.id });
     return "Asked her. It's deleted only if she taps the button.";
+  }
+  if (name === "set_day_order") {
+    if (!DAY_RE.test(input.date || "")) return "Not set: it needs a date (YYYY-MM-DD).";
+    const ids = [...new Set((input.ids || []).filter(id => { const t = find(id); return t && !t.time; }))];
+    if (!ids.length) return "Not set: none of those are untimed tasks.";
+    batch.push({ order: input.date, before: myOrderOf(input.date) });
+    saveMyOrder(input.date, ids, { replace: true });
+    return `Order set for ${input.date}: ${ids.map(id => find(id).title).join(" → ")}.`;
   }
   return "Unknown tool.";
 }
@@ -237,7 +262,12 @@ async function aiUndo(batchId) {
   if (!batch) return;
   delete ai.undo[batchId];
   for (const step of [...batch].reverse()) {
-    if (step.added) {
+    if (step.order) {
+      const all = { ...(profile.dayOrder || {}) };
+      if (step.before) all[step.order] = step.before; else delete all[step.order];
+      profile = { ...profile, dayOrder: all };
+      pushProfile();
+    } else if (step.added) {
       await Store.remove(step.added);
       const t = tasks.find(x => x.id === step.added);
       if (t) t.deleted = true;
@@ -311,6 +341,18 @@ function renderAssistant() {
     };
     q("🗓️ Plan my day", "Look at my day and re-plan it to fit my energy, feelings and deadlines. Keep it doable.");
     q("⏱ Guess missing times", "Guess lengths for my tasks this week that don't have one (and steps without one), from what similar tasks took before. Mark them as guesses.");
+    // Putting the viewed day's untimed things in an order (focus mode follows it), and talking it through.
+    const which = currentDay === todayKey() ? "today" : `on ${currentDay}`;
+    q("⚡ Easy wins first", `Put my untimed tasks and chores ${which} in an order that builds momentum: quick, easy wins first ` +
+      "(short, light on brain and body), then the bigger or harder ones. Keep anything due that day early enough. Don't move anything " +
+      "to another day or change times: just use set_day_order with every untimed, not-done task that day, then tell me the plan in a sentence or two.");
+    q("📍 Group by area", `Put my untimed tasks and chores ${which} in an order that groups things done in the same place, so I'm not ` +
+      "running back and forth (like meal prep next to washing dishes in the kitchen, laundry next to folding). Work out where each one " +
+      "happens even when no area is set. Don't move anything to another day or change times: just use set_day_order with every untimed, " +
+      "not-done task that day, then tell me the groups in a sentence or two.");
+    q("🤔 Reason with me", `Reason with me about my plan ${which}. I logic a lot and sometimes bite off more than I can chew. Look at ` +
+      "my week (chaos days, batteries, deadlines, my vacation days) and tell me kindly but honestly what's definitely okay to put off, " +
+      "and until when, and what really should stay. Don't change anything yet: suggest, and ask if I want you to move them.");
     head.appendChild(quick);
   }
   box.appendChild(head);
@@ -392,6 +434,9 @@ function renderAiSettings() {
   toggle("Turn on the Claude helper", "enabled",
     "Adds a 🤖 Ask Claude box to the Day tab: it can move, add and re-time tasks for you, with Undo. It uses your Anthropic API key, " +
     "which costs a little each time it's used (usually cents a day). Off = nothing is sent and nothing costs anything.");
+  box.appendChild(el("p", "hint-small", "🤖 Needs Claude (these go away when it's off): the Ask Claude box and its buttons, 🗓️ Plan my day, " +
+    "⏱ Guess missing times, ⚡ Easy wins first, 📍 Group by area and 🤔 Reason with me, plus the automatic re-plan and length guesses below. " +
+    "✋ Works without Claude: dragging tasks into your own order (hold a task on the Day tab) and the gentle \"are you sure?\" check on heavy days."));
   if (!p.enabled) return;
   toggle("🌅 Re-plan my day when I check in", "auto", "Also when your feelings change later in the day. Tasks you moved yourself stay put.");
   toggle("⏱ Guess lengths for tasks without one", "guess", "Guesses are marked ≈. Change one and it's yours.");

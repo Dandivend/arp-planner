@@ -22,7 +22,8 @@ function focusQueue(day) {
   const rank = t => (LEVEL_RANK[levelOf(t, day)] ?? 1) + (held.has(t.id) ? 3 : 0) + (brainTiming(t, day) ? 2 : 0);
   const order = moodOrderOf(day);
   list.sort((a, b) => rank(a) - rank(b) || (order ? moodOrderScore(b, day, order) - moodOrderScore(a, day, order) : 0) || (a.time || "99").localeCompare(b.time || "99") || byTime(a, b));
-  const ordered = spreadBrain(list);
+  // Her own order (dragged on the Day tab, or set by the Claude buttons) wins over the shuffle.
+  const ordered = myOrderOf(day) ? byMyOrder(list, day) : spreadBrain(list);
   const skipped = ordered.filter(t => focusSkipped.includes(t.id));
   return [...ordered.filter(t => !focusSkipped.includes(t.id)), ...skipped];
 }

@@ -216,6 +216,35 @@ function sortChores(list) {
 }
 
 const doneLast = list => [...list.filter(t => !t.done), ...list.filter(t => t.done)];
+
+// ✋ Her own order for a day's untimed things: hold a row on the Day tab, drag it, drop it on the
+// bar (within its section). Kept as one list of ids per day in profile.dayOrder (synced, last
+// two weeks). Each section keeps its place; her order only reshuffles the rows inside it. Focus
+// mode follows it too, and the Claude buttons (easy wins first / by area) fill it in.
+const myOrderOf = day => (profile.dayOrder && profile.dayOrder[day]) || null;
+function byMyOrder(list, day) {
+  const order = myOrderOf(day);
+  if (!order || !order.length) return list;
+  const at = new Map(order.map((id, i) => [id, i]));
+  const slots = [], ranked = [];
+  list.forEach((t, i) => { if (at.has(t.id)) { slots.push(i); ranked.push(t); } });
+  ranked.sort((a, b) => at.get(a.id) - at.get(b.id));
+  const out = [...list];
+  slots.forEach((s, k) => { out[s] = ranked[k]; });
+  return out;
+}
+// ids: some tasks in their new order. They take the place the first of them had (or go at the end).
+function saveMyOrder(day, ids, { replace = false } = {}) {
+  const old = replace ? [] : (myOrderOf(day) || []), set = new Set(ids);
+  const first = old.findIndex(id => set.has(id));
+  const rest = old.filter(id => !set.has(id));
+  const at = first < 0 ? rest.length : old.slice(0, first).filter(id => !set.has(id)).length;
+  const cutoff = addDays(todayKey(), -14);
+  const all = Object.fromEntries(Object.entries(profile.dayOrder || {}).filter(([d]) => d >= cutoff));
+  all[day] = [...rest.slice(0, at), ...ids, ...rest.slice(at)];
+  profile = { ...profile, dayOrder: all };
+  pushProfile();
+}
 const localStamp = () => { const n = nowLocal(); return `${toKey(n)}T${pad(n.getHours())}:${pad(n.getMinutes())}`; };
 const weekStartOf = day => addDays(day, -fromKey(day).getDay());     // weeks start on Sunday (like the Recap)
 
@@ -384,7 +413,7 @@ function renderDay() {
   renderSuggestions(p, recovery);
 
   if (sortMode === "time") {
-    const rest = untimed.sort((a, b) => LEVEL_RANK[levelOf(a, currentDay)] - LEVEL_RANK[levelOf(b, currentDay)]);
+    const rest = byMyOrder(untimed.sort((a, b) => LEVEL_RANK[levelOf(a, currentDay)] - LEVEL_RANK[levelOf(b, currentDay)]), currentDay);
     addRows(timed);
     if (rest.length) { if (timed.length) sectionLabel(ul, "Anytime", ""); addRows(doneLast(rest)); }
     const heldOpen = keep(held);
@@ -409,7 +438,7 @@ function renderDay() {
     ["💤", "Can wait for a better day", held, "s-held"],
   ];
   for (const [icon, label, all, cls] of sections) {
-    const rows = keep(all);
+    const rows = cls === "s-schedule" ? keep(all) : byMyOrder(keep(all), currentDay);
     if (!rows.length) continue;
     if (cls === "s-optional" && recovery && !showOptional) {
       const li = document.createElement("li");
@@ -422,7 +451,8 @@ function renderDay() {
       continue;
     }
     if (sectionLabel(ul, `${icon} ${label}`, cls, rows.length)) continue;     // folded: just the heading
-    if (cls === "s-chores") {
+    const ordered = (myOrderOf(currentDay) || []).some(id => rows.some(t => t.id === id));
+    if (cls === "s-chores" && !ordered) {                 // (in her own order: no room headings)
       let area = null;
       for (const t of rows) {
         const a = t.area || "Anywhere";
@@ -681,6 +711,7 @@ function renderFreeTimer() {
   }
   renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
   if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
+  if (isToday && !ft.past && chaos.pct >= 90) markDays("chaos90", [day]);       // (for the push-back check)
   // 🌋 The second 100% chaos day in a row: the vial won't stop erupting.
   setVolcano(!ft.past && chaos.pct >= 100 && ((profile.dayMarks || {}).fire || []).includes(addDays(day, -1)));
   renderStatusFx(day, ft.past);
@@ -3118,8 +3149,119 @@ async function saveFromDialog() {
     brain: getSeg("f-brain") || "medium",
     emoji: emojiChosen ? ($("f-emoji").value.trim() || null) : (editing && editing.emoji) || null,
   };
+  // 🤔 Adding something new to an already heavy stretch: a gentle "are you sure?" first.
+  let choice = null;
+  if (!editing && task.date && !["joy", "event"].includes(kind)) {
+    const pb = pushbackFor(task.date);
+    if (pb) {
+      choice = await askPushback(task, pb);
+      if (choice === "cancel") return;
+      if (choice && choice.date) task.date = choice.date;
+    }
+  }
   await persist(task);
-  if (task.date) warnIfOverloaded(task.date);
+  if (choice === "anyway") offerJoy(task.date);
+  else if (task.date) warnIfOverloaded(task.date);
+}
+
+// 🤔 Push-back: she tends to take on more than she can chew. When this week already had 2+ chaos
+// days (90%+ on the vial) and the day's brain or body battery is nearly empty (under 20% left),
+// adding something asks her first, like a friend would. She can still add it.
+function pushbackFor(day) {
+  const tk = todayKey();
+  if (!day || day < tk) return null;
+  const wk = weekStartOf(tk);
+  const days = new Set(((profile.dayMarks || {}).chaos90 || []).filter(d => d >= wk && d <= tk));
+  try { const p = planDay(tk), ft = freeTimeLeft(tk, p.active); if (!ft.past && chaosFor(tk, ft).pct >= 90) days.add(tk); } catch {}
+  if (days.size < 2) return null;
+  let b;
+  try { b = batteriesFor(day); } catch { return null; }
+  const low = ["brain", "body"].filter(k => b[k].pctLeft < 20);
+  return low.length ? { chaosDays: days.size, low, bats: b } : null;
+}
+const dayName = (day, tk = todayKey()) => day === tk ? "today" : day === addDays(tk, 1) ? "tomorrow" : fromKey(day).toLocaleDateString(undefined, { weekday: "long" });
+// A lighter day in the next week and a half (both batteries at least 40% left), before any deadline.
+function lighterDayFor(task) {
+  for (let i = 1; i <= 10; i++) {
+    const d = addDays(task.date, i);
+    if (task.dueDate && d > task.dueDate) return null;
+    try { const b = batteriesFor(d); if (b.brain.pctLeft >= 40 && b.body.pctLeft >= 40) return d; } catch {}
+  }
+  return null;
+}
+function nextVacation(from) {
+  for (let i = 1; i <= 45; i++) { const d = addDays(from, i); if (vacationOn(d)) return d; }
+  return null;
+}
+function smallDialog(cls) {
+  let dlg = $("pushback-dialog");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "pushback-dialog";
+    document.body.appendChild(dlg);
+  }
+  dlg.className = `peek-dialog pushback ${cls || ""}`;
+  dlg.innerHTML = "";
+  return dlg;
+}
+function askPushback(task, pb) {
+  return new Promise(resolve => {
+    const dlg = smallDialog();
+    const name = dayName(task.date);
+    const bat = pb.low.map(k => `${k === "brain" ? "🧠 brain" : "💪 body"} battery ${pb.bats[k].pctLeft < 0 ? "is already past empty" : `is down to ${pb.bats[k].pctLeft}%`}`).join(" and your ");
+    dlg.appendChild(el("h3", "", "🤔 Can we reason about this one?"));
+    dlg.appendChild(el("p", "", `You've had ${pb.chaosDays} chaos days this week, and for ${name}, your ${bat}. ` +
+      `You've been carrying a lot. Is "${task.title}" something that has to happen ${name === "today" ? "today" : "then"}?`));
+    const vac = nextVacation(task.date), later = lighterDayFor(task);
+    if (vac && (!task.dueDate || vac <= task.dueDate))
+      dlg.appendChild(el("p", "hint-small", `🏖️ Your vacation starts ${fromKey(vac).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}. If this can wait, it might feel a lot lighter then.`));
+    const btns = el("div", "peek-actions");
+    const done = v => { resolve(v); dlg.close(); };
+    if (later) {
+      const move = el("button", "g-btn primary", `📅 Put it on ${dayName(later)}`);
+      move.addEventListener("click", () => { showToast(`📅 "${task.title}" is on ${dayName(later)} instead. Good call 💛`); done({ date: later }); });
+      btns.appendChild(move);
+    }
+    if (vac && vac !== later && (!task.dueDate || vac <= task.dueDate)) {
+      const v = el("button", "g-btn", "🏖️ Put it on my vacation");
+      v.addEventListener("click", () => done({ date: vac }));
+      btns.appendChild(v);
+    }
+    const anyway = el("button", "g-btn" + (later ? "" : " primary"), "I've got this: add it anyway");
+    anyway.addEventListener("click", () => done("anyway"));
+    const no = el("button", "link-btn", "Never mind, don't add it");
+    no.addEventListener("click", () => done("cancel"));
+    btns.append(anyway, no);
+    dlg.appendChild(btns);
+    dlg.onclose = () => resolve("cancel");          // (closing it any other way: nothing added)
+    dlg.showModal();
+  });
+}
+// After "add it anyway" on a heavy day: a friend's nudge toward something that fills her back up.
+function offerJoy(day) {
+  const have = new Set(joyFor(day).list.map(t => (t.title || "").toLowerCase()));
+  const pool = hobbies().filter(h => !/\blogan\b/i.test(h.name) && !have.has(h.name.toLowerCase()));
+  if (!pool.length) return;
+  let h = pool[Math.floor(Math.random() * pool.length)];
+  const show = () => {
+    const dlg = smallDialog("joy-nudge");
+    dlg.onclose = null;
+    dlg.appendChild(el("h3", "", "Okay, it's on there 💛"));
+    dlg.appendChild(el("p", "", `That's a big ${dayName(day) === "today" ? "day" : dayName(day)}. How about some ${h.emoji || "🌈"} ${h.name} too, to balance it out? ` +
+      `Even ${formatMinutes(Math.min(h.minutes || 30, 30))} of it would be really good for you after all that.`));
+    const btns = el("div", "peek-actions");
+    const add = el("button", "g-btn primary", `${h.emoji || "🌈"} Yes, add ${h.name}`);
+    add.addEventListener("click", () => { dlg.close(); addJoyTask({ ...h, minutes: Math.min(h.minutes || 30, 30) }, day); });
+    const other = el("button", "g-btn", "🎲 Something else");
+    other.hidden = pool.length < 2;
+    other.addEventListener("click", () => { const was = h; while (h === was) h = pool[Math.floor(Math.random() * pool.length)]; show(); });
+    const no = el("button", "link-btn", "Not this time");
+    no.addEventListener("click", () => dlg.close());
+    btns.append(add, other, no);
+    dlg.appendChild(btns);
+    if (!dlg.open) dlg.showModal();
+  };
+  show();
 }
 
 // by: "her" (anything she does on screen) or "claude" (the Claude helper). When she moves a task
@@ -3256,6 +3398,7 @@ function turnPage(dir) {
   addEventListener("touchend", e => {
     if (!ok) return;
     ok = false;
+    if (rowDrag.active || Date.now() - rowDrag.endedAt < 400) return;      // that was a hold-and-drag
     const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
     if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
     if (view === "month") turnCalendar(dx < 0 ? 1 : -1);
@@ -3263,6 +3406,92 @@ function turnPage(dir) {
     else turnPage(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();
+// ✋ Hold a row (about half a second) and it lifts; drag it up or down and a bar shows where it'll
+// land (only inside its own section, and only untimed things: timed ones go by their time). Let
+// go to drop it there. A quick swipe or scroll never starts a drag.
+const rowDrag = { active: false, endedAt: 0 };
+(function setupRowDrag() {
+  const ul = $("task-list");
+  const HOLD_MS = 420;
+  let hold = null, li = null, group = null, sx = 0, sy = 0, startY = 0, bar = null, rows = [], at = -1, pid = null;
+  const draggable = row => {
+    if (!row || !row.classList.contains("task") || row.classList.contains("done")) return false;
+    const t = tasks.find(x => x.id === row.dataset.id);
+    return !!t && !t.time && !t.done;
+  };
+  const groupOf = row => row.dataset.sec || "anytime";
+  const sameGroup = () => [...ul.querySelectorAll(":scope > li.task")].filter(r => r !== li && draggable(r) && groupOf(r) === group);
+  const cancelHold = () => { clearTimeout(hold); hold = null; };
+  ul.addEventListener("pointerdown", e => {
+    if (e.button > 0 || rowDrag.active || celebrating) return;
+    let row = e.target.closest("li");
+    while (row && row.parentElement !== ul) row = row.parentElement.closest("li");
+    if (!draggable(row) || e.target.closest("button, a, input, select, textarea")) return;
+    li = row; sx = e.clientX; sy = e.clientY; pid = e.pointerId;
+    cancelHold();
+    hold = setTimeout(() => lift(e), HOLD_MS);
+  });
+  const lift = () => {
+    hold = null;
+    if (!li || !li.isConnected) return;
+    rowDrag.active = true;
+    group = groupOf(li);
+    rows = sameGroup();
+    if (!rows.length) { rowDrag.active = false; li = null; showToast("✋ It's the only one in this section, so there's nowhere to move it."); return; }
+    startY = sy;
+    li.classList.add("lifted");
+    document.body.classList.add("row-dragging");
+    if (typeof buzz === "function") buzz(15);
+    try { ul.setPointerCapture(pid); } catch {}
+    bar = el("li", "drop-bar");
+    bar.setAttribute("aria-hidden", "true");
+    place(sy);
+  };
+  const place = y => {
+    // The gap nearest her finger: before the first row whose middle is below it.
+    let i = rows.findIndex(r => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+    if (i < 0) i = rows.length;
+    at = i;
+    if (i < rows.length) rows[i].before(bar); else rows[rows.length - 1].after(bar);
+    li.style.transform = `translateY(${y - startY}px) scale(1.03)`;
+  };
+  ul.addEventListener("pointermove", e => {
+    if (hold && Math.hypot(e.clientX - sx, e.clientY - sy) > 8) { cancelHold(); li = null; }    // a scroll or swipe
+    if (!rowDrag.active || e.pointerId !== pid) return;
+    e.preventDefault();
+    // Near the top or bottom of the screen: scroll so she can reach further rows.
+    if (e.clientY < 70) { scrollBy(0, -12); startY += 12; } else if (e.clientY > innerHeight - 90) { scrollBy(0, 12); startY -= 12; }
+    place(e.clientY);
+  });
+  // While lifted, her finger moves the row, not the page.
+  ul.addEventListener("touchmove", e => { if (rowDrag.active) e.preventDefault(); }, { passive: false });
+  ul.addEventListener("contextmenu", e => { if (hold || rowDrag.active) e.preventDefault(); });
+  const drop = async ok => {
+    cancelHold();
+    if (!rowDrag.active) { li = null; return; }
+    rowDrag.active = false;
+    rowDrag.endedAt = Date.now();
+    document.body.classList.remove("row-dragging");
+    const ids = rows.map(r => r.dataset.id);
+    if (ok && at >= 0) ids.splice(at, 0, li.dataset.id);
+    bar && bar.remove();
+    li.classList.remove("lifted");
+    li.style.transform = "";
+    const moved = li.dataset.id;
+    li = null;
+    if (!ok || at < 0) return;
+    saveMyOrder(currentDay, ids);
+    render();
+    const row = ul.querySelector(`:scope > li[data-id="${moved}"]`);
+    if (row && motionOk()) row.animate([{ transform: "scale(1.04)", boxShadow: "0 8px 22px rgba(0,0,0,.35)" }, { transform: "none", boxShadow: "none" }], { duration: 260, easing: "ease-out" });
+  };
+  ul.addEventListener("pointerup", () => drop(true));
+  ul.addEventListener("pointercancel", () => drop(false));
+  addEventListener("blur", () => drop(false));
+  // A drag never counts as a tap (which would open the task).
+  ul.addEventListener("click", e => { if (Date.now() - rowDrag.endedAt < 400) { e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+
 $("today-btn").addEventListener("click", () => goDay(todayKey()));
 $("prev-month").addEventListener("click", () => { if (calMode !== "month") weekCursor = addDays(weekCursor, -7); else monthCursor.setMonth(monthCursor.getMonth() - 1); render(); });
 $("next-month").addEventListener("click", () => { if (calMode !== "month") weekCursor = addDays(weekCursor, 7); else monthCursor.setMonth(monthCursor.getMonth() + 1); render(); });

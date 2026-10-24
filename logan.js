@@ -103,6 +103,8 @@ function renderLogan() {
   if (!data || data.loading && !data.events) { box.appendChild(el("p", "hint", "Loading Logan's calendar…")); return; }
   if (data.noCal) return loganSetup(box);
   if (data.error) box.appendChild(el("p", "g-error", "⚠️ Couldn't load Logan's calendar: " + data.error));
+  const st = loganStatus();
+  if (st) box.appendChild(el("p", "logan-now-line", `${LOGAN_STATUS[st][0]} ${LOGAN_STATUS[st][1]}${st === "work" || st === "busy" ? loganWhy : ""}`));
 
   // Events by day.
   const byDay = {};
@@ -331,11 +333,19 @@ async function refreshLoganNow() {
   } catch {}
   updateLoganTab();
 }
+// "Working" comes straight from an event on his Google Calendar happening right now (its times carry
+// their own time zone, so neither phone's time zone setting changes it). The tab's tooltip names
+// the event, so a wrongly-timed one is easy to spot.
+let loganWhy = "";
 function loganStatus() {
+  loganWhy = "";
   if (!loganNow.at) return null;
   const la = loganAwake(), now = Date.now();
   const cur = loganNow.events.filter(e => Date.parse(e.start) <= now && now < Date.parse(e.end));
-  if (cur.some(e => /\b(work|shift|duty|office)\b/i.test(e.title))) return "work";
+  const until = e => new Date(e.end).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const job = cur.find(e => /\b(work|shift|duty|office)\b/i.test(e.title));
+  if (job) { loganWhy = ` · "${job.title}" on his calendar until ${until(job)} your time`; return "work"; }
+  if (cur.length) loganWhy = ` · "${cur[0].title}" until ${until(cur[0])} your time`;
   const m = toMin(zLocal(now, la.zone).time), bed = toMin(la.end), wake = toMin(la.start);
   const asleep = bed < wake ? m >= bed && m < wake : m >= bed || m < wake;
   if (asleep) return "sleep";
@@ -346,7 +356,7 @@ function updateLoganTab() {
   const tab = $("tab-logan");
   const st = loganStatus(), [icon, words] = LOGAN_STATUS[st] || ["", "What Logan's up to"];
   tab.textContent = icon ? `Logan ${icon}` : "Logan";
-  tab.title = words;
+  tab.title = words + (st === "work" || st === "busy" ? loganWhy : "");
   tab.dataset.status = st || "";
 }
 setTimeout(refreshLoganNow, 4000);

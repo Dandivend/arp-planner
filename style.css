@@ -2400,3 +2400,22 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   .wh-add-row { grid-template-columns: 1fr 1fr; }
   .wh-add-row .wh-field:last-child { grid-column: 1 / -1; }
 }
+
+/* ✋ Hold-and-drag to put a section in her own order */
+#task-list > li.task { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+#task-list > li.task.lifted { position: relative; z-index: 30; transition: none; box-shadow: 0 14px 30px rgba(0, 0, 0, .45), 0 0 0 2px var(--accent);
+  border-radius: 12px; background: linear-gradient(var(--card), var(--card)), var(--bg); cursor: grabbing; }
+#task-list > li.drop-bar { list-style: none; height: 4px; margin: 3px 6px; border-radius: 4px; background: var(--accent);
+  box-shadow: 0 0 10px var(--accent); animation: drop-bar-pulse 1s ease-in-out infinite; }
+@keyframes drop-bar-pulse { 50% { opacity: .55; } }
+body.row-dragging { overscroll-behavior: none; }
+body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s; }
+@media (prefers-reduced-motion: reduce) { #task-list > li.drop-bar { animation: none; } }
+
+/* 🤔 Push-back and the joy nudge */
+.pushback h3 { margin: 0 0 8px; font-size: 19px; }
+.pushback p { margin: 0 0 10px; line-height: 1.45; }
+.pushback .peek-actions { flex-direction: column; align-items: stretch; }
+.pushback .peek-actions .link-btn { align-self: center; }
+.pushback.joy-nudge { border-color: color-mix(in srgb, #ff8fc7 50%, var(--line)); }
+.logan-now-line { margin: 0 0 10px; font-weight: 700; font-size: 14.5px; color: var(--muted); }
