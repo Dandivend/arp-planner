@@ -272,6 +272,9 @@ function aiCheckinChanged(day) {
 }
 
 // ---------- Day tab box ----------
+// Tap "🤖 Ask Claude" to fold the box down to one line (remembered). A reply that comes in while
+// it's folded shows a little "new reply" badge instead of taking over the screen.
+const aiFolded = () => { try { return localStorage.getItem("arpPlanner.aiFolded") === "1"; } catch { return false; } };
 function renderAssistant() {
   const box = $("ai-card");
   if (!box) return;
@@ -279,8 +282,25 @@ function renderAssistant() {
   box.hidden = !on || currentDay < todayKey();
   if (box.hidden) return;
   box.innerHTML = "";
+  const folded = aiFolded();
+  box.classList.toggle("folded", folded);
+  if (!folded) ai.seen = ai.log.length;
   const head = el("div", "ai-head");
-  head.appendChild(el("h3", "", "🤖 Ask Claude"));
+  const toggle = el("button", "ai-fold");
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", String(!folded));
+  toggle.title = folded ? "Open the Claude helper" : "Fold the Claude helper away";
+  toggle.appendChild(el("h3", "", "🤖 Ask Claude"));
+  const fresh = ai.log.slice(ai.seen ?? ai.log.length).filter(m => m.who === "claude" || m.who === "ask" || m.who === "error").length;
+  if (folded && ai.busy) toggle.appendChild(el("span", "ai-badge", "Thinking…"));
+  else if (folded && fresh) toggle.appendChild(el("span", "ai-badge new", `💬 ${fresh > 1 ? `${fresh} new replies` : "New reply"}`));
+  toggle.appendChild(el("span", "section-chevron", "▾"));
+  toggle.addEventListener("click", () => {
+    try { localStorage.setItem("arpPlanner.aiFolded", folded ? "0" : "1"); } catch {}
+    renderAssistant();
+  });
+  head.appendChild(toggle);
+  if (folded) { box.appendChild(head); return; }
   if (ai.keySet) {
     const quick = el("div", "ai-quick");
     const q = (label, text) => {
