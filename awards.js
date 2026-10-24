@@ -272,12 +272,29 @@ function openAwards(day) {
   const storm = el("div", "aw-tornado");
   let pieces = list.flatMap(a => Array.from({ length: Math.min(a.count, 4) }, () => a));
   while (pieces.length && pieces.length < 16) pieces = pieces.concat(pieces);          // always a proper tornado
-  for (let w = 0; w < 5; w++) {                                                        // the wind
-    const ring = el("span", "aw-wind");
-    ring.style.setProperty("--wy", `${24 + w * 34}px`);
-    ring.style.setProperty("--ww", `${60 + (4 - w) * 44}px`);
-    ring.style.animationDelay = `${-w * .4}s`;
-    storm.appendChild(ring);
+  // A real-looking funnel cloud: the storm cloud overhead, then stacked slices that taper to the
+  // ground (streaks slide across them so it spins, and a ripple runs down it so it sways like a
+  // rope), and the dust and debris it kicks up where it touches down.
+  storm.appendChild(el("span", "aw-cloud"));
+  const SLICES = 22;
+  for (let s = 0; s < SLICES; s++) {
+    const t = s / (SLICES - 1);                                        // 0 at the cloud, 1 at the ground
+    const sl = el("span", "aw-slice");
+    sl.style.setProperty("--sy", `${28 + t * 146}px`);
+    sl.style.setProperty("--sw", `${18 + Math.pow(1 - t, 1.7) * 250}px`);
+    sl.style.setProperty("--sx", `${2 + t * 14}px`);                  // the bottom swings the most
+    sl.style.setProperty("--sh", `${t > .88 ? .75 : .95}`);
+    sl.style.animationDelay = `${-t * 1.1}s, ${-Math.random() * .8}s`;
+    storm.appendChild(sl);
+  }
+  storm.appendChild(el("span", "aw-dust"));
+  for (let d = 0; d < 10; d++) {                                       // bits of debris flung around the base
+    const bit = el("span", "aw-debris");
+    bit.style.setProperty("--dr", `${22 + Math.random() * 40}px`);
+    bit.style.setProperty("--dy", `${168 + Math.random() * 18}px`);
+    bit.style.animationDuration = `${.9 + Math.random() * .9}s`;
+    bit.style.animationDelay = `${-Math.random() * 2}s`;
+    storm.appendChild(bit);
   }
   pieces.slice(0, 40).forEach((a, i, arr) => {
     const p = el("span", "aw-whirl");
