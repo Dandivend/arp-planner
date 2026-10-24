@@ -336,6 +336,7 @@ function renderDay() {
     currentDay === tk ? "Today" :
     currentDay === addDays(tk, 1) ? "Tomorrow" :
     currentDay === addDays(tk, -1) ? "Yesterday" : "";
+  $("day-badge").classList.toggle("not-today", currentDay !== tk);   // grey: she's not looking at today
 
   // Pencil: opens the check-in. It glows until she's checked in for the day.
   const pencil = $("checkin-btn");

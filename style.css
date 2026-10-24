@@ -283,6 +283,7 @@ main:has(#home-view:not([hidden])) { max-width: 1180px; }
   background: var(--today-soft); color: var(--today-ink); border: 1px solid #5a3f22;
 }
 .badge:empty { display: none; }
+.badge.not-today, [data-mode="light"] .badge.not-today { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); border: 1px dashed var(--muted); }
 .progress { color: var(--muted); font-size: 16px; min-height: 1.4em; }
 
 /* Mood check-in */
