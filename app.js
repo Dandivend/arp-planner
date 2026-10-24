@@ -2441,6 +2441,14 @@ function renderMonthFilters() {
     b.addEventListener("dblclick", () => { monthHidden = new Set(MONTH_KINDS.map(x => x[0]).filter(x => x !== k)); save(); });
     box.appendChild(b);
   }
+  // 🏷️ Holiday names on or off (off: just the holiday's emoji, everywhere in the planner).
+  const names = el("label", "check cal-hol-names");
+  const cb = el("input");
+  cb.type = "checkbox";
+  cb.checked = themePref().holidayNames !== false;
+  cb.addEventListener("change", () => saveTheme({ holidayNames: cb.checked }));
+  names.append(cb, " 🏷️ Holiday names");
+  box.appendChild(names);
 }
 
 function renderMonth() {

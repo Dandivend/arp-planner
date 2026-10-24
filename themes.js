@@ -78,7 +78,7 @@ function themePref() {
   return { mode: "dark", season: "auto", effects: true, calm: false, ...(saved || {}) };
 }
 
-// A holiday on screen: its emoji and name, or just the emoji when she's turned names off (Appearance).
+// A holiday on screen: its emoji and name, or just the emoji when she's turned names off (the checkbox on the Calendar page).
 const holLabel = (hol, before = "", after = "") => themePref().holidayNames === false ? hol.emoji : `${hol.emoji} ${before}${hol.name}${after}`;
 
 // Calm mode: fewer moving, flashing and dramatic things (easier on the senses).
@@ -230,13 +230,6 @@ function renderAppearance() {
   hcb.addEventListener("change", () => saveTheme({ holidays: hcb.checked }));
   holAuto.append(hcb, " 🎉 With Automatic, holiday themes switch on by themselves (Halloween from Oct 10, Christmas from Dec 1, and so on)");
   box.appendChild(holAuto);
-  const holNames = el("label", "check");
-  const ncb = el("input");
-  ncb.type = "checkbox";
-  ncb.checked = t.holidayNames !== false;
-  ncb.addEventListener("change", () => saveTheme({ holidayNames: ncb.checked }));
-  holNames.append(ncb, " 🏷️ Show holiday names (off: just the holiday's emoji)");
-  box.appendChild(holNames);
 
   // Animal themes, plus one that picks a different animal each day.
   const animalRow = el("div", "theme-row");

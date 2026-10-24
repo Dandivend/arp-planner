@@ -1666,6 +1666,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 .month-filters .sort-btn { border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; font-size: 14px; }
 .month-filters .sort-btn.off { opacity: .45; text-decoration: line-through; }
 .month-filters .sort-btn.active { border-color: var(--accent); }
+.month-filters .cal-hol-names { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 0 auto; font-size: 14px; white-space: nowrap; }
 .cell .peek[style*="--dot"]::before { flex: none; margin: 4px 1px 0 0; width: 6px; height: 6px; }
 .cell .hol-name { white-space: normal !important; overflow-wrap: anywhere; text-overflow: clip !important; }
 @media (max-width: 600px) { .cell .hol-name { font-size: 9.5px; line-height: 1.15; } }
