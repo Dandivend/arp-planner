@@ -6,6 +6,28 @@ let focusSkipped = [];            // task ids she said "not now" to (moved to th
 let focusCurrent = null;          // id of the task on screen
 const focusTimers = {};           // task id -> { total, left, running }
 let focusCheer = null;            // a little celebration after "Done!"
+let focusFinishing = false;       // an animal is crossing out the task; hold the timer's re-renders
+
+// Her two focus switches (this phone only): ☀️ keep the screen on while it's open, so she can
+// glance at the timer, and 🔔 chimes (a jingle for each step, the animal's noise for the whole
+// task, a soft chime when time's up). Both start on, and work even with Sound effects off.
+function focusPrefs() {
+  try { return { screen: true, chimes: true, ...JSON.parse(localStorage.getItem("arpPlanner.focusPrefs") || "{}") }; }
+  catch { return { screen: true, chimes: true }; }
+}
+function setFocusPref(k, v) {
+  try { localStorage.setItem("arpPlanner.focusPrefs", JSON.stringify({ ...focusPrefs(), [k]: v })); } catch {}
+}
+const focusChimes = () => focusPrefs().chimes;
+
+let focusWake = null;
+async function focusHoldWake() {
+  try { if ("wakeLock" in navigator && !focusWake) { focusWake = await navigator.wakeLock.request("screen"); focusWake.addEventListener("release", () => { focusWake = null; }); } } catch {}
+}
+function focusReleaseWake() { try { if (focusWake) focusWake.release(); } catch {} focusWake = null; }
+document.addEventListener("visibilitychange", () => {     // the phone drops the lock when it's hidden
+  if (!document.hidden && $("focus-dialog") && $("focus-dialog").open && focusPrefs().screen) focusHoldWake();
+});
 
 function hhmmNow() {
   const n = nowLocal();
@@ -86,6 +108,7 @@ function openFocus(startWith = null) {
   focusBreak = null;
   renderFocus();
   $("focus-dialog").showModal();
+  if (focusPrefs().screen) focusHoldWake();
 }
 
 function renderFocus() {
@@ -104,6 +127,26 @@ function renderFocus() {
   close.addEventListener("click", () => dlg.close());
   head.appendChild(close);
   dlg.appendChild(head);
+
+  const toggles = el("div", "focus-toggles");
+  const toggle = (k, on, off, tip) => {
+    const b = el("button", "focus-toggle" + (focusPrefs()[k] ? " on" : ""), focusPrefs()[k] ? on : off);
+    b.type = "button";
+    b.title = tip;
+    b.setAttribute("aria-pressed", String(!!focusPrefs()[k]));
+    b.addEventListener("click", () => {
+      const v = !focusPrefs()[k];
+      setFocusPref(k, v);
+      if (k === "screen") v ? focusHoldWake() : focusReleaseWake();
+      if (k === "chimes" && v) playJingle();
+      renderFocus();
+    });
+    return b;
+  };
+  toggles.append(
+    toggle("screen", "☀️ Screen stays on", "🌙 Screen can sleep", "Keep the screen awake while focus mode is open, so you can see the timer"),
+    toggle("chimes", "🔔 Chimes on", "🔕 Chimes off", "A jingle for each step, the animal for the whole task, and a chime when time's up"));
+  dlg.appendChild(toggles);
 
   // Heads-up for the next appointment (time blindness helper).
   const appt = nextAppointment(day);
@@ -142,7 +185,9 @@ function renderFocus() {
   }
 
   const card = el("div", "focus-card");
-  card.appendChild(el("div", "focus-title", t.title));
+  const title = el("div", "focus-title");
+  title.appendChild(el("span", "title-text", t.title));      // the animal runs along this line
+  card.appendChild(title);
   const chips = el("div", "focus-chips");
   const kind = kindOf(t);
   if (kind === "chore") chips.appendChild(el("span", "chip", "🧹 Chore"));
@@ -161,14 +206,16 @@ function renderFocus() {
   if (t.steps && t.steps.length) {
     const next = t.steps.find(s => !s.done);
     if (next) card.appendChild(el("div", "focus-step-now", `👉 Just this step: ${next.title}`));
-    card.appendChild(stepList(t));
+    const steps = stepList(t);
+    steps.addEventListener("change", e => { if (e.target.checked && focusChimes()) playJingle(); });   // ding ding!
+    card.appendChild(steps);
   }
   card.appendChild(focusTimer(t));
   dlg.appendChild(card);
 
   const actions = el("div", "focus-actions");
   const done = el("button", "focus-done", "✅ Done!");
-  done.addEventListener("click", () => focusDone(t));
+  done.addEventListener("click", () => focusDone(t, card));
   const skip = el("button", "focus-skip", "⏭ Not now");
   skip.title = "Show me something else; this one goes to the back";
   skip.addEventListener("click", () => {
@@ -239,13 +286,15 @@ setInterval(() => {
   }
   if (!focusCurrent) return;
   const st = Object.values(focusTimers).find(x => x.running && x.key && x.key.split(":")[0] === focusCurrent);
-  if (!st) return;
+  if (!st || focusFinishing) return;
   st.left -= 1;
   if (st.left <= 0) {
     st.left = 0;
     st.running = false;
     try { navigator.vibrate && navigator.vibrate([200, 120, 200]); } catch {}
+    if (focusChimes()) playTimeUp();
     renderFocus();
+    askTimeUp(st);
     return;
   }
   const box = dlg.querySelector(".focus-timer");
@@ -258,13 +307,53 @@ const FOCUS_CHEERS = [
   { emoji: "💛", text: "Done! That counts. Breathe for a sec." },
 ];
 
-async function focusDone(t) {
+// Time's up: a little popup asks what she'd like, so the ring doesn't just sit there red.
+function askTimeUp(st) {
+  const t = tasks.find(x => x.id === focusCurrent);
+  if (!t) return;
+  const dlg = smallDialog("focus-timeup-ask");
+  dlg.appendChild(el("h3", "", "⏰ Time's up!"));
+  dlg.appendChild(el("p", "", `How's "${t.title}" going? Either answer is a good one 🌟`));
+  const btns = el("div", "peek-actions");
+  const more = el("button", "g-btn primary", "⏱ 5 more minutes, please");
+  more.addEventListener("click", () => { dlg.close(); st.total = st.left = 5 * 60; st.running = true; renderFocus(); });
+  const next = el("button", "g-btn", "✅ All done, on to the next one!");
+  next.addEventListener("click", () => {
+    dlg.close();
+    const card = $("focus-dialog").querySelector(".focus-card");
+    focusDone(t, card);
+  });
+  const skip = el("button", "g-btn", "⏭ Not done, but I'm ready for something else");
+  skip.addEventListener("click", () => {
+    dlg.close();
+    focusSkipped = [...focusSkipped.filter(id => id !== t.id), t.id];
+    focusCurrent = null;
+    focusCheer = null;
+    renderFocus();
+  });
+  btns.append(more, next, skip);
+  dlg.appendChild(btns);
+  dlg.showModal();
+}
+
+async function focusDone(t, card) {
+  if (focusFinishing) return;
   focusCheer = calmMode() ? { emoji: "✓", text: "Done." } : FOCUS_CHEERS[Math.floor(Math.random() * FOCUS_CHEERS.length)];
   const recharge = brainOf(t) === "heavy";        // offer a brain break (and wait for her answer)
   if (recharge) focusCheer = { ...focusCheer, recharge: true };
   for (const k of Object.keys(focusTimers)) if (k.split(":")[0] === t.id) delete focusTimers[k];
-  focusCurrent = null;
-  await persist({ ...t, done: true, doneDate: currentDay });
+  const updated = { ...t, done: true, doneDate: currentDay };
+  if (card && card.isConnected && !calmMode()) {  // the animal (bork bork!) crosses it out first
+    focusFinishing = true;
+    card.classList.add("finishing");
+    try { await Promise.all([persist(updated, false), playFinish(card, { line: card.querySelector(".title-text"), sound: focusChimes() })]); }
+    finally { focusFinishing = false; }
+    focusCurrent = null;
+    render();                                     // (also redraws focus mode)
+  } else {
+    focusCurrent = null;
+    await persist(updated);
+  }
   renderFocus();
   const cheer = focusCheer;
   if (!recharge) setTimeout(() => { if (focusCheer === cheer) { focusCheer = null; if ($("focus-dialog").open) renderFocus(); } }, 2500);
@@ -274,6 +363,7 @@ async function focusDone(t) {
   const dlg = document.createElement("dialog");
   dlg.id = "focus-dialog";
   dlg.className = "focus-dialog";
+  dlg.addEventListener("close", focusReleaseWake);
   document.body.appendChild(dlg);
   $("focus-btn").addEventListener("click", openFocus);
 })();

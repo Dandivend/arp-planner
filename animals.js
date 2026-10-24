@@ -255,14 +255,15 @@ function puff(li, x, y) {
 
 // Plays the animation over a task row. Resolves when it is finished.
 // opts (for the fun-facts card): animal = which one, line = element whose first line it runs
-// along (default: the row's .title-text), strike = false to skip the strike-through.
+// along (default: the row's .title-text), strike = false to skip the strike-through,
+// sound = true to make its noise even when Sound effects is off (focus mode's 🔔).
 function playFinish(li, opts = {}) {
   const titleText = opts.line || li.querySelector(".title-text");
   if (!titleText || matchMedia("(prefers-reduced-motion: reduce)").matches) return Promise.resolve();
 
   const name = opts.animal || pickAnimal();
   const a = ANIMALS[name];
-  if (typeof playAnimalSound === "function") playAnimalSound(name);
+  if (typeof playAnimalSound === "function") playAnimalSound(name, !!opts.sound);
 
   // Geometry relative to the row.
   const liRect = li.getBoundingClientRect();

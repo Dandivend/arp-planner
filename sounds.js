@@ -104,8 +104,8 @@ const ANIMAL_SOUNDS = {
 };
 ANIMAL_SOUNDS.goatfall = ANIMAL_SOUNDS.goat;
 
-function playAnimalSound(name) {
-  if (!soundsOn()) return;
+function playAnimalSound(name, force = false) {     // force: focus mode's own 🔔 toggle said yes
+  if (!force && !soundsOn()) return;
   const ctx = sfx();
   if (ctx && ANIMAL_SOUNDS[name]) ANIMAL_SOUNDS[name](ctx);
 }
@@ -131,6 +131,29 @@ function playChime(n = 1) {
   voice(ctx, { type: "sine", pitch: [[0, f]], vol: [[0, 0], [.006, .16], [1.4, 0]] });
   voice(ctx, { type: "sine", pitch: [[0, f * 2.01]], vol: [[0, 0], [.005, .05], [.8, 0]] });
   voice(ctx, { type: "sine", pitch: [[0, f * 3.02]], vol: [[0, 0], [.004, .025], [.5, 0]] });
+}
+// Focus mode: a "ding ding" like a little jingle bell for a ticked step (bright bell hits with
+// a shimmer of tiny jingles), and a soft three-note "time's up" chime.
+function playJingle() {
+  const ctx = sfx();
+  if (!ctx) return;
+  for (const [at, f] of [[0, 1568], [.16, 2093]]) {
+    voice(ctx, { type: "sine", at, pitch: [[0, f]], vol: [[0, 0], [.004, .14], [.9, 0]] });
+    voice(ctx, { type: "sine", at, pitch: [[0, f * 2.76]], vol: [[0, 0], [.003, .04], [.35, 0]] });
+    voice(ctx, { type: "sine", at, pitch: [[0, f * 5.4]], vol: [[0, 0], [.002, .015], [.15, 0]] });
+  }
+  for (let i = 0; i < 5; i++) {                  // the jingle: tiny high taps right after the dings
+    const f = 4200 + Math.random() * 1800;
+    voice(ctx, { type: "triangle", at: .05 + i * .07 + Math.random() * .03, pitch: [[0, f]], vol: [[0, 0], [.002, .025], [.07, 0]] });
+  }
+}
+function playTimeUp() {
+  const ctx = sfx();
+  if (!ctx) return;
+  [659.25, 783.99, 1046.5].forEach((f, i) => {
+    voice(ctx, { type: "sine", at: i * .28, pitch: [[0, f]], vol: [[0, 0], [.008, .15], [1.6, 0]] });
+    voice(ctx, { type: "sine", at: i * .28, pitch: [[0, f * 2.01]], vol: [[0, 0], [.006, .04], [.8, 0]] });
+  });
 }
 // Order-vial songs: every tap plays the next note of a tune, and the tune is picked at random
 // (a pause, or the end of a song, picks a new one). Old public-domain melodies, plus a few

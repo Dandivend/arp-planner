@@ -1226,7 +1226,11 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   background: color-mix(in srgb, var(--accent) 10%, var(--card)); border: 1px solid var(--line); }
 .focus-appt.soon { border-color: var(--today); background: color-mix(in srgb, var(--today) 16%, var(--card)); }
 .focus-card { padding: 18px; border-radius: 18px; border: 2px solid color-mix(in srgb, var(--accent) 55%, var(--line));
-  background: color-mix(in srgb, var(--accent) 6%, var(--card)); }
+  background: color-mix(in srgb, var(--accent) 6%, var(--card)); position: relative; overflow: hidden; }
+.focus-toggles { display: flex; gap: 8px; flex-wrap: wrap; margin: -4px 0 10px; }
+.focus-toggle { border: 1px solid var(--line); background: var(--field); color: var(--muted); border-radius: 999px;
+  padding: 4px 12px; font-size: 13px; font-weight: 700; }
+.focus-toggle.on { border-color: var(--accent); color: var(--ink); background: color-mix(in srgb, var(--accent) 14%, var(--card)); }
 .focus-title { font-size: 28px; font-weight: 800; line-height: 1.2; margin-bottom: 8px; overflow-wrap: anywhere; }
 .focus-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .focus-notes { color: var(--muted); white-space: pre-wrap; margin: 6px 0; }
