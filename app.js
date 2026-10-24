@@ -2007,7 +2007,9 @@ function openDayPeek(key) {
   go.addEventListener("click", () => { dlg.close(); currentDay = key; showView("day"); });
   const add = el("button", "g-btn", "+ Add a task");
   add.addEventListener("click", () => { dlg.close(); currentDay = key; openDialog(null); });
-  actions.append(go, add);
+  const work = el("button", "g-btn peek-work", "💼 Go to Work Helper");
+  work.addEventListener("click", () => { dlg.close(); showView("work"); workDay = key; renderWorkHelper(); });
+  actions.append(go, add, work);
   dlg.appendChild(actions);
   dlg.showModal();
 }
@@ -3241,7 +3243,7 @@ function turnPage(dir) {
   let sx = 0, sy = 0, st = 0, ok = false;
   addEventListener("touchstart", e => {
     ok = false;
-    if ((view !== "day" && view !== "month") || e.touches.length !== 1 || document.querySelector("dialog[open]")) return;
+    if ((view !== "day" && view !== "month" && view !== "work") || e.touches.length !== 1 || document.querySelector("dialog[open]")) return;
     const p = e.touches[0], tgt = e.target;
     if (p.clientX < 24 || p.clientX > innerWidth - 24) return;
     if (tgt.closest && tgt.closest("input, textarea, select, canvas, .no-swipe")) return;
@@ -3256,6 +3258,7 @@ function turnPage(dir) {
     const p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
     if (Date.now() - st > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
     if (view === "month") turnCalendar(dx < 0 ? 1 : -1);
+    else if (view === "work") turnWork(dx < 0 ? 1 : -1);
     else turnPage(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();

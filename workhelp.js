@@ -1,7 +1,7 @@
 // 💼 Work helper: in the military, a medical appointment on base (and plenty else) can happen during
 // work hours. This tab finds the unassigned time inside her shift on a day (work hours minus whatever
-// is already booked in them), lists the day's other things she could move into those gaps (one tap
-// puts it there), and lets her add something straight into a gap.
+// is already booked in them), so she can see when to schedule meetings and such, and lets her add
+// something straight into a gap. Swipe or ‹ › for the day before/after; 📅 picks any day from a month.
 // Anything with a time inside her work hours doesn't use up her free time (see plannedMinutes).
 
 let workDay = null;                          // the day shown (starts on today, or her next workday)
@@ -85,34 +85,6 @@ function renderWorkHelper() {
     box.appendChild(c);
   }
 
-  // ---- things on this day that could move into work hours ----
-  const movable = tasksFor(day).filter(t => !t.done && !isWorkShift(t) && !isJoy(t) && !(t.time && w.busy.some(x => x.t === t)));
-  const mv = el("div", "home-card wh-card");
-  mv.appendChild(el("h3", "", "🔀 Could move into work hours"));
-  mv.appendChild(el("p", "hint-small", "Tap a time to move it there. Appointments on base, admin, errands… anything work will let you step out for."));
-  if (!movable.length) mv.appendChild(el("p", "hint-small", "Nothing else on this day to move. ✨"));
-  for (const t of movable) {
-    const len = whLen(t);
-    const row = el("div", "wh-move");
-    row.appendChild(el("div", "wh-move-title", `${emojiOf(t) || ""} ${t.title}` + (t.time ? ` · now ${formatTime(t.time)}` : "") + ` · ${formatMinutes(len)}`));
-    const fits = w.gaps.filter(([x, y]) => y - x >= len).slice(0, 4);
-    const opts = el("div", "wh-opts");
-    if (!fits.length) opts.appendChild(el("span", "hint-small", w.gaps.length ? "No gap long enough today." : "No free time left during work."));
-    for (const [x] of fits) {
-      const b = el("button", "chip-btn", `→ ${formatTime(hhmm(x))}`);
-      b.addEventListener("click", async () => {
-        const before = { ...t };
-        await persist({ ...t, time: hhmm(x), minutes: t.minutes || len }, false);
-        showToast(`💼 "${t.title}" moved into work hours at ${formatTime(hhmm(x))}.`, "Undo", () => persist(before));
-        render();
-      });
-      opts.appendChild(b);
-    }
-    row.appendChild(opts);
-    mv.appendChild(row);
-  }
-  box.appendChild(mv);
-
   // ---- add something straight into work hours ----
   const add = el("form", "home-card wh-card wh-add");
   add.appendChild(el("h3", "", "➕ Add something during work"));
@@ -155,7 +127,80 @@ function renderWorkHelper() {
   box.appendChild(add);
 }
 
-$("work-prev").addEventListener("click", () => { workDay = addDays(workDay || todayKey(), -1); renderWorkHelper(); });
-$("work-next").addEventListener("click", () => { workDay = addDays(workDay || todayKey(), 1); renderWorkHelper(); });
+// 📖 Turn the page to the day after (swipe left / ›) or before (swipe right / ‹), like the Day tab.
+function turnWork(dir) {
+  workDay = addDays(workDay || todayKey(), dir);
+  renderWorkHelper();
+  const v = $("work-view");
+  v.classList.remove("turn-next", "turn-prev");
+  void v.offsetWidth;
+  v.classList.add(dir > 0 ? "turn-next" : "turn-prev");
+  clearTimeout(turnWork.t);
+  turnWork.t = setTimeout(() => v.classList.remove("turn-next", "turn-prev"), 550);
+}
+
+// 📅 A pop-up month to jump straight to a day. Workdays are tinted and show their unassigned time.
+let whPickMonth = null;
+const whShort = m => (m >= 60 ? `${Math.floor(m / 60)}${m % 60 >= 30 ? "½" : ""}h` : `${m}m`);
+function openWorkPicker() {
+  let dlg = $("wh-pick");
+  if (!dlg) {
+    dlg = document.createElement("dialog");
+    dlg.id = "wh-pick";
+    dlg.className = "peek-dialog wh-pick";
+    dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });   // tap outside to close
+    // Swipe the month sideways, like the Calendar.
+    let sx = 0, sy = 0;
+    dlg.addEventListener("touchstart", e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+    dlg.addEventListener("touchend", e => {
+      const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) whPickTurn(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    document.body.appendChild(dlg);
+  }
+  const d = fromKey(workDay || todayKey());
+  whPickMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+  drawWorkPicker();
+  dlg.showModal();
+}
+function whPickTurn(dir) {
+  whPickMonth = new Date(whPickMonth.getFullYear(), whPickMonth.getMonth() + dir, 1);
+  drawWorkPicker();
+  const g = document.querySelector("#wh-pick .wh-pick-grid");
+  if (g) g.classList.add(dir > 0 ? "turn-next" : "turn-prev");
+}
+function drawWorkPicker() {
+  const dlg = $("wh-pick"), tk = todayKey();
+  dlg.innerHTML = "";
+  const head = el("div", "wh-pick-head");
+  const prev = el("button", "nav-btn", "‹"), next = el("button", "nav-btn", "›"), close = el("button", "focus-close", "✕");
+  prev.addEventListener("click", () => whPickTurn(-1));
+  next.addEventListener("click", () => whPickTurn(1));
+  close.title = "Close";
+  close.addEventListener("click", () => dlg.close());
+  head.append(prev, el("h3", "wh-pick-title", whPickMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" })), next, close);
+  dlg.appendChild(head);
+  const grid = el("div", "wh-pick-grid");
+  for (const n of ["S", "M", "T", "W", "T", "F", "S"]) grid.appendChild(el("span", "wh-pick-dow", n));
+  for (let i = 0; i < whPickMonth.getDay(); i++) grid.appendChild(el("span", ""));
+  const days = new Date(whPickMonth.getFullYear(), whPickMonth.getMonth() + 1, 0).getDate();
+  for (let n = 1; n <= days; n++) {
+    const key = toKey(new Date(whPickMonth.getFullYear(), whPickMonth.getMonth(), n));
+    const w = workGaps(key);
+    const b = el("button", "wh-pick-day" + (w ? " work" : "") + (key === tk ? " today" : "") + (key === workDay ? " sel" : "") + (key < tk ? " past" : ""));
+    b.type = "button";
+    b.appendChild(el("span", "wh-pick-n", String(n)));
+    b.appendChild(el("span", "wh-pick-sub", w ? (key < tk ? "💼" : w.free ? `🟢${whShort(w.free)}` : "full") : vacationOn(key) ? "🏖️" : ""));
+    b.title = w ? `Work ${shiftLabel(w.shift)} · ${formatMinutes(w.free)} unassigned` : "No work";
+    b.addEventListener("click", () => { dlg.close(); workDay = key; renderWorkHelper(); });
+    grid.appendChild(b);
+  }
+  dlg.appendChild(grid);
+  dlg.appendChild(el("p", "hint-small", "💼 Workdays are blue, with the unassigned time in your shift. Swipe for another month."));
+}
+
+$("work-prev").addEventListener("click", () => turnWork(-1));
+$("work-next").addEventListener("click", () => turnWork(1));
 $("work-today").addEventListener("click", () => { workDay = null; renderWorkHelper(); });
+$("work-pick").addEventListener("click", openWorkPicker);
 $("tab-work").addEventListener("click", () => { workDay = null; showView("work"); });
