@@ -1342,7 +1342,8 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
 /* Time zone */
 .tz-select { font: inherit; font-size: 16px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line);
   background: var(--field); color: var(--ink); max-width: 100%; }
-.tz-now { margin: 8px 0 0; font-weight: 600; }
+.tz-now { margin: 6px 0 0; font-weight: 600; }
+.tz-sub { margin: 16px 0 4px; font-size: 15px; }
 .clock-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
 .clock-label { font-weight: 700; }
 

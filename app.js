@@ -4,14 +4,19 @@
 const pad = n => String(n).padStart(2, "0");
 const toKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const fromKey = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
-// "Now" on HER clock (Settings → Time zone), whichever device this is: a Date whose local
-// fields (getHours, getDate...) read as her wall-clock time. Unset = this device's own clock.
+// "Now" for this screen (Settings → Time Zone): a Date whose local fields (getHours, getDate...)
+// read as wall-clock time there. Every device shows HER time (her home zone, Pacific if unset)
+// unless this device picked 🗾 Tokyo (Logan's PC). Task times are always her times either way.
 function plannerZone() {
   try { return (profile && profile.timeZone) || null; } catch { return null; }   // (profile isn't declared yet at first)
 }
+const HER_DEFAULT_ZONE = "America/Los_Angeles";
+const LOGAN_ZONE = "Asia/Tokyo";
+function viewZone() {                                 // this device only: "her" or "tokyo"
+  try { return localStorage.getItem("arpPlanner.viewZone") === "tokyo" ? "tokyo" : "her"; } catch { return "her"; }
+}
 function nowLocal() {
-  const zone = plannerZone();
-  if (!zone) return new Date();
+  const zone = viewZone() === "tokyo" ? LOGAN_ZONE : plannerZone() || HER_DEFAULT_ZONE;
   try {
     const p = {};
     for (const x of new Intl.DateTimeFormat("en-US", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric",
@@ -2849,10 +2854,36 @@ function renderTimeZone() {
   const box = $("tz-settings");
   if (!box) return;
   box.innerHTML = "";
-  box.appendChild(el("p", "hint-small", "Her days, her clock: \"today\", the free-time timer, and Google and To Do times all use this zone, on the PC and on her phone."));
-  const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // Whose clock this screen runs on ("today", "now", the timers). Just this device.
+  const view = el("div", "clock-row");
+  view.appendChild(el("span", "clock-label", "This screen shows"));
+  const vseg = el("div", "sort-toggle");
+  for (const [mode, text] of [["her", "🌲 Washington · Ariel's time"], ["tokyo", "🗾 Tokyo · Logan's time"]]) {
+    const b = el("button", "sort-btn" + (viewZone() === mode ? " active" : ""), text);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      try { mode === "tokyo" ? localStorage.setItem("arpPlanner.viewZone", "tokyo") : localStorage.removeItem("arpPlanner.viewZone"); } catch {}
+      currentDay = todayKey();
+      render();
+      renderTimeZone();
+    });
+    vseg.appendChild(b);
+  }
+  view.appendChild(vseg);
+  box.appendChild(view);
+  box.appendChild(el("p", "hint-small", "Just for this device: her phone and your PC can each pick. It changes which day is " +
+    "\"today\" and what time it is now; the times on her tasks always stay her times."));
+  const zoneNow = zone => {
+    const n = new Date(new Date().toLocaleString("en-US", { timeZone: zone }));
+    return `${formatTime(`${pad(n.getHours())}:${pad(n.getMinutes())}`)} on ${n.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}`;
+  };
+  box.appendChild(el("p", "tz-now", `🌲 For Ariel it's ${zoneNow(plannerZone() || HER_DEFAULT_ZONE)}.`));
+  box.appendChild(el("p", "tz-now", `🗾 In Tokyo it's ${zoneNow(LOGAN_ZONE)}.`));
+
+  box.appendChild(el("h4", "tz-sub", "Ariel's home time zone"));
+  box.appendChild(el("p", "hint-small", "Her days, her clock: Google and To Do times use this zone, on the PC and on her phone. Change it only if she moves or travels."));
   const sel = el("select", "tz-select");
-  sel.add(new Option(`This device's own clock (${here})`, ""));
+  sel.add(new Option("Not set (her phone's own clock, Pacific)", ""));
   for (const [id, label] of TIME_ZONES) sel.add(new Option(label, id));
   const cur = plannerZone() || "";
   if (cur && !TIME_ZONES.some(([id]) => id === cur)) sel.add(new Option(cur, cur));
@@ -2861,14 +2892,12 @@ function renderTimeZone() {
     await saveProfile({ timeZone: sel.value || null });
     currentDay = todayKey();
     render();
-    showToast(`🕒 Using ${sel.value ? sel.options[sel.selectedIndex].text : "this device's clock"}. Updating Google and To Do times…`);
+    showToast(`🕒 Using ${sel.value ? sel.options[sel.selectedIndex].text : "her phone's clock"}. Updating Google and To Do times…`);
     if (typeof syncGoogle === "function") syncGoogle(false);
     if (typeof syncMicrosoft === "function") syncMicrosoft(false);
+    renderTimeZone();
   });
   box.appendChild(sel);
-  const now = nowLocal();
-  box.appendChild(el("p", "tz-now", `It's ${formatTime(`${pad(now.getHours())}:${pad(now.getMinutes())}`)} on ` +
-    `${now.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })} for her.`));
 
   // 12-hour (3:00 PM) or 24-hour (15:00) clock.
   const row = el("div", "clock-row");
