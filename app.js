@@ -2819,6 +2819,7 @@ function showView(v) {
     $(name + "-view").hidden = v !== name;
     if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && (v === "fidget" || v === "adventure")));
   }
+  $("tab-burger").classList.toggle("active", !!document.querySelector("#burger-menu .tab.active"));   // (one of its pages is open)
   if (v === "month") {
     monthCursor = fromKey(currentDay);
     monthCursor.setDate(1);
@@ -3724,6 +3725,21 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowLeft") $("prev-day").click();
   if (e.key === "ArrowRight") $("next-day").click();
 });
+
+// 🍔 The burger menu: tap the burger and it pops apart (bun, lettuce, cheese, patty) as the menu
+// drops out. Picking a page, tapping anywhere else, or Escape closes it.
+(function setupBurger() {
+  const btn = $("tab-burger"), menu = $("burger-menu");
+  const set = open => {
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.classList.toggle("open", open);
+  };
+  btn.addEventListener("click", e => { e.stopPropagation(); set(menu.hidden); if (!menu.hidden) buzz(8); });
+  menu.addEventListener("click", e => { if (e.target.closest(".tab")) set(false); });
+  document.addEventListener("click", e => { if (!menu.hidden && !e.target.closest(".burger-wrap")) set(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !menu.hidden) { set(false); btn.focus(); } });
+})();
 
 // Keep "Up next" and "Today" fresh if the window stays open (incl. past midnight).
 let lastToday = todayKey();

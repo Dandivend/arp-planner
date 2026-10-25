@@ -19,13 +19,30 @@
       <button id="tab-home" class="tab active" role="tab">Home</button>
       <button id="tab-day" class="tab" role="tab">Day</button>
       <button id="tab-month" class="tab" role="tab">Calendar</button>
-      <button id="tab-todo" class="tab" role="tab">To Do</button>
-      <button id="tab-work" class="tab" role="tab" title="Fit things into your work hours"><span class="tab-long">Work helper</span><span class="tab-short">Work</span></button>
-      <button id="tab-joy" class="tab" role="tab" title="Rejuvenation: hobbies and fun">Joy</button>
-      <button id="tab-logan" class="tab" role="tab" title="What Logan's up to">Logan</button>
-      <button id="tab-recap" class="tab" role="tab">Recap</button>
-      <button id="tab-collection" class="tab" role="tab" title="Your collection: effects, loot, bosses and weekly titles"><span class="tab-long">🎒 Collection</span><span class="tab-short">Collect</span></button>
-      <button id="tab-settings" class="tab tab-icon" role="tab" title="Settings: cycle and fitness setup">⚙️</button>
+      <!-- 🍔 Everything else lives in the burger (it pops apart when it opens) -->
+      <div class="burger-wrap">
+        <button id="tab-burger" class="tab burger-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="burger-menu" title="More: To Do, Work helper, Joy, Logan, Recap, Collection, Settings">
+          <svg class="burger-svg" viewBox="0 0 32 30" aria-hidden="true">
+            <g class="b-layer b-bottom"><rect x="4" y="22" width="24" height="5" rx="2.5" fill="#e0902c"/></g>
+            <g class="b-layer b-patty"><rect x="3" y="17.5" width="26" height="4.6" rx="2.3" fill="#7a3e1d"/><path d="M7 19 h3 M14 20 h3 M21 19 h3" stroke="#5a2a10" stroke-width="1" stroke-linecap="round"/></g>
+            <g class="b-layer b-cheese"><path d="M3.5 15.5 H28.5 L27 17.6 L22 17.6 L20 20.5 L18 17.6 H9 L7 19.6 L5 17.6 H3.5Z" fill="#ffcf3a"/></g>
+            <g class="b-layer b-lettuce"><path d="M2.5 14.5 q2 -2.4 4 0 t4 0 t4 0 t4 0 t4 0 t4 0 t4.5 0 v1.6 H2.5Z" fill="#62c54a"/></g>
+            <g class="b-layer b-top"><path d="M3 13.5 Q3 3 16 3 Q29 3 29 13.5Z" fill="#f2a63c"/><path d="M6 11 Q8 5.5 14 4.6" stroke="#ffd08a" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+              <ellipse cx="11" cy="7.5" rx="1" ry=".6" fill="#fff4d8"/><ellipse cx="16" cy="6" rx="1" ry=".6" fill="#fff4d8"/><ellipse cx="21" cy="8" rx="1" ry=".6" fill="#fff4d8"/>
+              <ellipse cx="14" cy="10" rx="1" ry=".6" fill="#fff4d8"/><ellipse cx="24" cy="11" rx="1" ry=".6" fill="#fff4d8"/><ellipse cx="8" cy="11" rx="1" ry=".6" fill="#fff4d8"/></g>
+          </svg>
+          <span class="burger-badge" aria-hidden="true">💗</span>
+        </button>
+        <div id="burger-menu" class="burger-menu" role="menu" hidden>
+          <button id="tab-todo" class="tab" role="menuitem">To Do</button>
+          <button id="tab-work" class="tab" role="menuitem" title="Fit things into your work hours">Work helper</button>
+          <button id="tab-joy" class="tab" role="menuitem" title="Rejuvenation: hobbies and fun">Joy</button>
+          <button id="tab-logan" class="tab" role="menuitem" title="What Logan's up to">Logan</button>
+          <button id="tab-recap" class="tab" role="menuitem">Recap</button>
+          <button id="tab-collection" class="tab" role="menuitem" title="Your collection: effects, loot, bosses and weekly titles">Collection</button>
+          <button id="tab-settings" class="tab" role="menuitem" title="Settings: cycle and fitness setup">Settings</button>
+        </div>
+      </div>
     </nav>
   </header>
 

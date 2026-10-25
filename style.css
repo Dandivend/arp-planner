@@ -1170,7 +1170,7 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #day-view .nav-row { gap: 6px; }
   .topbar .tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-    display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
     border-radius: 0; border: 0; border-top: 1px solid var(--line); padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(8px);
   }
@@ -1186,9 +1186,6 @@ main:has(#day-view:not([hidden])) { max-width: 1300px; }
   #tab-joy::before { content: "🌈"; }
   #tab-logan::before { content: "💙"; }
   #tab-recap::before { content: "📊"; }
-  #tab-collection::before { content: "🎒"; }
-  .topbar .tabs .tab-icon { font-size: 20px; justify-content: center; }
-  .topbar .tabs .tab-icon::after { content: "Settings"; font-size: 10px; }
   main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   #toast, .toast, .error-bar { bottom: calc(74px + env(safe-area-inset-bottom)); }
 }
@@ -2397,9 +2394,8 @@ body.love-burst > header, body.love-burst > main, body.love-burst > nav { animat
   border-radius: 10px; padding: 8px 10px; font: inherit; font-size: 15px; height: 40px; }
 .wh-add-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 12px; }
 @media screen and (max-width: 600px) {
-  .topbar .tabs { grid-template-columns: repeat(10, minmax(0, 1fr)) !important; }
+  .topbar .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
   .topbar .tabs .tab { font-size: 10.5px; }
-  .topbar .tabs .tab-icon::after { font-size: 10.5px; }
   #tab-work::before { content: "💼"; }
   .tab .tab-long { display: none; }
   .tab .tab-short { display: inline; }
@@ -2559,3 +2555,49 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 .skin-btn.locked { opacity: .5; }
 @media (max-width: 600px) { .col-stats { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .vial-key .key, .loot-pop, .boss-dmg, .focus-card.boss-hit { animation: none !important; transition: none !important; } }
+
+/* ================= 🍔 The burger menu ================= */
+.burger-wrap { position: relative; display: flex; }
+.burger-btn { position: relative; display: flex; align-items: center; justify-content: center; padding: 4px 16px; }
+.burger-svg { width: 30px; height: 28px; overflow: visible; display: block; }
+.b-layer { transform-box: fill-box; transform-origin: 50% 50%; transition: transform .45s cubic-bezier(.3, 1.6, .5, 1); }
+.burger-btn:hover .b-top { transform: translateY(-1.5px) rotate(-4deg); }
+.burger-btn.open .b-top { transform: translateY(-9px) rotate(-16deg); transform-origin: 15% 100%; }
+.burger-btn.open .b-lettuce { transform: translateY(-5.5px) rotate(3deg); transition-delay: .04s; }
+.burger-btn.open .b-cheese { transform: translateY(-2.5px) rotate(-3deg); transition-delay: .08s; }
+.burger-btn.open .b-patty { transform: translateY(.5px); transition-delay: .1s; }
+.burger-btn.open .b-bottom { transform: translateY(3.5px); transition-delay: .12s; }
+.burger-btn.active { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+.burger-badge { display: none; position: absolute; top: 0; right: 6px; font-size: 11px; animation: tab-beat 1.6s ease-in-out infinite; }
+.burger-wrap:has(#tab-logan[data-status="free"]) .burger-badge { display: block; }
+.burger-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 40; min-width: 210px; display: flex; flex-direction: column; gap: 2px;
+  padding: 6px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); box-shadow: 0 14px 40px rgba(0,0,0,.45);
+  transform-origin: 90% 0; animation: burger-drop .32s cubic-bezier(.3, 1.4, .5, 1); }
+.burger-menu[hidden] { display: none; }
+@keyframes burger-drop { from { opacity: 0; transform: translateY(-8px) scale(.92); } to { opacity: 1; transform: none; } }
+.burger-menu .tab { display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 14px; border-radius: 12px; font-size: 15px;
+  opacity: 0; animation: burger-item .3s ease-out forwards; }
+.burger-menu .tab:nth-child(1) { animation-delay: .03s; } .burger-menu .tab:nth-child(2) { animation-delay: .06s; }
+.burger-menu .tab:nth-child(3) { animation-delay: .09s; } .burger-menu .tab:nth-child(4) { animation-delay: .12s; }
+.burger-menu .tab:nth-child(5) { animation-delay: .15s; } .burger-menu .tab:nth-child(6) { animation-delay: .18s; }
+.burger-menu .tab:nth-child(7) { animation-delay: .21s; }
+@keyframes burger-item { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.burger-menu .tab { color: var(--ink); }
+.burger-menu .tab:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.burger-menu .tab.active { background: var(--accent); color: var(--accent-ink); }
+.burger-menu .tab::before { font-size: 18px; width: 22px; text-align: center; }
+#burger-menu #tab-todo::before { content: "✔️"; } #burger-menu #tab-work::before { content: "💼"; }
+#burger-menu #tab-joy::before { content: "🌈"; } #burger-menu #tab-logan::before { content: "💙"; }
+#burger-menu #tab-recap::before { content: "📊"; } #burger-menu #tab-collection::before { content: "🎒"; }
+#burger-menu #tab-settings::before { content: "⚙️"; }
+@media screen and (max-width: 600px) {
+  .burger-wrap { display: block; }
+  .topbar .tabs .burger-btn { width: 100%; height: 100%; padding: 4px 0; }
+  .topbar .tabs .burger-btn::after { content: "More"; font-size: 10.5px; }
+  .burger-svg { width: 26px; height: 24px; }
+  .burger-menu { top: auto; bottom: calc(100% + 10px); right: 4px; transform-origin: 90% 100%; min-width: 220px; }
+  @keyframes burger-drop { from { opacity: 0; transform: translateY(8px) scale(.92); } to { opacity: 1; transform: none; } }
+  .topbar .tabs .burger-menu .tab { flex-direction: row; gap: 12px; font-size: 16px; padding: 12px 14px; letter-spacing: 0; white-space: nowrap; overflow: visible; }
+  .topbar .tabs .burger-menu .tab::before { font-size: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .b-layer, .burger-menu, .burger-menu .tab { transition: none !important; animation: none !important; opacity: 1; } }
