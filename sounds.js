@@ -254,6 +254,21 @@ function playSongNote() {
   return info;
 }
 
+// 😢 The sad Order vial's one-tap tune: a slow, sinking dubstep wobble with little "hu-hu" sobs
+// on top and a long, drooping wail at the end (original). Returns how long it lasts, in seconds.
+function playSadDub() {
+  const len = 6.4;
+  if (!soundsOn()) return len;
+  const ctx = sfx();
+  if (!ctx) return len;
+  const seq = [[0, 45], [.5, 44], [1, 43], [1.5, 42], [1.75, 42], [2.4, 38], [2.7, 38], [3, 41], [3.3, 40], [3.6, 38], [4.1, 36], [4.6, 36], [5.1, 35]];
+  seq.forEach(([at, n], i) => setTimeout(() => playInstrument(ctx, "dub", n, i), at * 1000));
+  for (const [at, f] of [[.25, 880], [.4, 820], [1.25, 840], [1.4, 760], [2.95, 800], [3.1, 700], [4.35, 760], [4.5, 640]])   // the sobs
+    voice(ctx, { type: "triangle", at, pitch: [[0, f], [.12, f * .78]], vol: [[0, 0], [.015, .07], [.13, 0]], vibrato: { rate: 14, depth: 18 } });
+  voice(ctx, { type: "sine", at: 5.1, pitch: [[0, 620], [1.2, 330]], vol: [[0, 0], [.08, .06], [1.1, .04], [1.3, 0]], vibrato: { rate: 6, depth: 12 } });   // a final wail
+  return len;
+}
+
 // A blessing: a shimmering rising arpeggio with a warm pad underneath.
 function playBlessing() {
   if (!soundsOn()) return;

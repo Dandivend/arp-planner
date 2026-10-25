@@ -2424,3 +2424,31 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 .pushback .peek-actions .link-btn { align-self: center; }
 .pushback.joy-nudge { border-color: color-mix(in srgb, #ff8fc7 50%, var(--line)); }
 .logan-now-line { margin: 0 0 10px; font-weight: 700; font-size: 14.5px; color: var(--muted); }
+
+/* ================= 🔒 Out of day: chained chaos vial, crying Order vial ================= */
+.overload.soft { color: #d9d2ff; background: #221f36; border: 1px solid #4b4478; font-weight: 600; }
+#chaos-flask.locked > :not(.vial-lock) { filter: grayscale(.85) brightness(.7); }
+.vial-lock { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.vial-lock .chain { position: absolute; left: -30%; width: 160%; height: 9px; fill: #b8c0c9; stroke: #b8c0c9;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.6)); }
+.vial-lock .c1 { top: 28%; transform: rotate(-24deg); }
+.vial-lock .c2 { top: 52%; transform: rotate(22deg); }
+.vial-lock .c3 { top: 74%; transform: rotate(-18deg); }
+.vial-lock .padlock { position: absolute; left: 50%; top: 52%; width: 34px; transform: translate(-50%, -30%);
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.6)); animation: lock-swing 3.2s ease-in-out infinite; transform-origin: 50% 0; }
+@keyframes lock-swing { 0%, 100% { transform: translate(-50%, -30%) rotate(-7deg); } 50% { transform: translate(-50%, -30%) rotate(7deg); } }
+#done-flask.sad .done-glass { filter: saturate(.4); }
+.sad-face { position: absolute; left: 50%; top: 34%; width: 74%; transform: translateX(-50%); z-index: 5; pointer-events: none; }
+.sad-face svg { display: block; width: 100%; }
+.sad-face svg path { stroke: #c9d3ff; }
+.tear { position: absolute; top: 40%; width: 5px; height: 8px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: #7fc8ff; box-shadow: 0 0 4px #7fc8ff; opacity: 0; animation: tear-roll 1.8s ease-in infinite; }
+.tear.t1 { left: 22%; } .tear.t2 { left: 30%; animation-delay: .9s; }
+.tear.t3 { left: 66%; animation-delay: .45s; } .tear.t4 { left: 74%; animation-delay: 1.35s; }
+@keyframes tear-roll { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(120px); opacity: 0; } }
+#done-flask.sobbing { animation: sob-shake .26s ease-in-out infinite !important; }
+#done-flask.sobbing .tear { animation-duration: .8s; }
+@keyframes sob-shake { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px) scaleY(.98); } }
+.sad-drop { position: absolute; top: 30%; font-size: 14px; pointer-events: none; z-index: 7; animation: sad-drop 1.4s ease-in forwards; }
+@keyframes sad-drop { from { transform: translate(0, 0); opacity: 1; } to { transform: translate(var(--dx, 0), 110px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .vial-lock .padlock, .tear, #done-flask.sobbing { animation: none !important; } .tear { opacity: .8; } }

@@ -675,6 +675,8 @@ function renderFreeTimer() {
   const day = currentDay, p = timerPlan;
   const isToday = day === todayKey();
   const ft = freeTimeLeft(day, p.active);
+  if (isToday && !ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW && viewZone() === "her" && !isBooted(day)) bootTheRest(day);
+  const locked = isBooted(day);                 // 🔒 the rest of the day went to tomorrow
   const box = $("free-timer");
   const sleep = sleepFor(day);
   box.classList.toggle("over", ft.seconds <= 0 && !ft.past);
@@ -700,13 +702,15 @@ function renderFreeTimer() {
 
   // Chaos meter: how much of her free time the day eats, faster when she's worn out.
   const chaos = chaosFor(day, ft);
-  const shown = ft.past ? 0 : chaos.pct;
+  const off = ft.past || locked;                 // no effects while resting, or while it's locked
+  const shown = off ? 0 : chaos.pct;
   const joyDone = joyDoneFor(day);
-  renderChaosFlask(shown, ft.past ? 0 : joyDone.frac);
+  renderChaosFlask(shown, off ? 0 : joyDone.frac);
+  renderVialLock(locked);
   renderDoneFlask(day, p);
-  renderDumbbell(!ft.past && p.workouts.some(t => !t.done));
-  renderStudy(!ft.past && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
-  renderNowEmoji(isToday && !ft.past ? nowTaskEmoji(day, p) : null);
+  renderDumbbell(!off && p.workouts.some(t => !t.done));
+  renderStudy(!off && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
+  renderNowEmoji(isToday && !off ? nowTaskEmoji(day, p) : null);
   if (isToday && n0 !== (n0 = Math.floor(Date.now() / 60000))) {                // once a minute: move the "now" glow
     for (const li of document.querySelectorAll("#task-list .task[data-id]")) {
       const t = tasks.find(x => x.id === li.dataset.id);
@@ -714,28 +718,28 @@ function renderFreeTimer() {
     }
     syncNowGlow();
   }
-  renderChaosShadow(ft.past ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
-  if (isToday && !ft.past && chaos.pct >= 100) markDays("fire", [day]);
-  if (isToday && !ft.past && chaos.pct >= 90) markDays("chaos90", [day]);       // (for the push-back check)
+  renderChaosShadow(off ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
+  if (isToday && !off && chaos.pct >= 100) markDays("fire", [day]);
+  if (isToday && !off && chaos.pct >= 90) markDays("chaos90", [day]);       // (for the push-back check)
   // 🌋 The second 100% chaos day in a row: the vial won't stop erupting.
-  setVolcano(!ft.past && chaos.pct >= 100 && ((profile.dayMarks || {}).fire || []).includes(addDays(day, -1)));
-  renderStatusFx(day, ft.past);
-  if (typeof renderAwards === "function") renderAwards(day, ft.past);
-  const fx = vialFx(day);
-  setChaosFace(Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
-  $("chaos-value").textContent = ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
+  setVolcano(!off && chaos.pct >= 100 && ((profile.dayMarks || {}).fire || []).includes(addDays(day, -1)));
+  renderStatusFx(day, off);
+  if (typeof renderAwards === "function") renderAwards(day, off);
+  const fx = off ? {} : vialFx(day);
+  setChaosFace(locked ? "🥺" : Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
+  $("chaos-value").textContent = locked ? "🔒 Locked till tomorrow" : ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const fxNote = $("chaos-fx-note"), mins = u => Math.max(1, Math.ceil((u - Date.now()) / 60000));
   const fxText = fx.win ? `🏆 Victory glow · ${mins(fx.win)} min` : fx.faint ? `😵‍💫 Still a little dizzy · ${mins(fx.faint)} min` : "";
   const mindText = fx.mindful ? `🧘 Mindful · ${mins(fx.mindful)} min` : "";
   const fxAll = [fxText, mindText].filter(Boolean).join("  ");
-  fxNote.hidden = ft.past || !fxAll;
+  fxNote.hidden = off || !fxAll;
   if (!fxNote.hidden) setTapNote(fxNote, (fx.win ? "🏆" : fx.faint ? "😵‍💫" : "") + (fx.mindful ? "🧘" : ""), fxAll);
   const note = $("chaos-note");
-  note.hidden = !(chaos.boost > 1 && !ft.past);
+  note.hidden = !(chaos.boost > 1 && !off);
   if (!note.hidden) setTapNote(note, "⚡", `⚡ Fills ${Math.round((chaos.boost - 1) * 100)}% faster: ${chaos.reason}.`);
   $("chaos-flask").closest(".meter").title = "How much of your free time the day uses up" + (chaos.work ? ` (work counts about ${chaos.work}%)` : "");
   const joyNote = $("chaos-joy-note");
-  joyNote.hidden = ft.past || !chaos.joy.minutes;
+  joyNote.hidden = off || !chaos.joy.minutes;
   if (!joyNote.hidden) setTapNote(joyNote, "🌈", joyDone.minutes
     ? `🌈 ${formatMinutes(joyDone.minutes)} of joy is calming the chaos` + (chaos.joy.minutes >= 30 ? " (it can't boil over today) 💖" : " 💖")
     : `🌈 ${formatMinutes(chaos.joy.minutes)} of joy planned. Do it and the vial blooms 🌸`);
@@ -743,7 +747,13 @@ function renderFreeTimer() {
   // Endless-task alert: no free time left at all (or barely any).
   const warn = $("overload");
   const spare = ft.seconds / 60;
-  if (!ft.past && p.planned > 0 && spare < 0) {
+  if (locked) {
+    warn.className = "overload soft";
+    warn.textContent = "🌙 There wasn't enough day left, so the rest of the list moved to tomorrow and the joy bits were " +
+      "cleared. The chaos vial is chained up till morning (its effects wore off), and the Order vial is having a little cry. " +
+      "That's okay. Tomorrow's a fresh start 💛";
+    warn.hidden = false;
+  } else if (!ft.past && p.planned > 0 && spare < 0) {
     warn.className = "overload red";
     warn.textContent = `🛑 Endless-task alert! You've got about ${formatHrsMin(ft.planned)} of tasks but only ` +
       `${formatHrsMin(ft.total)} of free time${isToday ? " left" : ""}. That's a bad combo of endless tasks that will leave you ` +
@@ -760,10 +770,75 @@ function renderFreeTimer() {
 
   // The day itself catches fire when there's little or no free time.
   if (view === "day") {
-    if (!ft.past && p.planned > 0 && spare < 0) setFireFloor(2, FIRE_LINE);
+    if (locked) setFireFloor(0);
+    else if (!ft.past && p.planned > 0 && spare < 0) setFireFloor(2, FIRE_LINE);
     else if (!ft.past && p.planned > 0 && spare < 30) setFireFloor(1, "🔥 Barely any free time. Don't pile anything else on!");
     else setFireFloor(0);
   }
+}
+
+// ---------- 🔒 out of day: the rest goes to tomorrow ----------
+// In her evening (the last few hours before bed), once what's left can't possibly fit before bed,
+// everything still undone hops to tomorrow by itself, joy bits are cleared, and the day is marked
+// "booted": the chaos vial gets chained and padlocked (all its effects gone) and the Order vial
+// stays empty and cries (one tap: a sad dubstep tune). Appointments, work and Google events stay.
+// Only on a screen showing HER clock, so Logan's Tokyo view never moves anything.
+const BOOT_WINDOW = 180;                         // minutes before bed when it can happen
+const isBooted = day => ((profile.dayMarks || {}).booted || []).includes(day);
+let booting = false;
+async function bootTheRest(day) {
+  if (booting) return;
+  const left = tasksFor(day).filter(t => !t.done && !t.deleted && !isWorkShift(t) && kindOf(t) !== "event"
+    && !(t.external && t.external.google && t.external.google.imported));
+  if (!left.length) return;
+  booting = true;
+  try {
+    const joy = left.filter(t => kindOf(t) === "joy"), move = left.filter(t => kindOf(t) !== "joy");
+    const next = addDays(day, 1);
+    markDays("booted", [day]);
+    for (const t of move) await persist({ ...t, date: next }, false);
+    for (const t of joy) { try { await Store.remove(t.id); t.deleted = true; } catch {} }
+    render();
+    scheduleSyncs();
+    const said = [move.length && `${plural(move.length, "thing")} moved to tomorrow`, joy.length && `${plural(joy.length, "joy bit")} cleared`].filter(Boolean);
+    showToast(`🌙 Out of day! ${said.join(" and ")}. Rest up 💛`, "Undo", async () => {
+      const m = profile.dayMarks || {};
+      profile = { ...profile, dayMarks: { ...m, booted: (m.booted || []).filter(d => d !== day) } };
+      pushProfile();
+      for (const t of move) await persist({ ...t }, false);
+      for (const t of joy) await persist({ ...t, deleted: false }, false);
+      render();
+    });
+  } finally { booting = false; }
+}
+
+// Checked once a minute too, so it happens whichever tab she's on.
+function checkOutOfDay() {
+  const d = todayKey();
+  if (!tasks.length || viewZone() !== "her" || isBooted(d)) return;
+  const ft = freeTimeLeft(d, planDay(d).active);
+  if (!ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW) bootTheRest(d);
+}
+setInterval(() => { try { checkOutOfDay(); } catch {} }, 60000);
+
+// The chains and padlock wrapped around the chaos vial.
+function renderVialLock(on) {
+  const flask = $("chaos-flask");
+  flask.classList.toggle("locked", on);
+  let lock = flask.querySelector(".vial-lock");
+  if (!on) { if (lock) lock.remove(); return; }
+  if (lock) return;
+  lock = el("div", "vial-lock");
+  lock.setAttribute("aria-hidden", "true");
+  const links = Array.from({ length: 12 }, (_, i) => i % 2
+    ? `<rect x="${i * 10 + 1}" y="2.5" width="12" height="3" rx="1.5"/>`
+    : `<rect x="${i * 10}" y="0" width="14" height="8" rx="4" fill="none" stroke-width="2.4"/>`).join("");
+  const chain = c => `<svg class="chain ${c}" viewBox="0 0 124 8" preserveAspectRatio="none">${links}</svg>`;
+  lock.innerHTML = chain("c1") + chain("c2") + chain("c3") +
+    `<svg class="padlock" viewBox="0 0 40 46"><path d="M10 20 V13 a10 10 0 0 1 20 0 V20" fill="none" stroke="#9aa3ad" stroke-width="5"/>` +
+    `<rect x="4" y="19" width="32" height="25" rx="5" fill="#d4a93a" stroke="#8a6a1c" stroke-width="2"/>` +
+    `<circle cx="20" cy="29" r="3.5" fill="#5a4410"/><rect x="18.5" y="30" width="3" height="8" rx="1.5" fill="#5a4410"/></svg>`;
+  flask.appendChild(lock);
 }
 
 // ---------- chaos flask ----------
@@ -955,15 +1030,17 @@ const doneState = { pct: -1, key: "", taps: [], until: 0, blessing: false };
 function renderDoneFlask(day, p) {
   const items = p.list.filter(t => !t.deleted && !isWorkShift(t));
   const done = items.filter(t => t.done).length;
-  const pct = items.length ? Math.round((done / items.length) * 100) : 0;
+  const sad = isBooted(day);                         // the rest went to tomorrow: it stays empty and cries
+  const pct = sad ? 0 : items.length ? Math.round((done / items.length) * 100) : 0;
   const flask = $("done-flask"), liquid = $("done-liquid");
+  renderSadVial(sad);
   liquid.style.height = `${Math.max(pct, items.length ? 3 : 0)}%`;
   const zen = pct / 100;
   flask.style.setProperty("--zen", zen.toFixed(2));
   flask.dataset.zen = pct >= 100 ? "4" : pct >= 75 ? "3" : pct >= 50 ? "2" : pct >= 25 ? "1" : "0";
   flask.classList.toggle("blessed", pct >= 100 && items.length > 0);
-  $("done-emoji").textContent = !items.length ? "🕊️" : pct >= 100 ? "😇" : pct >= 75 ? "🥰" : pct >= 50 ? "😊" : pct >= 25 ? "🙂" : "🌱";
-  $("done-value").textContent = items.length ? `${done} of ${items.length} · ${pct}%` : "Nothing yet";
+  $("done-emoji").textContent = sad ? "😭" : !items.length ? "🕊️" : pct >= 100 ? "😇" : pct >= 75 ? "🥰" : pct >= 50 ? "😊" : pct >= 25 ? "🙂" : "🌱";
+  $("done-value").textContent = sad ? "😢 Rest moved on" : items.length ? `${done} of ${items.length} · ${pct}%` : "Nothing yet";
   const key = `${Math.round(pct / 10)}`;
   if (doneState.key !== key) {                       // sparkles drifting up through the light
     doneState.key = key;
@@ -996,10 +1073,46 @@ function renderDoneFlask(day, p) {
   doneState.pct = pct;
 }
 
+// 😢 The sad Order vial: a crying face on the glass with tears rolling down. One tap: it sobs out
+// a whole sad dubstep tune (a tap while it's crying does nothing).
+function renderSadVial(on) {
+  const flask = $("done-flask");
+  flask.classList.toggle("sad", on);
+  let face = flask.querySelector(".sad-face");
+  if (!on) { if (face) face.remove(); return; }
+  if (face) return;
+  face = el("div", "sad-face");
+  face.setAttribute("aria-hidden", "true");
+  face.innerHTML = `<svg viewBox="0 0 40 30"><path d="M7 10 L15 6 M33 10 L25 6" stroke="#3b3b55" stroke-width="2.2" stroke-linecap="round"/>` +
+    `<path d="M9 14 q4 -4 8 0 M23 14 q4 -4 8 0" stroke="#3b3b55" stroke-width="2.4" fill="none" stroke-linecap="round"/>` +
+    `<path d="M13 26 q7 -8 14 0" stroke="#3b3b55" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>` +
+    `<span class="tear t1"></span><span class="tear t2"></span><span class="tear t3"></span><span class="tear t4"></span>`;
+  flask.appendChild(face);
+}
+let sadCrying = false;
+function sadVialCry() {
+  if (sadCrying) return;
+  sadCrying = true;
+  const flask = $("done-flask");
+  flask.classList.add("sobbing");
+  buzz([40, 80, 40, 80, 120]);
+  const secs = typeof playSadDub === "function" ? playSadDub() : 4;
+  const label = el("div", "song-name", "🎵 Sad Wub (original, crying dubstep)");
+  flask.appendChild(label);
+  const drips = setInterval(() => {                 // big tears splash out while it plays
+    const d = el("span", "sad-drop", "💧");
+    d.style.left = `${15 + Math.random() * 70}%`;
+    flask.appendChild(d);
+    setTimeout(() => d.remove(), 1400);
+  }, 260);
+  setTimeout(() => { clearInterval(drips); label.remove(); flask.classList.remove("sobbing"); sadCrying = false; }, secs * 1000);
+}
+
 // Tapping it: a gentle wobble and a bell chime (higher the faster she taps). Full and tapped
 // quickly: a blessing bursts out (sparkles, feathers and hearts drifting up and down).
 function pokeDone() {
   const flask = $("done-flask");
+  if (flask.classList.contains("sad")) return sadVialCry();
   if (doneState.blessing) return;
   const now = Date.now();
   doneState.taps = doneState.taps.filter(t => now - t < 2000);
@@ -1090,7 +1203,7 @@ function maybeCelebrateAllDone() {
   if (celebrating) return setTimeout(maybeCelebrateAllDone, 300);         // let the animal finish first
   const day = todayKey();
   const items = planDay(day).list.filter(t => !t.deleted && !isWorkShift(t));
-  if (!items.length || items.some(t => !t.done)) return;
+  if (!items.length || items.some(t => !t.done) || isBooted(day)) return;
   try { if (localStorage.getItem("arpPlanner.allDone") === day) return; localStorage.setItem("arpPlanner.allDone", day); } catch {}
   celebrateAllDone();
 }

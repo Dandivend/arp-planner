@@ -307,7 +307,7 @@ function freeTimeLeft(day, list) {
   const care = typeof careAheadFor === "function" ? Math.round(careAheadFor(day, nowMin, frac) * 60) : 0;
   return {
     seconds: awake - work - care - planned, total: awake - work - care, planned, care,
-    past: nowMin >= w.end, beforeWake: nowMin < w.start,
+    past: nowMin >= w.end, beforeWake: nowMin < w.start, awakeLeft: awake / 60,
   };
 }
 
