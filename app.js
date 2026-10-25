@@ -263,6 +263,17 @@ function markDays(kind, days) {
   pushProfile();
 }
 
+// Before the 🌏 Time Zone setting, Logan's PC ran on Tokyo's clock, so on Oct 25, 2026 (Tokyo) it
+// treated her Oct 25 as "today" half a day early and marked it 🔥 total chaos (a Coat Rack and a
+// Volcano on a day that hadn't started). Clear those once, on whichever device opens first.
+function fixTokyoMarks() {
+  const m = profile.dayMarks;
+  if (!m || (m.fixed || []).includes("tokyo-1025")) return;
+  const drop = list => (list || []).filter(d => d !== "2026-10-25");
+  profile = { ...profile, dayMarks: { ...m, fire: drop(m.fire), chaos90: drop(m.chaos90), fixed: [...(m.fixed || []), "tokyo-1025"] } };
+  pushProfile();
+}
+
 // 🔁 Unfinished tasks and chores roll on to today by themselves. Appointments (anything with a
 // time), workouts, deadline items (they already stay until done), repeating to-dos (they have
 // ⏭️ Catch up) and Google events stay where they are.
@@ -719,8 +730,10 @@ function renderFreeTimer() {
     syncNowGlow();
   }
   renderChaosShadow(off ? [] : p.active.filter(t => !t.done && !isWorkShift(t) && needsTime(t)), shown);
-  if (isToday && !off && chaos.pct >= 100) markDays("fire", [day]);
-  if (isToday && !off && chaos.pct >= 90) markDays("chaos90", [day]);       // (for the push-back check)
+  // (Only a screen on HER clock marks days: a Tokyo view's "today" is a different day.)
+  fixTokyoMarks();
+  if (isToday && !off && viewZone() === "her" && chaos.pct >= 100) markDays("fire", [day]);
+  if (isToday && !off && viewZone() === "her" && chaos.pct >= 90) markDays("chaos90", [day]);       // (for the push-back check)
   // 🌋 The second 100% chaos day in a row: the vial won't stop erupting.
   setVolcano(!off && chaos.pct >= 100 && ((profile.dayMarks || {}).fire || []).includes(addDays(day, -1)));
   renderStatusFx(day, off);
