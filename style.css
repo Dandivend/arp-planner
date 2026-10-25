@@ -2581,6 +2581,8 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 .burger-menu .tab:nth-child(3) { animation-delay: .09s; } .burger-menu .tab:nth-child(4) { animation-delay: .12s; }
 .burger-menu .tab:nth-child(5) { animation-delay: .15s; } .burger-menu .tab:nth-child(6) { animation-delay: .18s; }
 .burger-menu .tab:nth-child(7) { animation-delay: .21s; }
+/* (Logan's heartbeat when he's free would replace the fade-in and leave him invisible: run both) */
+#burger-menu #tab-logan[data-status="free"] { animation: burger-item .3s ease-out .12s forwards, tab-beat 1.6s ease-in-out .42s infinite; }
 @keyframes burger-item { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .burger-menu .tab { color: var(--ink); }
 .burger-menu .tab:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
