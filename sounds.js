@@ -202,11 +202,25 @@ const SONGS = [
   { name: "🔊 Neon Wobble (original, dubstep)", style: "dub", notes: [38, 38, 50, 38, 41, 43, 45, 41, 38, 38, 50, 48, 46, 45, 43, 41] },
   { name: "🔊 Bass Cannon (original, dubstep)", style: "dub", notes: [36, 36, 36, 48, 36, 39, 41, 43, 36, 36, 36, 48, 46, 43, 41, 39] },
 ];
+// 🎁 Unlockable songs (loot from finishing things; see game.js). Public-domain melodies, plus an original.
+SONGS.push(
+  { name: "Greensleeves (traditional)", unlock: "greensleeves", notes: [57, 60, 62, 64, 65, 64, 62, 59, 55, 57, 59, 60, 57, 57, 56, 57, 59, 56, 52,
+    57, 60, 62, 64, 65, 64, 62, 59, 55, 57, 59, 60, 59, 57, 56, 54, 56, 57, 57] },
+  { name: "Brahms' Lullaby", unlock: "lullaby", notes: [64, 64, 67, 64, 64, 67, 64, 67, 72, 71, 69, 69, 67, 62, 64, 65, 62, 62, 64, 65, 62, 65, 71, 69, 67, 71, 72] },
+  { name: "Morning Mood (Grieg)", unlock: "morning", notes: [67, 64, 62, 60, 62, 64, 67, 64, 62, 60, 62, 64, 62, 64, 67, 64, 67, 69, 64, 69, 67, 64, 62, 60] },
+  { name: "Jingle Bells (Pierpont)", unlock: "jingle", notes: [64, 64, 64, 64, 64, 64, 64, 67, 60, 62, 64, 65, 65, 65, 65, 65, 64, 64, 64, 64, 62, 62, 64, 62, 67] },
+  { name: "🎻 Swan Lake (Tchaikovsky)", unlock: "swan", style: "cello", notes: [71, 64, 66, 67, 69, 71, 67, 71, 67, 71, 64, 67, 64, 60, 67, 64] },
+  { name: "🎸 Ride of the Valkyries (Wagner, shred)", unlock: "valkyries", style: "shred", notes: [59, 54, 59, 62, 59, 62, 59, 62, 66, 62, 66, 62, 66, 69, 57, 62, 57, 61] },
+  { name: "🔊 Boss Fight (original, dubstep)", unlock: "bossfight", style: "dub", notes: [38, 38, 41, 38, 43, 41, 38, 36, 38, 38, 45, 43, 41, 38, 36, 33] },
+);
 const SONG_OCT = { bell: 12, cello: -12, metal: 0, shred: 0, dub: 0 };
 const songState = { song: Math.floor(Math.random() * SONGS.length), at: 0, last: 0 };
-function pickSong() {                            // a random one, never the same twice in a row
+function pickSong() {                            // a random one she has, never the same twice in a row
+  const have = typeof collectionOf === "function" ? collectionOf().songs : [];
+  const ok = SONGS.map((s, i) => i).filter(i => !SONGS[i].unlock || have.includes(SONGS[i].unlock));
   let i = songState.song;
-  if (SONGS.length > 1) while (i === songState.song) i = Math.floor(Math.random() * SONGS.length);
+  if (ok.length > 1) while (i === songState.song) i = ok[Math.floor(Math.random() * ok.length)];
+  else i = ok[0];
   songState.song = i;
   songState.at = 0;
 }
@@ -267,6 +281,15 @@ function playSadDub() {
     voice(ctx, { type: "triangle", at, pitch: [[0, f], [.12, f * .78]], vol: [[0, 0], [.015, .07], [.13, 0]], vibrato: { rate: 14, depth: 18 } });
   voice(ctx, { type: "sine", at: 5.1, pitch: [[0, 620], [1.2, 330]], vol: [[0, 0], [.08, .06], [1.1, .04], [1.3, 0]], vibrato: { rate: 6, depth: 12 } });   // a final wail
   return len;
+}
+
+// 👹 A hit on a boss: a punchy thwack.
+function playBossHit() {
+  const ctx = sfx();
+  if (!ctx) return;
+  noiseBurst(ctx, { dur: .18, freq: 1800, vol: .35 });
+  voice(ctx, { type: "sine", pitch: [[0, 180], [.12, 60]], vol: [[0, 0], [.004, .35], [.18, 0]] });
+  voice(ctx, { type: "square", pitch: [[0, 660], [.08, 330]], vol: [[0, 0], [.003, .06], [.1, 0]] });
 }
 
 // A blessing: a shimmering rising arpeggio with a warm pad underneath.

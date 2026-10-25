@@ -86,6 +86,8 @@ const AWARD_STATES = {
   champion: ["👑", "Champion", "#ffd54f", "Won an adventure"],
   zen: ["🍃", "Zen", "#66bb6a", "Reached your fidget goal"],
   mollyin: ["🦜", "Molly Moved In", "#9aa1a9", "5 minutes of Flappy Molly"],
+  comeback: ["🗝️", "Comeback Kid", "#ffca28", "Unlocked the chains the morning after an out-of-day night"],
+  bossdown: ["⚔️", "Boss Slayer", "#e53935", "Beat a boss task"],
 };
 const tx = t => `${t.title || ""} ${t.notes || ""}`.toLowerCase();
 const awardKindOf = t => AWARD_KINDS.find(k => { try { return k[4](t); } catch { return false; } }) || AWARD_KINDS[AWARD_KINDS.length - 1];
@@ -120,6 +122,8 @@ function awardsFor(day) {
   const fire = (profile.dayMarks || {}).fire || [];
   if (fire.includes(day)) { const s = AWARD_STATES.coatrack; add("coatrack", s[0], s[1], s[2], s[3]); }
   if (fire.includes(day) && fire.includes(addDays(day, -1))) { const s = AWARD_STATES.volcano; add("volcano", s[0], s[1], s[2], s[3]); }
+  if (((profile.dayMarks || {}).comeback || []).includes(day)) { const s = AWARD_STATES.comeback; add("comeback", s[0], s[1], s[2], s[3]); }
+  if (typeof collectionOf === "function") for (const b of collectionOf().bosses.filter(b => b.day === day)) { const s = AWARD_STATES.bossdown; add("bossdown", s[0], s[1], s[2], b.title); }
   if (typeof statusLog === "function") {
     const st = statusLog()[day] || {};
     for (const [k, id] of [["hero", "champion"], ["zen", "zen"], ["molly", "mollyin"]]) for (let i = 0; i < (st[k] || 0); i++) {
@@ -144,6 +148,7 @@ function renderAwards(day, off) {
   if (!flask) return;
   const isToday = day === todayKey();
   let list = off ? [] : awardsFor(day);
+  if (!off && typeof recordEffects === "function") recordEffects(list, day);      // (the 🎒 sticker book)
   // New today? Note when, and let it glow. (Whatever's already there the first time the planner
   // opens today just appears; only things earned after that get the glow and the "New effect!" note.)
   if (isToday) {

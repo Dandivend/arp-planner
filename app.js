@@ -718,6 +718,7 @@ function renderFreeTimer() {
   const joyDone = joyDoneFor(day);
   renderChaosFlask(shown, off ? 0 : joyDone.frac);
   renderVialLock(locked);
+  if (typeof renderComeback === "function") renderComeback(day);
   renderDoneFlask(day, p);
   renderDumbbell(!off && p.workouts.some(t => !t.done));
   renderStudy(!off && p.list.some(t => !t.done && !t.deleted && isStudy(t)));
@@ -809,7 +810,7 @@ async function bootTheRest(day) {
     const joy = left.filter(t => kindOf(t) === "joy"), move = left.filter(t => kindOf(t) !== "joy");
     const next = addDays(day, 1);
     markDays("booted", [day]);
-    for (const t of move) await persist({ ...t, date: next }, false);
+    for (const t of move) await persist({ ...t, date: next, bootedFrom: day }, false);
     for (const t of joy) { try { await Store.remove(t.id); t.deleted = true; } catch {} }
     render();
     scheduleSyncs();
@@ -1044,9 +1045,13 @@ function renderDoneFlask(day, p) {
   const items = p.list.filter(t => !t.deleted && !isWorkShift(t));
   const done = items.filter(t => t.done).length;
   const sad = isBooted(day);                         // the rest went to tomorrow: it stays empty and cries
+  const sniffle = !sad && typeof comebackPending === "function" && comebackPending(day);   // the morning after: still a bit sad
   const pct = sad ? 0 : items.length ? Math.round((done / items.length) * 100) : 0;
   const flask = $("done-flask"), liquid = $("done-liquid");
-  renderSadVial(sad);
+  flask.classList.toggle("sad", sad);
+  flask.classList.toggle("sniffle", sniffle);
+  flask.dataset.skin = (typeof collectionOf === "function" && collectionOf().skin) || "";
+  renderSadVial(sad || sniffle);
   liquid.style.height = `${Math.max(pct, items.length ? 3 : 0)}%`;
   const zen = pct / 100;
   flask.style.setProperty("--zen", zen.toFixed(2));
@@ -1090,7 +1095,6 @@ function renderDoneFlask(day, p) {
 // a whole sad dubstep tune (a tap while it's crying does nothing).
 function renderSadVial(on) {
   const flask = $("done-flask");
-  flask.classList.toggle("sad", on);
   let face = flask.querySelector(".sad-face");
   if (!on) { if (face) face.remove(); return; }
   if (face) return;
@@ -2013,6 +2017,8 @@ function taskRow(t, isNext) {
   }
   if (!t.dueDate && level === "important" && !t.done) chips.push(["chip imp", "Important"]);
   if (!t.dueDate && level === "optional" && !t.done) chips.push(["chip opt", "Optional"]);
+  const boss = typeof bossChip === "function" && bossChip(t);
+  if (boss) chips.unshift(boss);
   if (mindLowBodyOk(day) && moodBoostScore(t) >= 2) chips.push(["chip mood", "💛 Mood boost"]);
   else {
     const o = moodOrderOf(day);
@@ -2051,10 +2057,11 @@ function taskRow(t, isNext) {
   if (chips.length) {
     const meta = document.createElement("div");
     meta.className = "meta";
-    for (const [cls, text, c] of chips) {
+    for (const [cls, text, c, tip] of chips) {
       const s = document.createElement("span");
       s.className = cls;
       s.textContent = text;
+      if (tip) s.title = tip;
       if (c) s.style.setProperty("--chip", c);
       meta.appendChild(s);
     }
@@ -2808,7 +2815,7 @@ function showView(v) {
   view = v;
   if (v === "home") currentDay = todayKey();
   if (v === "todo") currentDay = todayKey();      // ticking off / chips there are about today
-  for (const name of ["home", "day", "month", "todo", "work", "joy", "logan", "recap", "settings", "fidget", "adventure"]) {
+  for (const name of ["home", "day", "month", "todo", "work", "joy", "logan", "recap", "collection", "settings", "fidget", "adventure"]) {
     $(name + "-view").hidden = v !== name;
     if ($("tab-" + name)) $("tab-" + name).classList.toggle("active", v === name || (name === "settings" && (v === "fidget" || v === "adventure")));
   }
@@ -2831,6 +2838,7 @@ function render() {
   else if (view === "joy") renderJoy();
   else if (view === "fidget") renderFidgets();
   else if (view === "logan") renderLogan();
+  else if (view === "collection") renderCollection();
   else if (view === "adventure") { if (!$("adventure-body").childElementCount) renderAdventure(); }
   else if (view === "settings") {
     renderAppearance();
@@ -3428,7 +3436,10 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
     if ((old.date || null) !== (task.date || null) || (old.time || null) !== (task.time || null)) task = { ...task, herMove: new Date().toISOString() };
     if (old.minutesGuess && old.minutes !== task.minutes) task = { ...task, minutesGuess: false };
     if (task.rolledFrom && (old.date || null) !== (task.date || null)) task = { ...task, rolledFrom: null };
+    // 👹 Pushed to a later day while still undone: two of those and it's a boss.
+    if (!task.done && !old.done && old.date && task.date && task.date > old.date) task = { ...task, pushes: (old.pushes || 0) + 1 };
   }
+  const finishing = by === "her" && task.done && old && !old.done;
   if (by === "her" && task.done && !(old && old.done)) setTimeout(maybeCelebrateAllDone, 500);
   if (by === "her" && task.done && !(old && old.done) && kindOf(task) === "workout")
     setTimeout(() => showToast("💪 Pumped up! Your chaos vial put on a sweatband for the day."), 1200);
@@ -3443,6 +3454,7 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
   } catch {
     showError("Couldn't save. Is the planner still running? Try closing and reopening it.");
   }
+  if (finishing && typeof gameOnDone === "function") gameOnDone(old, task);
   if (rerender) render();
 }
 

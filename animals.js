@@ -282,6 +282,9 @@ function playFinish(li, opts = {}) {
 
   const built = buildCritter(name);
   const critter = built.el, g = built.geo;
+  // ✨ A golden run (loot from the 🎒 Collection): now and then, once she's found it.
+  const gold = typeof collectionOf === "function" && collectionOf().golden.includes(name);
+  if (gold && Math.random() < 0.35) critter.classList.add("golden");
   li.appendChild(critter);
 
   const cx = g.contact[0] * g.w, cy = g.contact[1] * g.h;

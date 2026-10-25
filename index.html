@@ -24,6 +24,7 @@
       <button id="tab-joy" class="tab" role="tab" title="Rejuvenation: hobbies and fun">Joy</button>
       <button id="tab-logan" class="tab" role="tab" title="What Logan's up to">Logan</button>
       <button id="tab-recap" class="tab" role="tab">Recap</button>
+      <button id="tab-collection" class="tab" role="tab" title="Your collection: effects, loot, bosses and weekly titles"><span class="tab-long">🎒 Collection</span><span class="tab-short">Collect</span></button>
       <button id="tab-settings" class="tab tab-icon" role="tab" title="Settings: cycle and fitness setup">⚙️</button>
     </nav>
   </header>
@@ -387,6 +388,12 @@
     </section>
 
     <!-- LOGAN: his Google Calendar (shared with her), read-only -->
+    <section id="collection-view" hidden>
+      <h2 class="month-title">🎒 Collection</h2>
+      <p class="hint-small">Everything you've earned, found and beaten. Nothing in here can ever be lost 💛</p>
+      <div id="collection-body"></div>
+    </section>
+
     <section id="logan-view" hidden>
       <div class="nav-row">
         <button id="logan-prev" class="nav-btn">&#8249;</button>
@@ -652,6 +659,7 @@
   <script src="logan.js"></script>
   <script src="funfacts.js"></script>
   <script src="awards.js"></script>
+  <script src="game.js"></script>
   <script src="workhelp.js"></script>
 </body>
 </html>

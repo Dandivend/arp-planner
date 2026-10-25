@@ -6,7 +6,8 @@ let focusSkipped = [];            // task ids she said "not now" to (moved to th
 let focusCurrent = null;          // id of the task on screen
 const focusTimers = {};           // task id -> { total, left, running }
 let focusCheer = null;            // a little celebration after "Done!"
-let focusFinishing = false;       // an animal is crossing out the task; hold the timer's re-renders
+let focusFinishing = false;
+let focusBossHit = false;         // a step was just ticked on a boss: play the hit on the redrawn card       // an animal is crossing out the task; hold the timer's re-renders
 
 // Her two focus switches (this phone only): ☀️ keep the screen on while it's open, so she can
 // glance at the timer, and 🔔 chimes (a jingle for each step, the animal's noise for the whole
@@ -185,6 +186,18 @@ function renderFocus() {
   }
 
   const card = el("div", "focus-card");
+  const boss = typeof isBoss === "function" && isBoss(t);
+  if (boss) {                                    // 👹 a boss: a health bar that each step knocks down
+    card.classList.add("boss");
+    const h = bossHp(t);
+    const bar = el("div", "boss-bar");
+    const fill = el("span", "boss-fill");
+    fill.style.width = `${(h.left / h.max) * 100}%`;
+    bar.appendChild(fill);
+    const head = el("div", "boss-head");
+    head.append(el("span", "boss-tag", "👹 BOSS"), bar, el("span", "boss-hp", `${h.left}/${h.max} HP`));
+    card.appendChild(head);
+  }
   const title = el("div", "focus-title");
   title.appendChild(el("span", "title-text", t.title));      // the animal runs along this line
   card.appendChild(title);
@@ -207,11 +220,16 @@ function renderFocus() {
     const next = t.steps.find(s => !s.done);
     if (next) card.appendChild(el("div", "focus-step-now", `👉 Just this step: ${next.title}`));
     const steps = stepList(t);
-    steps.addEventListener("change", e => { if (e.target.checked && focusChimes()) playJingle(); });   // ding ding!
+    steps.addEventListener("change", e => {
+      if (!e.target.checked) return;
+      if (focusChimes()) playJingle();                                               // ding ding!
+      if (boss) { focusBossHit = true; if (focusChimes()) playBossHit(); }
+    });
     card.appendChild(steps);
   }
   card.appendChild(focusTimer(t));
   dlg.appendChild(card);
+  if (focusBossHit) { focusBossHit = false; if (boss) requestAnimationFrame(() => bossHit(card)); }
 
   const actions = el("div", "focus-actions");
   const done = el("button", "focus-done", "✅ Done!");

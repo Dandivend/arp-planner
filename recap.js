@@ -129,6 +129,7 @@ function renderRecap() {
   }
 
   renderRecapTimes(range, tk);
+  if (typeof renderWeekTitle === "function") renderWeekTitle(range);
 
   const legend = $("done-legend");
   legend.innerHTML = "";
