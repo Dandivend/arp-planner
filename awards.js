@@ -51,9 +51,11 @@ const AWARD_KINDS = [
   ["ori", "🐱", "Cat Whisperer", "#d7ccc8", t => /\b(ori|cat|kitty)\b/.test(tx(t))],
   ["music", "🎵", "Rockstar", "#ec407a", t => /\b(music|guitar|piano|sing|cello|violin|song|concert)\b/.test(tx(t))],
   ["movie", "🎬", "Movie Critic", "#5c6bc0", t => /\b(movie|film|tv|show|anime|netflix|episode|series)\b/.test(tx(t))],
-  ["store", "cart", "Store Conqueror", "#2e7d32", t => /\b(store|shop|shopping|grocer(y|ies)|costco|target|walmart|safeway|qfc|fred meyer|trader|errand|errands|pick ?up|mall|pharmacy|commissary|px|buy)\b/.test(tx(t))],
+  ["store", "cart", "Store Conqueror", "#2e7d32", t => /\b(store|shop|shopping|grocer(y|ies)|costco|target|walmart|safeway|qfc|fred meyer|trader|errand|errands|mall|pharmacy|commissary|px|buy)\b/.test(tx(t))
+    // ("pick up" only counts with something you'd fetch from a store; "pickup clothes" is tidying)
+    || /\bpick(?:ing)? ?up (?:the |my |an? |some )?(?:order|groceries|grocery|prescription|meds|medicine|package|parcel|takeout|take-out|food|curbside)\b/.test(tx(t))],
   ["cooking", "🍳", "Master Chef", "#ffa726", t => /\b(cook|cooking|dinner|lunch|breakfast|meal|bake|baking|prep|recipe|food)\b/.test(tx(t))],
-  ["laundry", "basket", "Laundry Slayer", "#f48fb1", t => /\b(laundry|clothes|fold|folding|washer|dryer|ironing)\b/.test(tx(t))],
+  ["laundry", "basket", "Laundry Slayer", "#f48fb1", t => /\b(laundry|clothes|fold|folding|washer|dryer|ironing)\b/.test(tx(t)) && !/\bpick(?:ing)? ?up\b/.test(tx(t))],
   ["dishes", "🍽️", "Dish Destroyer", "#80deea", t => /\b(dish|dishes|dishwasher)\b/.test(tx(t))],
   ["trash", "🗑️", "Trash Panda", "#78909c", t => /\b(trash|garbage|recycl\w*|rubbish|bins?)\b/.test(tx(t))],
   ["cleaning", "broom", "Clean Machine", "#ffb74d", t => /\b(clean|cleaning|tidy|vacuum|mop|dust|organi[sz]e|declutter|wipe|sweep|scrub|bathroom|pickup|pick up)\b/.test(tx(t))],

@@ -218,6 +218,7 @@ function gameOnDone(old, task) {
 let effectsSeenToday = "";
 function recordEffects(list, day) {
   if (day !== todayKey() || !list.length) return;
+  if (tasks.length) fixStoreSticker();
   const key = day + ":" + list.map(a => a.id).sort().join(",");
   if (key === effectsSeenToday) return;
   effectsSeenToday = key;
@@ -231,6 +232,19 @@ function recordEffects(list, day) {
   }
   if (changed) saveCollection({ effects });
 }
+// Oct 2026: "pickup clothes" was briefly counted as a 🛒 store run. Recount that sticker once from
+// her finished tasks (under the fixed rule), and drop it if none of them were really store runs.
+function fixStoreSticker() {
+  const c = collectionOf(), e = c.effects.store;
+  if (!e || (c.fixed || []).includes("store-pickup")) return;
+  const days = new Set(tasks.filter(t => !t.deleted && t.done && (t.doneDate || t.date) >= e.first && awardKindOf(t)[0] === "store")
+    .map(t => t.doneDate || t.date));
+  const effects = { ...c.effects };
+  if (days.size) effects.store = { ...e, n: days.size, first: [...days].sort()[0], last: [...days].sort().pop() };
+  else delete effects.store;
+  saveCollection({ effects, fixed: [...(c.fixed || []), "store-pickup"] });
+}
+
 function allEffects() {
   const out = AWARD_KINDS.map(k => ({ id: k[0], icon: k[1], name: k[2], color: k[3] }));
   for (const [id, s] of Object.entries(AWARD_STATES)) out.push({ id, icon: s[0], name: s[1], color: s[2], why: s[3] });
