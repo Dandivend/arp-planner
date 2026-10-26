@@ -288,7 +288,7 @@ async function rollOverUnfinished() {
     const late = tasks.filter(t => canRoll(t) && t.date < tk && t.date >= addDays(tk, -14));   // (very old leftovers stay put)
     const days = new Set();
     for (const t of late) {
-      for (let d = t.date; d < tk; d = addDays(d, 1)) days.add(d);
+      for (let d = t.date; d < tk; d = addDays(d, 1)) if (!isSickDay(d)) days.add(d);
       await persist({ ...t, date: tk, rolledFrom: t.rolledFrom || t.date }, false, { by: "planner" });
     }
     if (days.size) markDays("unfinished", [...days]);
@@ -686,8 +686,9 @@ function renderFreeTimer() {
   const day = currentDay, p = timerPlan;
   const isToday = day === todayKey();
   const ft = freeTimeLeft(day, p.active);
-  if (isToday && !ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW && viewZone() === "her" && !isBooted(day)) bootTheRest(day);
+  if (isToday && !ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW && viewZone() === "her" && !isBooted(day) && !isSickDay(day)) bootTheRest(day);
   const locked = isBooted(day);                 // 🔒 the rest of the day went to tomorrow
+  const sick = !locked && isSickDay(day);       // 🤒 a sick day: the vial rests, nothing counts against her
   const box = $("free-timer");
   const sleep = sleepFor(day);
   box.classList.toggle("over", ft.seconds <= 0 && !ft.past);
@@ -713,7 +714,7 @@ function renderFreeTimer() {
 
   // Chaos meter: how much of her free time the day eats, faster when she's worn out.
   const chaos = chaosFor(day, ft);
-  const off = ft.past || locked;                 // no effects while resting, or while it's locked
+  const off = ft.past || locked || sick;         // no effects while resting, while it's locked, or on a sick day
   const shown = off ? 0 : chaos.pct;
   const joyDone = joyDoneFor(day);
   renderChaosFlask(shown, off ? 0 : joyDone.frac);
@@ -740,8 +741,8 @@ function renderFreeTimer() {
   renderStatusFx(day, off);
   if (typeof renderAwards === "function") renderAwards(day, off);
   const fx = off ? {} : vialFx(day);
-  setChaosFace(locked ? "🥺" : Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
-  $("chaos-value").textContent = locked ? "🔒 Locked till tomorrow" : ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
+  setChaosFace(locked ? "🥺" : sick ? "🤒" : Date.now() < flaskPoke.demonUntil ? "😈" : ft.past ? "😴" : fx.win ? "ori" : fx.faint ? "😵‍💫" : chaos.emoji);
+  $("chaos-value").textContent = locked ? "🔒 Locked till tomorrow" : sick ? "🛌 Sick day · resting" : ft.past ? "Resting" : `${chaos.label} · ${shown}%`;
   const fxNote = $("chaos-fx-note"), mins = u => Math.max(1, Math.ceil((u - Date.now()) / 60000));
   const fxText = fx.win ? `🏆 Victory glow · ${mins(fx.win)} min` : fx.faint ? `😵‍💫 Still a little dizzy · ${mins(fx.faint)} min` : "";
   const mindText = fx.mindful ? `🧘 Mindful · ${mins(fx.mindful)} min` : "";
@@ -767,6 +768,11 @@ function renderFreeTimer() {
       "cleared. The chaos vial is chained up till morning (its effects wore off), and the Order vial is having a little cry. " +
       "That's okay. Tomorrow's a fresh start 💛";
     warn.hidden = false;
+  } else if (sick) {
+    warn.className = "overload soft";
+    warn.textContent = "🤒 Sick day. Resting is the whole job today, and taking a sick break is respecting your body. " +
+      "The chaos vial is off and nothing left undone counts against you. Fluids, blankets, feel better 💛";
+    warn.hidden = false;
   } else if (!ft.past && p.planned > 0 && spare < 0) {
     warn.className = "overload red";
     warn.textContent = `🛑 Endless-task alert! You've got about ${formatHrsMin(ft.planned)} of tasks but only ` +
@@ -784,7 +790,7 @@ function renderFreeTimer() {
 
   // The day itself catches fire when there's little or no free time.
   if (view === "day") {
-    if (locked) setFireFloor(0);
+    if (locked || sick) setFireFloor(0);
     else if (!ft.past && p.planned > 0 && spare < 0) setFireFloor(2, FIRE_LINE);
     else if (!ft.past && p.planned > 0 && spare < 30) setFireFloor(1, "🔥 Barely any free time. Don't pile anything else on!");
     else setFireFloor(0);
@@ -826,10 +832,62 @@ async function bootTheRest(day) {
   } finally { booting = false; }
 }
 
+// ---------- 🤒 sick day: everything that can wait goes to lighter days ----------
+// When she checks in as Sick (today or a day ahead), the planner asks first, then spreads what can
+// wait over the next lighter days. Events, appointments (anything with a time), work, deadlines,
+// joy bits, repeating chores and Google events stay put. A sick day also rests the chaos vial and
+// never counts as "unfinished" or gets booted.
+const isSickDay = day => { const b = typeof bodyOf === "function" && bodyOf(moods[day]); return !!(b && b.id === "sick"); };
+const canRestOff = t => !t.done && !t.deleted && !t.time && !t.dueDate && !isWorkShift(t) && !["event", "joy"].includes(kindOf(t))
+  && !(typeof repeatsOf === "function" && repeatsOf(t)) && !(t.external && t.external.google && t.external.google.imported);
+// The next lighter day (both batteries at least 40% left, not another sick day), or tomorrow.
+function restDayFor(day) {
+  for (let i = 1; i <= 10; i++) {
+    const d = addDays(day, i);
+    if (isSickDay(d)) continue;
+    try { const b = batteriesFor(d); if (b.brain.pctLeft >= 40 && b.body.pctLeft >= 40) return d; } catch {}
+  }
+  return addDays(day, 1);
+}
+function offerSickDay(day) {
+  const move = tasksFor(day).filter(canRestOff);
+  if (!move.length) return;
+  const dlg = smallDialog("sick-ask");
+  dlg.appendChild(el("h3", "", "🤒 Sick day? Let's clear the way"));
+  dlg.appendChild(el("p", "", `Taking a sick break is respecting your body. Want me to move ${plural(move.length, "thing")} that can wait ` +
+    `to lighter days, so ${day === todayKey() ? "today" : dayName(day)} is just for resting?`));
+  dlg.appendChild(el("p", "hint-small", "Events, appointments, work, deadlines, joy bits and repeating chores stay where they are."));
+  const btns = el("div", "peek-actions");
+  const yes = el("button", "g-btn primary", "🛌 Yes, move them");
+  yes.addEventListener("click", () => { dlg.close(); restOff(day, move); });
+  const no = el("button", "link-btn", "Not now, keep my list");
+  no.addEventListener("click", () => dlg.close());
+  btns.append(yes, no);
+  dlg.appendChild(btns);
+  dlg.showModal();
+  buzz(8);
+}
+async function restOff(day, move) {
+  const where = new Map();
+  for (const t of move) {
+    const to = restDayFor(day);
+    where.set(to, (where.get(to) || 0) + 1);
+    await persist({ ...t, date: to }, false);
+  }
+  render();
+  scheduleSyncs();
+  const days = [...where.keys()].sort().map(d => dayName(d));
+  showToast(`🛌 ${plural(move.length, "thing")} moved to ${days.length > 2 ? "a few lighter days" : days.join(" and ")}. Just rest now 💛`, "Undo", async () => {
+    for (const t of move) await persist({ ...t }, false);
+    render();
+    scheduleSyncs();
+  });
+}
+
 // Checked once a minute too, so it happens whichever tab she's on.
 function checkOutOfDay() {
   const d = todayKey();
-  if (!tasks.length || viewZone() !== "her" || isBooted(d)) return;
+  if (!tasks.length || viewZone() !== "her" || isBooted(d) || isSickDay(d)) return;
   const ft = freeTimeLeft(d, planDay(d).active);
   if (!ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW) bootTheRest(d);
 }
@@ -1057,7 +1115,7 @@ function renderDoneFlask(day, p) {
   flask.style.setProperty("--zen", zen.toFixed(2));
   flask.dataset.zen = pct >= 100 ? "4" : pct >= 75 ? "3" : pct >= 50 ? "2" : pct >= 25 ? "1" : "0";
   flask.classList.toggle("blessed", pct >= 100 && items.length > 0);
-  $("done-emoji").textContent = sad ? "😭" : !items.length ? "🕊️" : pct >= 100 ? "😇" : pct >= 75 ? "🥰" : pct >= 50 ? "😊" : pct >= 25 ? "🙂" : "🌱";
+  $("done-emoji").textContent = sad ? "😭" : isSickDay(day) && pct < 100 ? "🛌" : !items.length ? "🕊️" : pct >= 100 ? "😇" : pct >= 75 ? "🥰" : pct >= 50 ? "😊" : pct >= 25 ? "🙂" : "🌱";
   $("done-value").textContent = sad ? "😢 Rest moved on" : items.length ? `${done} of ${items.length} · ${pct}%` : "Nothing yet";
   const key = `${Math.round(pct / 10)}`;
   if (doneState.key !== key) {                       // sparkles drifting up through the light
@@ -2719,6 +2777,7 @@ function renderMonth() {
       e.className = "cell-mood";
       e.textContent = (feel ? feel.emoji : "") + (body ? body.emoji : "");
       e.title = [feel && "Feeling: " + feel.label, body && "Body: " + body.label].filter(Boolean).join(" · ");
+      if (body && body.id === "sick") { cell.classList.add("sick-day"); e.title += " · a rest day 🛌"; }
       top.appendChild(e);
     }
     cell.appendChild(top);

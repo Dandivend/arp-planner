@@ -2603,3 +2603,6 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
   .topbar .tabs .burger-menu .tab::before { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .b-layer, .burger-menu, .burger-menu .tab { transition: none !important; animation: none !important; opacity: 1; } }
+
+/* 🤒 Sick days: a soft blanket tint in the calendar */
+.cell.sick-day { background-image: linear-gradient(135deg, color-mix(in srgb, #7fb3ff 16%, transparent), transparent 70%); }

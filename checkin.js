@@ -25,6 +25,7 @@ function optionButtons(list, chosenId, onPick) {
 
 async function setCheckin(fields) {
   const day = currentDay;
+  const wasSick = (moods[day] || {}).body === "sick";
   moods[day] = { ...moods[day], ...fields };
   render();
   try {
@@ -33,6 +34,8 @@ async function setCheckin(fields) {
   } catch {
     showError("Couldn't save that. Try closing and reopening the planner.");
   }
+  // 🤒 Just picked Sick (today or ahead): offer to clear the day.
+  if (fields.body === "sick" && !wasSick && day >= todayKey() && typeof offerSickDay === "function") offerSickDay(day);
 }
 
 async function saveCycle() {
