@@ -58,10 +58,15 @@ function loganOwnTime(ev) {
   return `  ·  his time ${formatTime(own(ev.start))} – ${formatTime(own(ev.end))}`;
 }
 
+// Calendars that could be his: not the planner's own, and not this account's main calendar, unless
+// that's Logan's own (his PC signs in to Google as him, so his calendar IS the main one there).
+// It's saved by its real address, which is the same id on her phone once he's shared it with her.
+const loganCandidate = c => !c.isPlanner && (!c.primary || /logan/i.test(c.id));
+
 async function loganCalendarId() {
   if (profile.loganCalendar) return profile.loganCalendar;
   if (!loganCals) loganCals = (await lgPost("calendars")).calendars || [];
-  const guess = loganCals.find(c => !c.primary && !c.isPlanner && /logan/i.test(`${c.name} ${c.id}`));
+  const guess = loganCals.find(c => loganCandidate(c) && /logan/i.test(`${c.name} ${c.id}`));
   return guess ? guess.id : null;
 }
 
@@ -166,7 +171,7 @@ async function loganSetup(box, picking) {
     box.appendChild(ol);
   }
   try { loganCals = (await lgPost("calendars")).calendars || []; } catch (e) { box.appendChild(el("p", "g-error", "⚠️ " + e.message)); return; }
-  const others = loganCals.filter(c => !c.primary && !c.isPlanner);
+  const others = loganCals.filter(loganCandidate);
   if (!others.length) {
     const again = el("button", "g-btn", "🔄 Check again");
     again.addEventListener("click", () => { for (const k in loganCache) delete loganCache[k]; loganCals = null; renderLogan(); });
