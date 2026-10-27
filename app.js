@@ -797,6 +797,55 @@ function renderFreeTimer() {
   }
 }
 
+// ---------- 🧹 exact duplicates: one copy goes ----------
+// Two tasks on the same day that match in every detail she can see (title, time, notes, kind,
+// priority, deadline, length, steps, done…) are a sync hiccup, not two plans. The copy linked to
+// To Do or Google (or else the oldest) stays and the others are removed (soft-deleted, like any
+// delete). A removed copy that shares the keeper's To Do item or Google event lets go of the link
+// first, so removing it can never delete the one that stays.
+const DUP_FIELDS = ["date", "time", "title", "notes", "kind", "priority", "dueDate", "minutes", "area", "effort", "brain",
+  "workout", "done", "emoji", "spanEnd", "skipped"];
+const dupKey = t => JSON.stringify([...DUP_FIELDS.map(k => k === "title" || k === "notes" ? (t[k] || "").trim() : t[k] ?? null),
+  (t.steps || []).map(s => [(s.title || "").trim(), !!s.done, s.minutes || null])]);
+const linkOf = (t, k) => ((t.external || {})[k] || null);
+const linkId = (t, k) => { const m = linkOf(t, k); return m && (m.taskId || m.eventId || m.id) || null; };
+let dedupeTimer = null, deduping = false;
+function scheduleDedupe() {
+  clearTimeout(dedupeTimer);
+  dedupeTimer = setTimeout(() => { removeDuplicates().catch(() => {}); }, 2500);
+}
+async function removeDuplicates() {
+  if (deduping || !tasks.length) return;
+  deduping = true;
+  try {
+    const groups = new Map();
+    for (const t of tasks) {
+      if (t.deleted || !t.date || !(t.title || "").trim()) continue;
+      if (encodeURIComponent(t.id) !== t.id) continue;       // (odd ids don't save cleanly on the PC: leave them be)
+      const k = dupKey(t);
+      groups.set(k, [...(groups.get(k) || []), t]);
+    }
+    let removed = 0;
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const score = t => (linkOf(t, "microsoft") ? 2 : 0) + (linkOf(t, "google") ? 2 : 0);
+      list.sort((a, b) => score(b) - score(a) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+      const [keep, ...extra] = list;
+      for (const t of extra) {
+        const external = { ...(t.external || {}) };
+        for (const k of ["microsoft", "google"]) if (external[k] && (!linkId(t, k) || linkId(t, k) === linkId(keep, k))) delete external[k];
+        await persist({ ...t, external, deleted: true }, false, { by: "planner" });
+        removed++;
+      }
+    }
+    if (removed) {
+      render();
+      scheduleSyncs();
+      showToast(`🧹 Tidied up ${plural(removed, "duplicate")} (exact copies of the same thing on the same day).`);
+    }
+  } finally { deduping = false; }
+}
+
 // ---------- 🔒 out of day: the rest goes to tomorrow ----------
 // In her evening (the last few hours before bed), once what's left can't possibly fit before bed,
 // everything still undone hops to tomorrow by itself, joy bits are cleared, and the day is marked
@@ -2887,6 +2936,7 @@ function showView(v) {
 }
 
 function render() {
+  scheduleDedupe();
   brainByName = null;              // brainpower she rated by name: re-read from the latest tasks
   if (view !== "day" && view !== "month") setFireFloor(0);
   if (view !== "day") setHeaven(false);

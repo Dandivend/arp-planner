@@ -462,6 +462,10 @@ const PhoneMS = {
     const link = t => (t.external || {}).microsoft;
     const dropLink = t => { if (t.external) delete t.external.microsoft; };
     const touch = t => { t.updatedAt = new Date().toISOString(); };
+    // A removed duplicate that shares its to-do with a copy that stays lets go of it (so removing
+    // the duplicate never deletes the to-do the other copy still uses).
+    const liveTodos = new Set(tasks.filter(t => !t.deleted && link(t) && link(t).taskId).map(t => link(t).taskId));
+    for (const t of tasks) if (t.deleted && link(t) && liveTodos.has(link(t).taskId)) { dropLink(t); touch(t); }
     const taskUrl = (listId, taskId) => `/me/todo/lists/${encodeURIComponent(listId)}/tasks` + (taskId ? "/" + encodeURIComponent(taskId) : "");
     const wanted = t => {
       if (t.deleted) return false;

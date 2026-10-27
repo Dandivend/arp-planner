@@ -173,6 +173,10 @@ const PhoneCalendar = {
     const find = (calId, eventId) => tasks.find(t => { const g = link(t); return g && g.eventId === eventId && sameCal(g.calendarId, calId); }) || null;
     const touch = t => { t.updatedAt = new Date().toISOString(); };
     const dropLink = t => { if (t.external) delete t.external.google; };
+    // A removed duplicate that shares its event with a copy that stays lets go of it (so removing
+    // the duplicate never deletes the event the other copy still uses).
+    const liveEvents = new Set(tasks.filter(t => !t.deleted && link(t) && link(t).eventId).map(t => link(t).eventId));
+    for (const t of tasks) if (t.deleted && link(t) && liveEvents.has(link(t).eventId)) { dropLink(t); touch(t); }
 
     const plannerCal = await this.ensurePlannerCalendar();
 
