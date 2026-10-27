@@ -39,6 +39,7 @@ function msSummary(st) {
 
 async function syncMicrosoft(manual) {
   if (!msStatus || !msStatus.connected || msSyncing) return;
+  if (!navigator.onLine && !manual) return;              // no signal: it all waits on this device and goes when it's back
   msSyncing = true;
   msRefreshViews();
   try {
@@ -48,10 +49,24 @@ async function syncMicrosoft(manual) {
     if (manual && res.skipped) showToast(`✔️ To Do syncs from ${profile.syncDeviceName || "your other device"}. Changes reach this one through Drive.`);
   } catch (e) {
     if (manual) showError("To Do sync didn't work: " + e.message);
+    else msSyncProblem(e.message);
   } finally {
     msSyncing = false;
     msRefreshViews();
   }
+}
+
+// An automatic sync that fails says so (once in a while, not every try). Nothing is lost: her
+// changes stay on this device and go to To Do on the next sync that works.
+let msProblemShown = { msg: "", at: 0 };
+function msSyncProblem(msg) {
+  if (!navigator.onLine) return;
+  if (msProblemShown.msg === msg && Date.now() - msProblemShown.at < 30 * 60 * 1000) return;
+  msProblemShown = { msg, at: Date.now() };
+  const signIn = (msStatus && !msStatus.connected) || /sign[ -]?in|expired|connect/i.test(msg);
+  const open = () => { showView("settings"); setTimeout(() => { const b = $("microsoft-settings"); if (b) b.scrollIntoView({ block: "center" }); }, 150); };
+  if (signIn) showToast("⚠️ To Do needs you to sign in again. Your changes are safe here and will go across after.", "Sign in", open);
+  else showToast("⚠️ Couldn't reach To Do just now. Your changes are safe here; I'll keep trying.", "Retry", () => syncMicrosoft(true));
 }
 
 function msRefreshViews() {

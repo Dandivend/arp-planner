@@ -401,14 +401,11 @@ const PhoneMS = {
     if (out !== (t.notes || "")) { t.notes = out; touch(t); }
     if ((await todoHash(t)) !== m.hash) {
       const changes = toDoChanges(t, todo);
+      // A repeating to-do moved in the planner stays moved in the planner only. Writing a repeating
+      // to-do's date makes Microsoft split it into a second repeating copy (the duplicate chores), so
+      // To Do keeps its own date and the planner remembers her day (keepDate) until To Do's changes.
       const moved = todo.recurrence && dueValue(t) !== dueDay(todo);
-      // A repeating to-do she moved (not an old planner-only move she hasn't touched since):
-      // move it in To Do too, following Microsoft's split (see moveRepeating).
-      if (moved && dueValue(t) && !(m.keepDate !== undefined && m.keepDate === (t.date ?? null) && m.dueSeen === dueDay(todo))) {
-        const live = await this.moveRepeating(t, todo, listId, changes, stats, taskUrl);
-        if (live) { todo = live; m.updated = todo.lastModifiedDateTime; m.hash = await todoHash(t); m.closed = false; return todo; }
-      }
-      if (moved) { m.keepDate = t.date ?? null; m.dueSeen = dueDay(todo); }   // moved here only (couldn't move it there)
+      if (moved) { m.keepDate = t.date ?? null; m.dueSeen = dueDay(todo); }
       if (Object.keys(changes).length) {
         const res = await this.request("PATCH", taskUrl(listId, todo.id), changes);
         todo = (res && Object.keys(res).length) ? res : todo;
@@ -423,32 +420,6 @@ const PhoneMS = {
     }
     m.closed = !!t.done && todo.status === "completed";
     return todo;
-  },
-
-  // Moving one repeating to-do. When an app changes a repeating to-do's date, Microsoft splits it:
-  // the moved occurrence becomes a one-off at the new date, and the original carries the series on
-  // from its next date. So: make the change, then re-attach this task to the moved one-off (steps
-  // matched by name, so her ticks carry over). The series' next one comes in on its own next sync,
-  // on its own date: one task this week, one next week, never two on the same day.
-  async moveRepeating(t, todo, listId, changes, stats, taskUrl) {
-    const m = t.external.microsoft, newDay = dueValue(t);
-    const res = await this.request("PATCH", taskUrl(listId, todo.id), { ...changes, dueDateTime: taskToTodo(t).dueDateTime });
-    stats.updatedThere++;
-    const title = (res && res.title) || todo.title || "";
-    let found = [];
-    for (const query of [{ $filter: `title eq '${title.replace(/'/g, "''")}'`, $expand: "checklistItems" }, { $filter: `title eq '${title.replace(/'/g, "''")}'` }]) {
-      try { found = (await this.request("GET", taskUrl(listId), null, query)).value || []; break; } catch (e) { if (!e.status || e.status >= 500) throw e; }
-    }
-    const copy = found.find(x => x.id !== todo.id && x.status !== "completed" && dueDay(x) === newDay);
-    if (!copy) return null;
-    m.taskId = copy.id;
-    delete m.keepDate; delete m.dueSeen;
-    if (copy.checklistItems && t.steps && t.steps.length) {
-      const byName = new Map(copy.checklistItems.map(i => [(i.displayName || "").trim().toLowerCase(), i]));
-      for (const s of t.steps) { const i = byName.get((s.title || "").trim().toLowerCase()); if (i) s.id = i.id; }
-      m.stepsBase = Object.fromEntries(copy.checklistItems.map(i => [i.id, !!i.isChecked]));
-    }
-    return copy;
   },
 
   // Two-way sync of `tasks` (changed in place), like mstodo.MSTodo.sync. Returns the summary.

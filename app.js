@@ -2603,6 +2603,7 @@ async function deleteTask(t, li) {
 }
 
 // After a change, let Google Calendar / To Do catch up a little later.
+window.addEventListener("online", () => scheduleSyncs());     // signal's back: send what waited
 function scheduleSyncs() {
   if (typeof scheduleGoogleSync === "function") scheduleGoogleSync();
   if (typeof scheduleMicrosoftSync === "function") scheduleMicrosoftSync();
