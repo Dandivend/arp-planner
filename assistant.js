@@ -61,7 +61,7 @@ function aiContext() {
   const live = tasks.filter(t => !t.deleted);
   const inView = live.filter(t => (t.date && t.date >= lo && t.date <= hi && (!t.done || t.date >= tk)) || (!t.date && !t.done));
   const days = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 14; i++) {
     const d = addDays(tk, i), w = awakeWindow(d), shift = workHoursFor(d), e = energyFor(d), b = batteriesFor(d);
     const f = feelingOf(moods[d] || {}), body = bodyOf(moods[d] || {});
     days.push({ date: d, weekday: fromKey(d).toLocaleDateString("en-US", { weekday: "long" }),
@@ -107,7 +107,12 @@ Rules:
 - Tasks marked sheMovedItToday were placed by her: in automatic re-plans never move them.
 - When you guess a length, set guess: true. Base guesses on history (her past lengths for similar tasks) when you can.
 - Don't schedule over work hours or outside awake hours. Don't pile several brain-heavy jobs back to back.
-- After using tools, tell her in one or two sentences what you changed.
+- After using tools, tell her in one or two sentences what you changed. Always answer her in words too, even when
+  you change nothing (then say why, or ask a short question if you're not sure what she means).
+- Tasks with date null are to-dos without a day yet. When she asks you to give them days, pick sensible days in the
+  next two weeks (the days list): lighter days and higher batteries first, never over work, before any dueDate, spread
+  out (not all on one day), heavier ones on better-energy days. Set only the date (time stays null).
+- For many changes, use several update_tasks calls of up to 10 changes each.
 - The order of a day's untimed things (on her Day tab and in focus mode) is set with set_day_order. Only order; it never
   moves anything to another day or time.
 
@@ -213,7 +218,7 @@ async function claudeCall(messages) {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01",
       "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 1500, system: AI_SYSTEM, tools: AI_TOOLS, messages }),
+    body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: AI_SYSTEM, tools: AI_TOOLS, messages }),
   });
   const res = await r.json().catch(() => ({}));
   if (r.status === 401) throw new Error("That Claude API key didn't work. Check it in ⚙️ Settings → 🤖 AI integration.");
@@ -232,9 +237,22 @@ async function askClaude(text, { auto = false, label = null } = {}) {
   try {
     const ctx = `Her planner right now (JSON):\n${JSON.stringify(aiContext())}`;
     const messages = [...ai.history.slice(-8), { role: "user", content: `${ctx}\n\n${auto ? "AUTOMATIC JOB (she didn't type this): " : "Ariel says: "}${text}` }];
-    let reply = "";
-    for (let round = 0; round < 5; round++) {
+    let reply = "", cutOff = false, retried = false;
+    for (let round = 0; round < 8; round++) {
       const res = await claudeCall(messages);
+      if (res.stop_reason === "max_tokens") {
+        // Ran out of room mid-answer (a big batch of changes): its last tool call is cut off and
+        // can't be used. Ask again once, in smaller pieces.
+        cutOff = true;
+        if (retried) break;
+        retried = true;
+        const last = messages[messages.length - 1];
+        const note = "(Your last answer was too long and got cut off. Do it in smaller pieces: at most 10 changes per update_tasks call.)";
+        if (typeof last.content === "string") last.content += "\n\n" + note;
+        else last.content = [...last.content, { type: "text", text: note }];
+        continue;
+      }
+      cutOff = false;
       messages.push({ role: "assistant", content: res.content });
       reply = res.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim() || reply;
       const uses = res.content.filter(b => b.type === "tool_use");
@@ -247,7 +265,10 @@ async function askClaude(text, { auto = false, label = null } = {}) {
     ai.history.push({ role: "user", content: auto ? `(automatic) ${label || text}` : text }, { role: "assistant", content: reply || "Done." });
     ai.history = ai.history.slice(-12);
     if (batch.length) ai.undo[batchId] = batch;
-    ai.log.push({ who: "claude", text: reply || (batch.length ? "Done." : "I didn't change anything."), batchId: batch.length ? batchId : null, changes: batch.length });
+    const fallback = batch.length ? "Done." : cutOff
+      ? "That was a bigger job than I could fit in one go, so nothing changed. Try a smaller piece, like \"give this week's to-dos a day\"."
+      : "I didn't change anything.";
+    ai.log.push({ who: "claude", text: reply || fallback, batchId: batch.length ? batchId : null, changes: batch.length });
   } catch (e) {
     if (batch.length) ai.undo[batchId] = batch;
     ai.log.push({ who: "error", text: e.message, batchId: batch.length ? batchId : null });
