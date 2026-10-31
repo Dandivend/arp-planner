@@ -1152,7 +1152,8 @@ function renderDoneFlask(day, p) {
   const items = p.list.filter(t => !t.deleted && !isWorkShift(t));
   const done = items.filter(t => t.done).length;
   const sad = isBooted(day);                         // the rest went to tomorrow: it stays empty and cries
-  const sniffle = !sad && typeof comebackPending === "function" && comebackPending(day);   // the morning after: still a bit sad
+  const sniffle = !sad && typeof comebackPending === "function" && comebackPending(day)    // the morning after: still a bit sad
+    && items.some(t => !t.done);
   const pct = sad ? 0 : items.length ? Math.round((done / items.length) * 100) : 0;
   const flask = $("done-flask"), liquid = $("done-liquid");
   flask.classList.toggle("sad", sad);
@@ -2126,6 +2127,8 @@ function taskRow(t, isNext) {
   if (!t.dueDate && level === "optional" && !t.done) chips.push(["chip opt", "Optional"]);
   const boss = typeof bossChip === "function" && bossChip(t);
   if (boss) chips.unshift(boss);
+  const cb = typeof comebackChip === "function" && comebackChip(t, day);
+  if (cb) chips.unshift(cb);
   if (mindLowBodyOk(day) && moodBoostScore(t) >= 2) chips.push(["chip mood", "💛 Mood boost"]);
   else {
     const o = moodOrderOf(day);

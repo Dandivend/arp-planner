@@ -49,11 +49,19 @@ function bossHit(card) {
 
 // ---------- 🗝️ comeback quest ----------
 const comebacks = () => ((profile.dayMarks || {}).comeback || []);
-function comebackPending(day) {
-  if (day !== todayKey()) return false;
+// Yesterday's moved tasks that are still on today's list (one moved on again to another day
+// doesn't count: the quest only waits on what she can see today).
+function comebackTasks(day) {
+  if (day !== todayKey()) return [];
   const y = addDays(day, -1);
-  if (!isBooted(y) || comebacks().includes(day)) return false;
-  return tasks.some(t => !t.deleted && !t.done && t.bootedFrom === y);
+  if (!isBooted(y) || comebacks().includes(day)) return [];
+  return tasks.filter(t => !t.deleted && !t.done && t.bootedFrom === y && t.date === day);
+}
+const comebackPending = day => comebackTasks(day).length > 0;
+// The 🔒 chip on the task(s) that unlock the chaos vial.
+function comebackChip(t, day) {
+  if (t.done || !comebackTasks(day).some(x => x.id === t.id)) return null;
+  return ["chip comeback", "🔒 Unlocks the vial", null, "Moved here from yesterday. Finish it to break the chaos vial's chains (and cheer up the Order vial) 🗝️"];
 }
 function renderComeback(day) {
   const flask = $("chaos-flask"), on = comebackPending(day);
@@ -66,7 +74,10 @@ function renderComeback(day) {
     $("chaos-fx-note").after(note);
   }
   note.hidden = !on;
-  if (on) setTapNote(note, "🗝️", "🗝️ Comeback quest: finish one of yesterday's moved tasks to unlock the chains (and cheer up the Order vial) 💛");
+  if (on) {
+    const names = comebackTasks(day).map(t => `"${t.title}"`);
+    setTapNote(note, "🗝️", `🗝️ Comeback quest: finish ${names.length > 1 ? "one of " + names.slice(0, 3).join(", ") : names[0]} (marked 🔒) to unlock the chains and cheer up the Order vial 💛`);
+  }
   if (!on) { if (key) key.remove(); return; }
   if (key) return;
   key = el("div", "vial-key");
