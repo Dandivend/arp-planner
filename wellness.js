@@ -279,6 +279,7 @@ const careFor = day => (typeof careMinutesFor === "function" ? careMinutesFor(da
 function plannedMinutes(list, day) {
   return list
     .filter(t => !t.done && !t.deleted && !isWorkShift(t))
+    .filter(t => !isLoganTime(t))                               // time with Logan soothes: it doesn't eat her free time (see chaosFor)
     .filter(t => !(t.time && day && atWork(day, t.time)))      // anything during work hours doesn't use free time (military: appointments on the clock)
     .reduce((s, t) => s + (minutesLeft(t) ?? (kindOf(t) === "event" ? 30 : 15))    // finished steps don't count
       + (isSocial(t) ? SOCIAL_QUIET : 0), 0);                                      // quiet time after people
@@ -631,7 +632,10 @@ const emojiOf = t => t.emoji || guessEmoji(t);
 // Joy on a day buffers the chaos meter: it fills more slowly and never reaches full chaos.
 const isLogan = t => /\blogan\b/i.test(t.title || "");
 const isJoy = t => kindOf(t) === "joy" || /\bwith logan\b/i.test(t.title || "");
-const JOY_FULL = 120;                // 2 hours of joy = the full buffer
+// Time with Logan: soothing, not busy. It adds just 2% to the chaos meter and never uses up her free time.
+const isLoganTime = t => isLogan(t) && isJoy(t);
+const LOGAN_CHAOS = 2;
+const JOY_FULL = 120;               // 2 hours of joy = the full buffer
 // The joy she's actually had (ticked off, or a joyful appointment that's over): this is what
 // brings out the flowers and hearts on the chaos vial.
 function joyDoneFor(day) {
@@ -672,7 +676,8 @@ function chaosFor(day, ft) {
   const shift = workHoursFor(day);
   let work = shift ? (shiftMinutes(shift) / 60) * 2.8 : 0;
   if (work) { try { if (batteriesFor(day).brain.pctLeft < 30) work *= 1.2; } catch {} }
-  let pct = Math.max(0, Math.min(100, Math.round((used * 90 + work) * boost * (1 - 0.3 * joy.frac))));
+  const logan = tasksFor(day).filter(t => !t.deleted && !t.done && isLoganTime(t)).length * LOGAN_CHAOS;
+  let pct = Math.max(0, Math.min(100, Math.round((used * 90 + work) * boost * (1 - 0.3 * joy.frac) + logan)));
   if (joy.minutes >= 30) pct = Math.min(pct, 89);         // a day with fun in it never hits full chaos
   const [, emoji, label] = CHAOS_LEVELS.find(l => pct < l[0]);
   return { pct, emoji, label, boost, reason, joy, work: Math.round(work) };
