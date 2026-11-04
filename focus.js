@@ -4,6 +4,12 @@
 
 let focusSkipped = [];            // task ids she said "not now" to (moved to the back, this session)
 let focusCurrent = null;          // id of the task on screen
+const focusPicked = {};            // task id -> the step she tapped 👉 on (do this one now), else the first one left
+// The step she's on: the one she picked (while it's still not done), or the first one not done.
+function focusStepOf(t) {
+  const steps = t.steps || [];
+  return steps.find(s => s.id === focusPicked[t.id] && !s.done) || steps.find(s => !s.done) || null;
+}
 const focusTimers = {};           // task id -> { total, left, running }
 let focusCheer = null;            // a little celebration after "Done!"
 let focusFinishing = false;
@@ -217,9 +223,28 @@ function renderFocus() {
   const justLength = /^\s*(?:(?:half an?|\d+(?:\.\d+)?|an?|one)\s*(?:hours?|hrs?|h)\b)?\s*(?:and\s*)?(?:\d+\s*(?:minutes?|mins?|m)\b)?\s*$/i;
   if (t.notes && !justLength.test(t.notes)) card.appendChild(el("div", "focus-notes", t.notes));
   if (t.steps && t.steps.length) {
-    const next = t.steps.find(s => !s.done);
+    const next = focusStepOf(t);
     if (next) card.appendChild(el("div", "focus-step-now", `👉 Just this step: ${next.title}`));
     const steps = stepList(t);
+    // Any step can be the one she does now (handy when they weren't put in order): tap its 👉.
+    [...steps.querySelectorAll(".step-row")].forEach((li, i) => {
+      const s = t.steps[i];
+      if (!s || s.done) return;
+      li.classList.toggle("now", !!next && s.id === next.id);
+      if (next && s.id === next.id) return;
+      const pick = el("button", "step-pick", "👉");
+      pick.type = "button";
+      pick.title = `Do "${s.title}" now`;
+      pick.setAttribute("aria-label", `Do ${s.title} now`);
+      pick.addEventListener("click", e => {
+        e.stopPropagation();
+        const old = focusTimers[`${t.id}:${(next || {}).id}`];
+        if (old) old.running = false;               // (the step she was on waits, paused)
+        focusPicked[t.id] = s.id;
+        renderFocus();
+      });
+      li.insertBefore(pick, li.lastChild);
+    });
     steps.addEventListener("change", e => {
       if (!e.target.checked) return;
       if (focusChimes()) playJingle();                                               // ding ding!
@@ -254,7 +279,7 @@ function renderFocus() {
 // A countdown you can see: a ring that empties as the time runs out.
 function focusTimer(t) {
   // Time the current step when it has a length (one small bite at a time), else the whole task.
-  const step = (t.steps || []).find(s => !s.done);
+  const step = focusStepOf(t);
   const useStep = step && step.minutes;
   const key = useStep ? `${t.id}:${step.id}` : t.id;
   const total = (useStep ? step.minutes : minutesLeft(t) || 15) * 60;

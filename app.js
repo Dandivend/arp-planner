@@ -284,6 +284,7 @@ async function rollOverUnfinished() {
   if (rolling || !tasks.length) return;
   rolling = true;
   try {
+    await bootYesterday();                        // 🔒 midnight: yesterday's leftovers hop over first (out of day)
     const tk = todayKey();
     const late = tasks.filter(t => canRoll(t) && t.date < tk && t.date >= addDays(tk, -14));   // (very old leftovers stay put)
     const days = new Set();
@@ -686,7 +687,6 @@ function renderFreeTimer() {
   const day = currentDay, p = timerPlan;
   const isToday = day === todayKey();
   const ft = freeTimeLeft(day, p.active);
-  if (isToday && !ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW && viewZone() === "her" && !isBooted(day) && !isSickDay(day)) bootTheRest(day);
   const locked = isBooted(day);                 // 🔒 the rest of the day went to tomorrow
   const sick = !locked && isSickDay(day);       // 🤒 a sick day: the vial rests, nothing counts against her
   const box = $("free-timer");
@@ -764,9 +764,12 @@ function renderFreeTimer() {
   const spare = ft.seconds / 60;
   if (locked) {
     warn.className = "overload soft";
-    warn.textContent = "🌙 There wasn't enough day left, so the rest of the list moved to tomorrow and the joy bits were " +
-      "cleared. The chaos vial is chained up till morning (its effects wore off), and the Order vial is having a little cry. " +
-      "That's okay. Tomorrow's a fresh start 💛";
+    warn.textContent = "🌙 The day ran out at midnight, so the rest of the list moved to the next day and the joy bits were " +
+      "cleared. The chaos vial got chained up (its effects wore off), and the Order vial had a little cry. " +
+      "That's okay. The next day's a fresh start 💛";
+    const undo = el("button", "link-btn", "↩️ Undo this");
+    undo.addEventListener("click", () => unbootDay(day));
+    warn.append(" ", undo);
     warn.hidden = false;
   } else if (sick) {
     warn.className = "overload soft";
@@ -847,14 +850,20 @@ async function removeDuplicates() {
 }
 
 // ---------- 🔒 out of day: the rest goes to tomorrow ----------
-// In her evening (the last few hours before bed), once what's left can't possibly fit before bed,
-// everything still undone hops to tomorrow by itself, joy bits are cleared, and the day is marked
-// "booted": the chaos vial gets chained and padlocked (all its effects gone) and the Order vial
-// stays empty and cries (one tap: a sad dubstep tune). Appointments, work and Google events stay.
+// At midnight (her choice: the whole day is hers until then), whatever's still undone from
+// yesterday hops to today, yesterday's joy bits are cleared, and yesterday is marked "booted": its
+// chaos vial gets chained and padlocked (all its effects gone) and its Order vial stays empty and
+// cries (one tap: a sad dubstep tune). Appointments, work and Google events stay. Today then has the
+// 🗝️ comeback quest. Undo keeps the day as it was ("kept") so it never boots again.
 // Only on a screen showing HER clock, so Logan's Tokyo view never moves anything.
-const BOOT_WINDOW = 180;                         // minutes before bed when it can happen
 const isBooted = day => ((profile.dayMarks || {}).booted || []).includes(day);
+const isKept = day => ((profile.dayMarks || {}).kept || []).includes(day);
 let booting = false;
+async function bootYesterday() {
+  const y = addDays(todayKey(), -1);
+  if (!tasks.length || viewZone() !== "her" || isBooted(y) || isKept(y) || isSickDay(y)) return;
+  await bootTheRest(y);
+}
 async function bootTheRest(day) {
   if (booting) return;
   const left = tasksFor(day).filter(t => !t.done && !t.deleted && !isWorkShift(t) && kindOf(t) !== "event"
@@ -866,19 +875,27 @@ async function bootTheRest(day) {
     const next = addDays(day, 1);
     markDays("booted", [day]);
     for (const t of move) await persist({ ...t, date: next, bootedFrom: day }, false);
-    for (const t of joy) { try { await Store.remove(t.id); t.deleted = true; } catch {} }
+    for (const t of joy) await persist({ ...t, deleted: true, bootedFrom: day }, false);   // (remembered, so Undo can bring them back)
     render();
     scheduleSyncs();
-    const said = [move.length && `${plural(move.length, "thing")} moved to tomorrow`, joy.length && `${plural(joy.length, "joy bit")} cleared`].filter(Boolean);
-    showToast(`🌙 Out of day! ${said.join(" and ")}. Rest up 💛`, "Undo", async () => {
-      const m = profile.dayMarks || {};
-      profile = { ...profile, dayMarks: { ...m, booted: (m.booted || []).filter(d => d !== day) } };
-      pushProfile();
-      for (const t of move) await persist({ ...t }, false);
-      for (const t of joy) await persist({ ...t, deleted: false }, false);
-      render();
-    });
+    const to = next === todayKey() ? "today" : "the next day";
+    const said = [move.length && `${plural(move.length, "thing")} from ${dayName(day)} moved to ${to}`, joy.length && `${plural(joy.length, "joy bit")} cleared`].filter(Boolean);
+    showToast(`🌙 Out of day! ${said.join(" and ")}. Fresh start 💛`, "Undo", () => unbootDay(day));
   } finally { booting = false; }
+}
+// Undo (the toast, or the button on that day's note): no lock, no crying vial, and the day is
+// never booted again. Its leftovers come back and then just roll over like any unfinished day.
+async function unbootDay(day) {
+  const m = profile.dayMarks || {};
+  profile = { ...profile, dayMarks: { ...m, booted: (m.booted || []).filter(d => d !== day) } };
+  markDays("kept", [day]);
+  for (const t of tasks.filter(t => t.bootedFrom === day)) {
+    if (t.deleted) await persist({ ...t, deleted: false, bootedFrom: null }, false);                 // a joy bit
+    else if (!t.done) await persist({ ...t, date: day, bootedFrom: null }, false);
+  }
+  render();
+  await rollOverUnfinished();
+  showToast("↩️ Undone. No sad vial for that day 💛");
 }
 
 // ---------- 🤒 sick day: everything that can wait goes to lighter days ----------
@@ -933,14 +950,6 @@ async function restOff(day, move) {
   });
 }
 
-// Checked once a minute too, so it happens whichever tab she's on.
-function checkOutOfDay() {
-  const d = todayKey();
-  if (!tasks.length || viewZone() !== "her" || isBooted(d) || isSickDay(d)) return;
-  const ft = freeTimeLeft(d, planDay(d).active);
-  if (!ft.past && ft.seconds < 0 && ft.awakeLeft <= BOOT_WINDOW) bootTheRest(d);
-}
-setInterval(() => { try { checkOutOfDay(); } catch {} }, 60000);
 
 // The chains and padlock wrapped around the chaos vial.
 function renderVialLock(on) {

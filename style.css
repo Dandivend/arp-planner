@@ -2609,3 +2609,10 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 
 /* 🔒 The task that unlocks the chaos vial (comeback quest) */
 .chip.comeback { background: color-mix(in srgb, #ffd54f 22%, var(--card)); border-color: #ffd54f; color: #ffe08a; font-weight: 800; }
+
+/* 👉 Focus mode: pick any step to do now */
+.focus-card .step-row.now { background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 10px; }
+.step-pick { flex: none; border: 1px solid var(--line); background: var(--field); border-radius: 10px; padding: 4px 8px; font-size: 15px; cursor: pointer; }
+.step-pick:hover { border-color: var(--accent); }
+.focus-card .step-row .step-pick { margin-left: auto; }
+.focus-card .step-row .step-pick + .step-time { margin-left: 0; }
