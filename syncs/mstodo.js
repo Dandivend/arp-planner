@@ -308,11 +308,23 @@ const PhoneMS = {
     const headers = { Authorization: "Bearer " + (await this.accessToken()) };
     if (body !== undefined && body !== null) headers["Content-Type"] = "application/json";
     let r;
-    try { r = await fetch(url, { method, headers, body: body !== undefined && body !== null ? JSON.stringify(body) : undefined }); }
-    catch { throw new TodoError("Couldn't reach Microsoft. Are you online?"); }
+    // Microsoft's servers hiccup now and then (429 busy, 5xx "UnknownError"): wait and try again a
+    // couple of times. Never for POST, which could create the same to-do twice.
+    const waits = method === "POST" ? [] : [1500, 4000];
+    for (let attempt = 0; ; attempt++) {
+      try { r = await fetch(url, { method, headers, body: body !== undefined && body !== null ? JSON.stringify(body) : undefined }); }
+      catch { throw new TodoError("Couldn't reach Microsoft. Are you online?"); }
+      if (!(r.status === 429 || r.status >= 500) || attempt >= waits.length) break;
+      const after = Number(r.headers.get("Retry-After")) * 1000;
+      await new Promise(res => setTimeout(res, Math.min(10000, after > 0 ? after : waits[attempt])));
+    }
     if (!r.ok) {
       if (r.status === 404 && method === "DELETE") return {};
       const detail = (await r.text().catch(() => "")).slice(0, 300);
+      if (r.status === 429 || r.status >= 500) {
+        console.warn(`To Do ${r.status} on ${method} ${path.split("?")[0]}: ${detail}`);
+        throw new TodoError(`Microsoft To Do is having trouble on their end right now (error ${r.status}). Nothing is lost: your changes are safe here and it'll try again.`, r.status);
+      }
       throw new TodoError(`Microsoft To Do error ${r.status} on ${method} ${path.split("?")[0]}: ${detail}`, r.status);
     }
     const raw = await r.text();

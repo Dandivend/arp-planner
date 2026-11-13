@@ -48,12 +48,19 @@ async function syncMicrosoft(manual) {
     if (manual && res.stats) showToast(`✔️ Synced with To Do: ${msSummary(res.stats)}.`);
     if (manual && res.skipped) showToast(`✔️ To Do syncs from ${profile.syncDeviceName || "your other device"}. Changes reach this one through Drive.`);
   } catch (e) {
-    if (manual) showError("To Do sync didn't work: " + e.message);
+    if (manual) showError("To Do sync didn't work: " + e.message + msStuckHint(e.message));
     else msSyncProblem(e.message);
   } finally {
     msSyncing = false;
     msRefreshViews();
   }
+}
+
+// Microsoft trouble that's gone on for over a day: a fresh sign-in often clears it.
+function msStuckHint(msg) {
+  const last = msStatus && msStatus.lastSync ? Date.parse(msStatus.lastSync) : 0;
+  if (!/trouble on their end/.test(msg) || !last || Date.now() - last < 24 * 3600 * 1000) return "";
+  return ` It hasn't worked since ${new Date(last).toLocaleDateString()}, so try signing in again: 🍔 → Settings → To Do.`;
 }
 
 // An automatic sync that fails says so (once in a while, not every try). Nothing is lost: her
@@ -63,7 +70,7 @@ function msSyncProblem(msg) {
   if (!navigator.onLine) return;
   if (msProblemShown.msg === msg && Date.now() - msProblemShown.at < 30 * 60 * 1000) return;
   msProblemShown = { msg, at: Date.now() };
-  const signIn = (msStatus && !msStatus.connected) || /sign[ -]?in|expired|connect/i.test(msg);
+  const signIn = (msStatus && !msStatus.connected) || /sign[ -]?in|expired|connect/i.test(msg) || !!msStuckHint(msg);
   const open = () => { showView("settings"); setTimeout(() => { const b = $("microsoft-settings"); if (b) b.scrollIntoView({ block: "center" }); }, 150); };
   if (signIn) showToast("⚠️ To Do needs you to sign in again. Your changes are safe here and will go across after.", "Sign in", open);
   else showToast("⚠️ Couldn't reach To Do just now. Your changes are safe here; I'll keep trying.", "Retry", () => syncMicrosoft(true));
