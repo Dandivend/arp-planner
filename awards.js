@@ -119,7 +119,7 @@ function awardsFor(day) {
     add(k[0], k[1], k[2], k[3], t.title);
   }
   if (typeof feelingOf === "function" && (feelingOf(moods[day]) || (typeof bodyOf === "function" && bodyOf(moods[day])))) { const s = AWARD_STATES.checkin; add("checkin", s[0], s[1], s[2], s[3]); }
-  const items = tasksFor(day).filter(t => !t.deleted && !isWorkShift(t));
+  const items = tasksFor(day).filter(t => !t.deleted && !t.skipped && !isWorkShift(t));
   if (items.length && items.every(t => t.done)) { const s = AWARD_STATES.alldone; add("alldone", s[0], s[1], s[2], s[3]); }
   const fire = (profile.dayMarks || {}).fire || [];
   if (fire.includes(day)) { const s = AWARD_STATES.coatrack; add("coatrack", s[0], s[1], s[2], s[3]); }

@@ -3566,8 +3566,9 @@ async function persist(task, rerender = true, { by = "her" } = {}) {
     // 👹 Pushed to a later day while still undone: two of those and it's a boss.
     if (!task.done && !old.done && old.date && task.date && task.date > old.date) task = { ...task, pushes: (old.pushes || 0) + 1 };
   }
-  const finishing = by === "her" && task.done && old && !old.done;
-  if (by === "her" && task.done && !(old && old.done)) setTimeout(maybeCelebrateAllDone, 500);
+  // (A ⏭️ caught-up chore was skipped, not done: no loot, rewards or celebration for it.)
+  const finishing = by === "her" && task.done && old && !old.done && !task.skipped;
+  if (finishing) setTimeout(maybeCelebrateAllDone, 500);
   if (by === "her" && task.done && !(old && old.done) && kindOf(task) === "workout")
     setTimeout(() => showToast("💪 Pumped up! Your chaos vial put on a sweatband for the day."), 1200);
   // ⏰ When she ticked it off, on her clock ("YYYY-MM-DDTHH:MM"). Kept for the current week only.
