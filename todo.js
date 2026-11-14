@@ -23,8 +23,8 @@ function planTodo(t, day) {
   if (day) showToast(`📅 "${t.title}" is now on ${day === todayKey() ? "today" : shortDay(day)}.`);
 }
 
-// A repeating to-do that's overdue can be caught up: the missed one is marked done (skipped) in
-// To Do, which brings in the next one on its usual schedule (next month's for a monthly one).
+// A repeating to-do that's overdue can be caught up: it skips ahead to its next day on schedule
+// from today (see catchUpTodo).
 const repeatsOf = t => (t.external && t.external.microsoft && t.external.microsoft.repeats) || null;
 const canCatchUp = t => !t.done && !!repeatsOf(t) && !!t.date && t.date < todayKey();
 
@@ -44,9 +44,38 @@ function catchUpButton(t) {
   return b;
 }
 
+// The first day on its schedule that's today or later (daily: today; weekly: the same weekday
+// this week or next; every 2 months: the next one of those), or null if the schedule is unknown.
+function nextOnSchedule(t) {
+  const m = /^(?:every (\d+) )?(day|week|month|year)s?$/.exec({ daily: "day", weekly: "week", monthly: "month", yearly: "year" }[repeatsOf(t)] || repeatsOf(t));
+  if (!m) return null;
+  const n = Number(m[1] || 1), unit = m[2], tk = todayKey();
+  let d = t.date;
+  for (let k = 1; d < tk && k < 5000; k++) {
+    if (unit === "day") d = addDays(t.date, k * n);
+    else if (unit === "week") d = addDays(t.date, k * n * 7);
+    else {
+      const f = fromKey(t.date), months = (unit === "month" ? 1 : 12) * n * k;
+      const day = Math.min(f.getDate(), new Date(f.getFullYear(), f.getMonth() + months + 1, 0).getDate());   // (31st → end of a short month)
+      d = toKey(new Date(f.getFullYear(), f.getMonth() + months, day));
+    }
+  }
+  return d;
+}
+
+// ⏭️ Catch up: skip the missed ones in one go. It hops to its next day on schedule from today, and
+// the To Do sync moves it there too (without a copy). An unknown schedule: the missed one is
+// marked skipped and To Do brings in the next one.
 async function catchUpTodo(t) {
-  await persist({ ...t, done: true, doneDate: todayKey(), skipped: true });
-  showToast(`⏭️ Caught up on "${t.title}". The next one (${repeatsOf(t)}) comes in from To Do in a moment.`);
+  const next = nextOnSchedule(t);
+  if (next) {
+    await persist({ ...t, date: next }, false, { by: "planner" });     // (not "her": a catch-up isn't a push-back)
+    render();
+    showToast(`⏭️ Caught up on "${t.title}". It's next on ${next === todayKey() ? "today" : shortDay(next)} (${repeatsOf(t)}).`);
+  } else {
+    await persist({ ...t, done: true, doneDate: todayKey(), skipped: true });
+    showToast(`⏭️ Caught up on "${t.title}". The next one (${repeatsOf(t)}) comes in from To Do in a moment.`);
+  }
   syncMicrosoft(false);
 }
 
