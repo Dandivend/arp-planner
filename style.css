@@ -2616,3 +2616,6 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 .step-pick:hover { border-color: var(--accent); }
 .focus-card .step-row .step-pick { margin-left: auto; }
 .focus-card .step-row .step-pick + .step-time { margin-left: 0; }
+
+/* "Could fit in": due in the next few days */
+.fitin-soon { color: #ffb74d; font-weight: 700; }

@@ -230,6 +230,7 @@ function todoRow(t) {
 }
 
 // ---------- Day tab: "Could fit in" ----------
+const FITIN_AHEAD = 3;          // to-dos due this many days after the day shown can be pulled in early
 function renderFitIn() {
   fillFitIn();
   // The divider under "+ Add a task" only shows when there's something below it. On narrow
@@ -243,8 +244,13 @@ function fillFitIn() {
   if (!card) return;
   const day = currentDay, tk = todayKey();
   if (day < tk) { card.hidden = true; return; }      // no point suggesting things for the past
-  const items = todoItems().filter(t => !t.done && (!t.date || (day === tk && t.date < tk)))
-    .sort((a, b) => (!!b.date - !!a.date) || byImportance(a, b));    // overdue first, then ⭐
+  // Overdue first (oldest first), then what's due in the next few days (soonest first), then the
+  // ones with no day yet; ⭐ important ones first within each.
+  const soon = addDays(day, FITIN_AHEAD);
+  const dueOf = t => t.dueDate || t.date || null;
+  const rank = t => !dueOf(t) ? 2 : dueOf(t) < tk ? 0 : 1;
+  const items = todoItems().filter(t => !t.done && (!t.date || (day === tk && t.date < tk) || (dueOf(t) > day && dueOf(t) <= soon)))
+    .sort((a, b) => (rank(a) - rank(b)) || (rank(a) < 2 && dueOf(a).localeCompare(dueOf(b))) || byImportance(a, b));
   card.hidden = !items.length;
   if (!items.length) return;
 
@@ -271,7 +277,8 @@ function fillFitIn() {
       }
     }
     if (repeatsOf(t)) meta.append(` · 🔁 ${repeatsOf(t)}`);
-    if (t.date) meta.append(" · ", el("b", "todo-late-text", `overdue since ${shortDay(t.date)}`));
+    if (rank(t) === 0) meta.append(" · ", el("b", "todo-late-text", `overdue since ${shortDay(dueOf(t))}`));
+    else if (rank(t) === 1) meta.append(" · ", el("b", "fitin-soon", `due ${dueOf(t) === addDays(tk, 1) ? "tomorrow" : shortDay(dueOf(t))}`));
     text.appendChild(meta);
     const add = el("button", "move-btn", `+ Add to ${dayName}`);
     add.addEventListener("click", () => planTodo(t, day));
