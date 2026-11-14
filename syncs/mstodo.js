@@ -581,6 +581,16 @@ const PhoneMS = {
       for (const todo of remote) {
         seen.add(todo.id);
         let t = linked.get(todo.id);
+        // A repeating to-do keeps its id: finishing it reopens the same to-do on its next date (and
+        // To Do files a separate completed copy). So when the series has moved on past the copy here
+        // (she finished it, or it was removed), that copy keeps its history and the next one comes
+        // in fresh. Without this, the next occurrence never showed up in the planner.
+        if (t && !own && todo.recurrence && todo.status !== "completed" && (t.done || t.deleted)
+          && dueDay(todo) && dueDay(todo) > (t.date || "")) {
+          dropLink(t); touch(t);
+          linked.delete(todo.id);
+          t = null;
+        }
         if (!t) {
           if (own) {
             // Reconnecting? Link an unlinked planner task with the same title instead of duplicating it.
