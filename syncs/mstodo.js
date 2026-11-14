@@ -448,7 +448,10 @@ const PhoneMS = {
       const live = await this.shiftRepeating(t, todo, listId, stats, taskUrl);
       if (live) { todo = live; delete m.keepDate; delete m.dueSeen; m.updated = todo.lastModifiedDateTime; touch(t); }
     }
-    if ((await todoHash(t)) !== m.hash) {
+    // Safeguard: a one-time to-do finished here but still open in To Do, and To Do hasn't changed it
+    // since (so she didn't reopen it there): the finish never got across. Send it again.
+    const stuckDone = !todo.recurrence && t.done && todo.status !== "completed" && !changedThere;
+    if ((await todoHash(t)) !== m.hash || stuckDone) {
       const changes = toDoChanges(t, todo);
       // A repeating to-do whose move couldn't go to To Do (a pattern that can't shift) stays moved in
       // the planner only: writing its due date would make Microsoft split it into a second copy.
@@ -585,8 +588,11 @@ const PhoneMS = {
         // To Do files a separate completed copy). So when the series has moved on past the copy here
         // (she finished it, or it was removed), that copy keeps its history and the next one comes
         // in fresh. Without this, the next occurrence never showed up in the planner.
+        // Safeguard: a copy here that's done while To Do still has it open, with nothing of ours
+        // waiting to be sent (a finish that never reached To Do, e.g. while Microsoft was down):
+        // To Do is right, so it comes back in too rather than hiding.
         if (t && !own && todo.recurrence && todo.status !== "completed" && (t.done || t.deleted)
-          && dueDay(todo) && dueDay(todo) > (t.date || "")) {
+          && ((dueDay(todo) && dueDay(todo) > (t.date || "")) || (t.done && !t.deleted && (await todoHash(t)) === link(t).hash))) {
           dropLink(t); touch(t);
           linked.delete(todo.id);
           t = null;
