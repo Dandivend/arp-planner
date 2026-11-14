@@ -147,9 +147,13 @@ function lengthLabel(t, fmt = formatMinutes) {
 }
 // A to-do from one of her Microsoft To Do lists (not one of her planner tasks copied there).
 const isTodo = t => { const m = t.external && t.external.microsoft; return !!(m && (m.imported || m.pending)); };
+// Her To Do lists: when her phone runs the To Do sync, the ones it shared (profile.todoLists),
+// since this device's own To Do sign-in may be someone else's (Logan's PC).
+const msListsShown = () => (typeof msStatus !== "undefined" && msStatus && msStatus.phoneRuns && profile.todoLists)
+  || (typeof msStatus !== "undefined" && msStatus && msStatus.lists) || [];
 function todoListName(t) {
   const id = t.external.microsoft.listId;
-  const l = (typeof msStatus !== "undefined" && msStatus && msStatus.lists || []).find(x => x.id === id);
+  const l = msListsShown().find(x => x.id === id);
   return l ? l.name : "To Do";
 }
 

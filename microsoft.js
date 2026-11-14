@@ -212,11 +212,14 @@ function renderMicrosoftSettings() {
   // Which of her lists to bring in.
   box.appendChild(el("div", "g-sub", "📥 Bring in to-dos from these lists"));
   const lists = el("div", "g-cals");
-  if (!msLists) {
-    lists.appendChild(el("span", "hint-small", "Loading your lists…"));
-    msPost("lists").then(r => { msLists = r.lists; renderMicrosoftSettings(); }).catch(() => {});
+  // (When her phone runs the sync, these are her lists as the phone shared them, never this
+  // device's own To Do account's: a shared list has a different id for each person.)
+  const herLists = msStatus.phoneRuns ? profile.todoLists || null : null;
+  if (!msLists && !herLists) {
+    lists.appendChild(el("span", "hint-small", msStatus.phoneRuns ? "Her lists show here after her phone's next To Do sync." : "Loading your lists…"));
+    if (!msStatus.phoneRuns) msPost("lists").then(r => { msLists = r.lists; renderMicrosoftSettings(); }).catch(() => {});
   } else {
-    const visible = msLists.filter(l => !l.isPlanner && !l.flagged);
+    const visible = (herLists || msLists).filter(l => !l.isPlanner && !l.flagged);
     const idOf = l => (l.default ? "defaultList" : l.id);
     const chosen = p.importLists || visible.map(idOf);          // nothing picked yet = all of them
     for (const l of visible) {

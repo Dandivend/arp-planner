@@ -441,11 +441,17 @@ const PhoneMS = {
     }
     const out = notesOut(t);
     if (out !== (t.notes || "")) { t.notes = out; touch(t); }
+    // A repeating to-do she moved in the planner (just now, or an earlier planner-only move To Do
+    // hasn't changed since): move it in To Do too by shifting its repeat to start on her day.
+    if (todo.recurrence && !t.done && dueValue(t) && dueValue(t) !== dueDay(todo)
+      && ((await todoHash(t)) !== m.hash || (m.keepDate !== undefined && m.dueSeen === dueDay(todo)))) {
+      const live = await this.shiftRepeating(t, todo, listId, stats, taskUrl);
+      if (live) { todo = live; delete m.keepDate; delete m.dueSeen; m.updated = todo.lastModifiedDateTime; touch(t); }
+    }
     if ((await todoHash(t)) !== m.hash) {
       const changes = toDoChanges(t, todo);
-      // A repeating to-do moved in the planner stays moved in the planner only. Writing a repeating
-      // to-do's date makes Microsoft split it into a second repeating copy (the duplicate chores), so
-      // To Do keeps its own date and the planner remembers her day (keepDate) until To Do's changes.
+      // A repeating to-do whose move couldn't go to To Do (a pattern that can't shift) stays moved in
+      // the planner only: writing its due date would make Microsoft split it into a second copy.
       const moved = todo.recurrence && dueValue(t) !== dueDay(todo);
       if (moved) { m.keepDate = t.date ?? null; m.dueSeen = dueDay(todo); }
       if (Object.keys(changes).length) {
@@ -462,6 +468,29 @@ const PhoneMS = {
     }
     m.closed = !!t.done && todo.status === "completed";
     return todo;
+  },
+
+  // Moving a repeating to-do in To Do. Writing its due date splits it into a second repeating copy,
+  // but changing only its repeat (start on her day; same weekday / day of the month as that day)
+  // moves the whole series cleanly (tested against Microsoft, Nov 2026). Patterns that can't shift
+  // that way (several weekdays, "2nd Tuesday") stay planner-only. Returns the updated to-do or null.
+  async shiftRepeating(t, todo, listId, stats, taskUrl) {
+    const day = dueValue(t), d = new Date(day + "T12:00:00Z");
+    const p = (todo.recurrence || {}).pattern || {}, r = (todo.recurrence || {}).range || {};
+    const pattern = { type: p.type, interval: p.interval || 1 };
+    if (p.type === "weekly") {
+      if ((p.daysOfWeek || []).length !== 1) return null;
+      Object.assign(pattern, { daysOfWeek: [["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][d.getUTCDay()]],
+        firstDayOfWeek: p.firstDayOfWeek || "sunday" });
+    } else if (p.type === "absoluteMonthly") pattern.dayOfMonth = d.getUTCDate();
+    else if (p.type === "absoluteYearly") Object.assign(pattern, { month: d.getUTCMonth() + 1, dayOfMonth: d.getUTCDate() });
+    else if (p.type !== "daily") return null;
+    const range = { type: r.type || "noEnd", startDate: day };
+    if (r.type === "endDate") { if (r.endDate && r.endDate < day) return null; range.endDate = r.endDate; }
+    if (r.type === "numbered") range.numberOfOccurrences = r.numberOfOccurrences;
+    const res = await this.request("PATCH", taskUrl(listId, todo.id), { recurrence: { pattern, range } });
+    stats.updatedThere++;
+    return res && dueDay(res) === day ? res : null;
   },
 
   // Two-way sync of `tasks` (changed in place), like mstodo.MSTodo.sync. Returns the summary.
@@ -668,6 +697,10 @@ const PhoneMS = {
         const { tasks: copy, before } = DeviceStore.snapshotTasks();
         const stats = await this.sync(copy, DeviceStore.data.profile);
         await DeviceStore.applySync(copy, before, "microsoft");
+        // Her list names go along in her settings, so the PC (signed in to To Do as Logan, where a
+        // shared list has a different id) shows her lists, not its own.
+        const shown = (await this.state()).lists || [];
+        if (JSON.stringify(shown) !== JSON.stringify(DeviceStore.data.profile.todoLists || [])) await DeviceStore.putProfile({ todoLists: shown });
         return { ok: true, stats, tasks: DeviceStore.data.tasks.map(t => ({ ...t })), status: await this.status() };
       } finally { this.busy = false; }
     }

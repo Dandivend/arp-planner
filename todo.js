@@ -13,7 +13,7 @@ try { const f = localStorage.getItem("arpPlanner.todoFolds"); if (f) todoFolds =
 const saveTodoFolds = () => { try { localStorage.setItem("arpPlanner.todoFolds", JSON.stringify([...todoFolds])); } catch {} };
 
 const todoItems = () => tasks.filter(t => !t.deleted && isTodo(t));
-const syncedLists = () => ((msStatus && msStatus.lists) || []).filter(l => l.synced);
+const syncedLists = () => msListsShown().filter(l => l.synced);
 const shortDay = day => fromKey(day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 const byImportance = (a, b) => (b.priority === "important") - (a.priority === "important") || (a.createdAt || "").localeCompare(b.createdAt || "");
 
