@@ -56,6 +56,38 @@ async function syncMicrosoft(manual) {
   }
 }
 
+// 🩺 "Check To Do connection": runs each Microsoft call once and shows what worked (a screenshot of
+// it tells Logan where it breaks), plus a fresh sign-in that keeps every to-do and link.
+let msDoctorResult = null;
+function msDoctor() {
+  const wrap = el("div", "ms-doctor");
+  const row = el("div", "g-cals");
+  const check = el("button", "g-btn", msDoctorResult === "running" ? "⏳ Checking…" : "🩺 Check To Do connection");
+  check.disabled = msDoctorResult === "running";
+  check.addEventListener("click", async () => {
+    msDoctorResult = "running"; renderMicrosoftSettings();
+    try { msDoctorResult = await PhoneMS.diagnose(); } catch (e) { msDoctorResult = [["❌", "Check", e.message]]; }
+    renderMicrosoftSettings();
+  });
+  const again = el("button", "g-btn", "🔑 Sign in again");
+  again.title = "A fresh Microsoft sign-in. Your to-dos and their links all stay. Use the same Microsoft account as before.";
+  again.addEventListener("click", async () => {
+    if (!confirm("Sign in to Microsoft again? Your to-dos stay put. Use the same Microsoft account as before.")) return;
+    await PhoneMS.forgetSignIn();
+    await loadMsStatus();
+    msDoctorResult = null;
+    renderMicrosoftSettings();
+  });
+  row.append(check, again);
+  wrap.appendChild(row);
+  if (Array.isArray(msDoctorResult)) {
+    const ul = el("ul", "ms-doctor-list");
+    for (const [ok, what, detail] of msDoctorResult) ul.appendChild(el("li", "", `${ok} ${what}: ${detail}`));
+    wrap.append(ul, el("p", "hint-small", `Checked ${new Date().toLocaleString()}. A screenshot of this helps Logan see what's wrong.`));
+  }
+  return wrap;
+}
+
 // Microsoft trouble that's gone on for over a day: a fresh sign-in often clears it.
 function msStuckHint(msg) {
   const last = msStatus && msStatus.lastSync ? Date.parse(msStatus.lastSync) : 0;
@@ -175,6 +207,7 @@ function renderMicrosoftSettings() {
   box.appendChild(el("p", "hint-small",
     `Last synced ${ago(msStatus.lastSync)}${msStatus.lastResult ? ": " + msSummary(msStatus.lastResult) : ""}.`));
   if (msStatus.lastError) box.appendChild(el("p", "g-error", "⚠️ Last problem: " + msStatus.lastError));
+  if (STANDALONE && typeof PhoneMS === "object") box.appendChild(msDoctor());
 
   // Which of her lists to bring in.
   box.appendChild(el("div", "g-sub", "📥 Bring in to-dos from these lists"));

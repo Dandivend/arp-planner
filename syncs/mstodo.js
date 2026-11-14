@@ -211,6 +211,36 @@ const PhoneMS = {
       phoneApp: true, needsSignIn: !!s.needsSignIn };
   },
 
+  // 🩺 What works and what doesn't, one call at a time (no retries, nothing changed): for when the
+  // sync keeps failing and we need to see where.
+  async diagnose() {
+    const out = [];
+    let token;
+    try { token = await this.accessToken(); out.push(["✅", "Sign-in token", "ok"]); }
+    catch (e) { out.push(["❌", "Sign-in token", e.message]); return out; }
+    const get = async (label, path) => {
+      try {
+        const r = await fetch(MS_URLS.graph + path, { headers: { Authorization: "Bearer " + token } });
+        const raw = await r.text();
+        let body = {}; try { body = JSON.parse(raw); } catch {}
+        if (r.ok) return out.push(["✅", label, path === "/me" ? (body.userPrincipalName || body.mail || body.displayName || "ok") : `${(body.value || []).length} found`]) && body;
+        const err = body.error || {};
+        out.push(["❌", label, `${r.status} ${err.code || ""} ${(err.message || (err.code ? "" : raw)).slice(0, 120)} ${((err.innerError || {}).date || "")}`.trim()]);
+      } catch (e) { out.push(["❌", label, "couldn't reach Microsoft (" + e.message + ")"]); }
+      return null;
+    };
+    await get("Account", "/me");
+    const lists = await get("Your lists", "/me/todo/lists");
+    for (const l of ((lists || {}).value || []).slice(0, 8))
+      await get(`List "${l.displayName}"`, `/me/todo/lists/${encodeURIComponent(l.id)}/tasks?$top=1`);
+    return out;
+  },
+  // Sign in again without disconnecting (her to-dos and their links all stay).
+  async forgetSignIn() {
+    await DeviceKV.set("ms.token", null);
+    await this.saveState({ needsSignIn: true });
+  },
+
   async saveClient(clientId, tenant) {
     clientId = (clientId || "").trim();
     if (!MS_GUID.test(clientId)) {

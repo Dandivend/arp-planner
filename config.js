@@ -1,2 +1,2 @@
 // Published phone app (made by publish.ps1). See web/config.js.
-window.ARP_CONFIG = { mode: "standalone", build: "20261114-040250" };
+window.ARP_CONFIG = { mode: "standalone", build: "20261115-075337" };
