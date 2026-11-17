@@ -185,7 +185,12 @@ function calendarRunsWork() {
 const fromCalendar = t => !!(t.external && t.external.google) || kindOf(t) === "event";
 const isLeave = t => !t.deleted && fromCalendar(t) && !t.time && /\bleave\b/i.test(t.title || "");
 const isDrill = t => !t.deleted && fromCalendar(t) && /\bdrill\b/i.test(t.title || "");
-const isDayNote = t => isLeave(t) || isDrill(t);
+// 🎂 A birthday on her calendar (an all-day event): a note on the day, not a task to do.
+const isBirthday = t => !t.deleted && fromCalendar(t) && !t.time && /\bbirthday\b/i.test(t.title || "");
+// Her own birthday ("My Birthday!", "Happy birthday!"): the chaos vial wears a party hat.
+const isHerBirthday = t => isBirthday(t) && (/^\s*(happy birthday|my birthday)\b/i.test(t.title || "") || /\bariel'?s?\b/i.test(t.title || ""));
+const herBirthdayOn = day => tasks.some(t => isHerBirthday(t) && t.date === day);
+const isDayNote = t => isLeave(t) || isDrill(t) || isBirthday(t);
 const leaveEnd = t => (t.spanEnd && t.spanEnd > t.date ? t.spanEnd : t.date);
 let leaveMemo = { at: 0, tasks: null, n: -1, list: [] };
 function leavesOn(day) {

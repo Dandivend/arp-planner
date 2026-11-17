@@ -2619,3 +2619,13 @@ body.row-dragging #task-list > li.task:not(.lifted) { transition: transform .15s
 
 /* "Could fit in": due in the next few days */
 .fitin-soon { color: #ffb74d; font-weight: 700; }
+
+/* 🎂 Birthdays: a day note, and a party hat on the chaos vial on hers */
+.day-note.bday { border-color: #ff5fa2; background: color-mix(in srgb, #ff5fa2 14%, var(--card)); }
+.day-note.bday.mine { font-weight: 800; }
+.party-hat { position: absolute; left: 50%; top: -34px; width: 40px; z-index: 7; pointer-events: none;
+  transform: translateX(-30%) rotate(-14deg); transform-origin: 50% 100%; animation: hat-bob 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.party-hat svg { display: block; width: 100%; }
+@keyframes hat-bob { 0%, 100% { transform: translateX(-30%) rotate(-14deg); } 50% { transform: translateX(-30%) rotate(-6deg) translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .party-hat { animation: none; } }

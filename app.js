@@ -723,6 +723,7 @@ function renderFreeTimer() {
   const joyDone = joyDoneFor(day);
   renderChaosFlask(shown, off ? 0 : joyDone.frac);
   renderVialLock(locked);
+  renderPartyHat(herBirthdayOn(day));
   if (typeof renderComeback === "function") renderComeback(day);
   renderDoneFlask(day, p);
   renderDumbbell(!off && p.workouts.some(t => !t.done));
@@ -954,6 +955,23 @@ async function restOff(day, move) {
   });
 }
 
+
+// 🎉 A party hat on the chaos vial (on her birthday).
+function renderPartyHat(on) {
+  const flask = $("chaos-flask");
+  let hat = flask.querySelector(".party-hat");
+  if (!on) { if (hat) hat.remove(); return; }
+  if (hat) return;
+  hat = el("div", "party-hat");
+  hat.setAttribute("aria-hidden", "true");
+  hat.innerHTML = `<svg viewBox="0 0 40 46"><defs><clipPath id="ph-cone"><path d="M20 4 L35 40 L5 40 Z"/></clipPath></defs>
+    <path d="M20 4 L35 40 L5 40 Z" fill="#ff5fa2"/>
+    <g clip-path="url(#ph-cone)"><path d="M0 34 L40 18 M0 26 L40 10 M0 42 L40 26" stroke="#ffd54f" stroke-width="4"/></g>
+    <circle cx="13" cy="30" r="1.6" fill="#7fe3ff"/><circle cx="24" cy="22" r="1.6" fill="#7fe3ff"/><circle cx="27" cy="34" r="1.6" fill="#b388ff"/>
+    <path d="M3 40 Q20 46 37 40" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="20" cy="4" r="4.5" fill="#fff59d"/><circle cx="20" cy="4" r="2.4" fill="#ffd54f"/></svg>`;
+  flask.appendChild(hat);
+}
 
 // The chains and padlock wrapped around the chaos vial.
 function renderVialLock(on) {
@@ -2407,6 +2425,9 @@ function renderDayNotes(day) {
     ...leavesOn(day).map(t => [`🏖️ Vacation day · ${t.title}` + (leaveEnd(t) > t.date ? ` (${fmt(t.date)}–${fmt(leaveEnd(t))})` : ""), t, "leave"]),
     ...tasks.filter(t => isDrill(t) && day >= t.date && day <= leaveEnd(t)).sort(byTime)
       .map(t => [`🪖 ${t.title}` + (t.time ? ` · ${formatTime(t.time)}${t.minutes ? `–${formatTime(addMinutesTo(t.time, t.minutes))}` : ""}` : ""), t, "drill"]),
+    // (Her own birthday shows once, however many "birthday" events her calendar has that day.)
+    ...tasks.filter(t => isBirthday(t) && t.date === day && !isHerBirthday(t)).map(t => [`🎂 ${t.title}`, t, "bday"]),
+    ...tasks.filter(t => isHerBirthday(t) && t.date === day).slice(0, 1).map(t => ["🎂 It's your birthday! Happy birthday, Ariel 🎉", t, "bday mine"]),
   ];
   box.hidden = !notes.length;
   for (const [text, t, cls] of notes) {
