@@ -328,8 +328,14 @@ setInterval(() => {
     return;
   }
   if (!focusCurrent) return;
-  const st = Object.values(focusTimers).find(x => x.running && x.key && x.key.split(":")[0] === focusCurrent);
-  if (!st || focusFinishing) return;
+  // Only the timer on screen ticks: the current step's (or the whole task's). A step she ticked
+  // off, or left for another with 👉, stops; its timer never pops up "Time's up" later.
+  const cur = tasks.find(x => x.id === focusCurrent);
+  const step = cur && focusStepOf(cur);
+  const key = step && step.minutes ? `${focusCurrent}:${step.id}` : focusCurrent;
+  for (const x of Object.values(focusTimers)) if (x.running && x.key !== key && x.key && x.key.split(":")[0] === focusCurrent) x.running = false;
+  const st = focusTimers[key];
+  if (!st || !st.running || focusFinishing) return;
   st.left -= 1;
   if (st.left <= 0) {
     st.left = 0;
