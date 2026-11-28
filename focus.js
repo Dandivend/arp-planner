@@ -360,16 +360,28 @@ const FOCUS_CHEERS = [
 function askTimeUp(st) {
   const t = tasks.find(x => x.id === focusCurrent);
   if (!t) return;
+  // A step's timer: "done" ticks off just that step and moves on to the next one (the whole task
+  // only when it was the last step left).
+  const stepId = (st.key || "").split(":")[1];
+  const step = stepId && (t.steps || []).find(s => s.id === stepId && !s.done);
+  const lastStep = !step || (t.steps || []).filter(s => !s.done).length <= 1;
   const dlg = smallDialog("focus-timeup-ask");
   dlg.appendChild(el("h3", "", "⏰ Time's up!"));
-  dlg.appendChild(el("p", "", `How's "${t.title}" going? Either answer is a good one 🌟`));
+  dlg.appendChild(el("p", "", `How's "${step ? step.title : t.title}" going? Either answer is a good one 🌟`));
   const btns = el("div", "peek-actions");
   const more = el("button", "g-btn primary", "⏱ 5 more minutes, please");
   more.addEventListener("click", () => { dlg.close(); st.total = st.left = 5 * 60; st.running = true; renderFocus(); });
-  const next = el("button", "g-btn", "✅ All done, on to the next one!");
-  next.addEventListener("click", () => {
+  const next = el("button", "g-btn", step && !lastStep ? "✅ This step's done, on to the next step!" : "✅ All done, on to the next one!");
+  next.addEventListener("click", async () => {
     dlg.close();
     const card = $("focus-dialog").querySelector(".focus-card");
+    if (step && !lastStep) {
+      if (focusChimes()) playJingle();                                       // ding ding!
+      if (isBoss(t)) { focusBossHit = true; if (focusChimes()) playBossHit(); }
+      await persist(withStepTotal(t, t.steps.map(s => (s.id === step.id ? { ...s, done: true } : s))), false);
+      renderFocus();
+      return;
+    }
     focusDone(t, card);
   });
   const skip = el("button", "g-btn", "⏭ Not done, but I'm ready for something else");
